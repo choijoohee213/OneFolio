@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+
+# 로컬 환경변수
+.env.local
+.env.*.local
+
+*.log

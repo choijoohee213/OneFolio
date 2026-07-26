@@ -1,0 +1,28 @@
+# ===== 자산 데이터 (절대 커밋 금지) =====
+*.xls
+*.xlsx
+*.csv
+계좌별잔고*
+잔고*
+# 마스킹된 테스트 픽스처만 예외
+!backend/internal/parser/testdata/*_masked.xls
+
+# ===== 환경변수 / 시크릿 =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== 에디터 =====
+.idea/
+.vscode/
+*.swp
+
+# ===== 로컬 전용 문서 (커밋 안 함) =====
+CLAUDE.md
+OneFolio_proposal.md
