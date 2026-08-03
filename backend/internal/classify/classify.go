@@ -1,5 +1,5 @@
 // Package classify 는 보유종목을 자산배분 카테고리로 나눈다.
-// 자동 규칙으로 1차 분류하고, 사용자가 지정한 매핑이 있으면 그쪽이 우선한다.
+// 사용자 지정 매핑 > 종목마스터 조회 > 이름 규칙 순으로 우선한다.
 package classify
 
 import (
@@ -7,31 +7,61 @@ import (
 	"strings"
 
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
+	"github.com/choijoohee213/OneFolio/backend/internal/master"
 )
 
 type Classifier struct {
+	listings  master.Table
 	overrides map[string]domain.Category
 }
 
-func New(overrides map[string]domain.Category) *Classifier {
-	return &Classifier{overrides: overrides}
+func New(listings master.Table, overrides map[string]domain.Category) *Classifier {
+	return &Classifier{listings: listings, overrides: overrides}
 }
 
 func (c *Classifier) Classify(h domain.Holding) domain.Category {
 	if category, ok := c.overrides[h.Name]; ok {
 		return category
 	}
+	if kind, ok := c.listings.Lookup(h.Name); ok {
+		return fromKind(kind, h.Name)
+	}
+	return guess(h)
+}
 
-	name := strings.ToUpper(h.Name)
+func fromKind(kind master.Kind, name string) domain.Category {
 	switch {
-	case hasKeyword(name, leverageKeywords):
+	case kind.IsETF():
+		return etfStyle(name)
+	case kind.IsForeign():
+		return domain.ForeignStock
+	default:
+		return domain.DomesticStock
+	}
+}
+
+// ETF 라는 것까지는 마스터가 알려주지만 지수추종이냐 레버리지·테마냐는 이름으로 갈라야 한다.
+func etfStyle(name string) domain.Category {
+	upper := strings.ToUpper(name)
+	switch {
+	case hasKeyword(upper, leverageKeywords):
 		return domain.ThemeETF
-	case isETF(name):
-		if hasKeyword(name, indexKeywords) {
-			return domain.IndexETF
-		}
+	case hasKeyword(upper, indexKeywords):
+		return domain.IndexETF
+	default:
 		return domain.ThemeETF
-	case isForeignListed(h):
+	}
+}
+
+// 마스터에 없는 종목(신규 상장 등)을 위한 폴백.
+func guess(h domain.Holding) domain.Category {
+	upper := strings.ToUpper(h.Name)
+	switch {
+	case hasKeyword(upper, leverageKeywords):
+		return domain.ThemeETF
+	case hasETFBrand(upper):
+		return etfStyle(h.Name)
+	case hasFractionalPrice(h):
 		return domain.ForeignStock
 	default:
 		return domain.DomesticStock
@@ -50,7 +80,7 @@ var (
 
 // ETF 이름은 "브랜드 + 상품명" 꼴이라 접두사로 본다. 부분일치로 하면
 // SOLUS첨단소재 같은 개별주가 SOL 브랜드로 잡힌다.
-func isETF(upperName string) bool {
+func hasETFBrand(upperName string) bool {
 	for _, brand := range etfBrands {
 		if strings.HasPrefix(upperName, brand+" ") {
 			return true
@@ -60,8 +90,7 @@ func isETF(upperName string) bool {
 }
 
 // 해외 종목은 원화로 환산되면서 현재가에 소수점이 남는다(AMD 686,179.76).
-// 국내 상장 종목의 현재가는 항상 정수다. 틀리면 수동 매핑으로 덮어쓴다.
-func isForeignListed(h domain.Holding) bool {
+func hasFractionalPrice(h domain.Holding) bool {
 	return h.CurrentPrice != nil && *h.CurrentPrice != math.Trunc(*h.CurrentPrice)
 }
 

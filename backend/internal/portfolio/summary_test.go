@@ -34,7 +34,7 @@ func testPortfolio() *Portfolio {
 }
 
 func TestSummarizeWeights(t *testing.T) {
-	summary := Summarize(testPortfolio(), classify.New(nil))
+	summary := Summarize(testPortfolio(), classify.New(nil, nil))
 
 	if summary.TotalAsset != 10000 {
 		t.Fatalf("TotalAsset = %v, want 10000", summary.TotalAsset)
@@ -53,7 +53,7 @@ func TestSummarizeWeights(t *testing.T) {
 
 // 종목으로 잡히지 않는 잔액(예수금 등)은 현금성으로 떨어져야 한다.
 func TestSummarizeCashRemainder(t *testing.T) {
-	summary := Summarize(testPortfolio(), classify.New(nil))
+	summary := Summarize(testPortfolio(), classify.New(nil, nil))
 
 	amount, ok := categoryAmount(summary, domain.Cash)
 	if !ok {
@@ -65,7 +65,7 @@ func TestSummarizeCashRemainder(t *testing.T) {
 }
 
 func TestSummarizeWeightsSumTo100(t *testing.T) {
-	summary := Summarize(testPortfolio(), classify.New(nil))
+	summary := Summarize(testPortfolio(), classify.New(nil, nil))
 
 	var sum float64
 	for _, total := range summary.Categories {
@@ -77,7 +77,7 @@ func TestSummarizeWeightsSumTo100(t *testing.T) {
 }
 
 func TestSummarizeSortsByAmountDesc(t *testing.T) {
-	summary := Summarize(testPortfolio(), classify.New(nil))
+	summary := Summarize(testPortfolio(), classify.New(nil, nil))
 
 	for i := 1; i < len(summary.Categories); i++ {
 		if summary.Categories[i-1].Amount < summary.Categories[i].Amount {
@@ -93,7 +93,7 @@ func TestSummarizeSortsByAmountDesc(t *testing.T) {
 
 // 계좌가 없으면 분모가 0이다. NaN 대신 0이 나와야 한다.
 func TestSummarizeWithoutAccounts(t *testing.T) {
-	summary := Summarize(&Portfolio{Holdings: []domain.Holding{holding("111", "삼성전자", 5000)}}, classify.New(nil))
+	summary := Summarize(&Portfolio{Holdings: []domain.Holding{holding("111", "삼성전자", 5000)}}, classify.New(nil, nil))
 
 	for _, detail := range summary.Holdings {
 		if detail.Weight != 0 {

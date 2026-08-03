@@ -4,60 +4,97 @@ import (
 	"testing"
 
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
+	"github.com/choijoohee213/OneFolio/backend/internal/master"
 )
 
 func price(v float64) *float64 { return &v }
 
-func TestClassifyByRule(t *testing.T) {
+func loadListings(t *testing.T) master.Table {
+	t.Helper()
+	listings, err := master.Load()
+	if err != nil {
+		t.Fatalf("종목마스터 로드 실패: %v", err)
+	}
+	return listings
+}
+
+// 실제 보유종목이 마스터 조회만으로 제대로 갈리는지 본다.
+func TestClassifyFromMaster(t *testing.T) {
+	classifier := New(loadListings(t), nil)
+
 	tests := []struct {
-		name         string
-		currentPrice *float64
-		want         domain.Category
+		name string
+		want domain.Category
 	}{
-		{name: "삼성전자", currentPrice: price(262500), want: domain.DomesticStock},
-		{name: "SK하이닉스", currentPrice: price(1718000), want: domain.DomesticStock},
+		{"삼성전자", domain.DomesticStock},
+		{"SK하이닉스", domain.DomesticStock},
+		{"SK", domain.DomesticStock},
 
-		// 원화 환산으로 현재가에 소수점이 남으면 해외 상장으로 본다.
-		{name: "AMD", currentPrice: price(686179.76), want: domain.ForeignStock},
-		{name: "코카콜라", currentPrice: price(126225.94), want: domain.ForeignStock},
+		{"AMD", domain.ForeignStock},
+		{"알파벳 A", domain.ForeignStock},
+		{"존슨 앤드 존슨", domain.ForeignStock},
+		{"코카콜라", domain.ForeignStock},
 
-		{name: "TIGER 미국S&P500", currentPrice: price(26545), want: domain.IndexETF},
-		{name: "TIGER 미국나스닥100", currentPrice: price(179850), want: domain.IndexETF},
-		{name: "SOL 미국배당다우존스", currentPrice: price(13885), want: domain.IndexETF},
+		{"TIGER 미국S&P500", domain.IndexETF},
+		{"TIGER 미국나스닥100", domain.IndexETF},
+		{"TIME 미국나스닥100액티브", domain.IndexETF},
+		{"SOL 미국배당다우존스", domain.IndexETF},
 
-		{name: "SOL AI반도체TOP2플러스", currentPrice: price(16495), want: domain.ThemeETF},
-		{name: "KODEX 미국AI전력핵심인프라", currentPrice: price(20665), want: domain.ThemeETF},
-		{name: "KODEX 레버리지", currentPrice: price(20000), want: domain.ThemeETF},
-
-		// 레버리지 판정이 지수 키워드보다 우선한다.
-		{name: "PROSHARES QQQ 3X", currentPrice: price(93123.88), want: domain.ThemeETF},
-		{name: "DIREXION SEMICONDUCTOR DAILY 3X", currentPrice: price(165322.99), want: domain.ThemeETF},
-
-		// ETF 브랜드는 접두사로만 인정한다. SOLUS 는 SOL 브랜드가 아니다.
-		{name: "SOLUS첨단소재", currentPrice: price(15000), want: domain.DomesticStock},
+		{"SOL AI반도체TOP2플러스", domain.ThemeETF},
+		{"KODEX 미국AI전력핵심인프라", domain.ThemeETF},
+		{"DIREXION SEMICONDUCTOR DAILY 3X", domain.ThemeETF},
+		{"PROSHARES QQQ 3X", domain.ThemeETF},
 	}
 
-	classifier := New(nil)
 	for _, tt := range tests {
-		holding := domain.Holding{Name: tt.name, CurrentPrice: tt.currentPrice}
-		if got := classifier.Classify(holding); got != tt.want {
+		if got := classifier.Classify(domain.Holding{Name: tt.name}); got != tt.want {
 			t.Errorf("Classify(%q) = %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }
 
-func TestOverrideBeatsRule(t *testing.T) {
-	classifier := New(map[string]domain.Category{"AMD": domain.DomesticStock})
+// 띄어쓰기가 달라도 같은 종목으로 찾아야 한다.
+func TestLookupIgnoresSpacing(t *testing.T) {
+	classifier := New(loadListings(t), nil)
 
-	holding := domain.Holding{Name: "AMD", CurrentPrice: price(686179.76)}
-	if got := classifier.Classify(holding); got != domain.DomesticStock {
-		t.Errorf("수동 매핑이 규칙을 덮어쓰지 못함: %q", got)
+	for _, name := range []string{"존슨앤드존슨", "알파벳  A"} {
+		if got := classifier.Classify(domain.Holding{Name: name}); got != domain.ForeignStock {
+			t.Errorf("Classify(%q) = %q, want %q", name, got, domain.ForeignStock)
+		}
 	}
 }
 
-// 현재가가 없으면 소수점 판정을 할 수 없다. 국내로 떨어뜨리고 수동 매핑에 맡긴다.
-func TestClassifyWithoutPrice(t *testing.T) {
-	if got := New(nil).Classify(domain.Holding{Name: "알 수 없는 종목"}); got != domain.DomesticStock {
-		t.Errorf("Classify = %q, want %q", got, domain.DomesticStock)
+func TestOverrideBeatsMaster(t *testing.T) {
+	classifier := New(loadListings(t), map[string]domain.Category{"AMD": domain.DomesticStock})
+
+	if got := classifier.Classify(domain.Holding{Name: "AMD"}); got != domain.DomesticStock {
+		t.Errorf("수동 매핑이 마스터를 덮어쓰지 못함: %q", got)
+	}
+}
+
+// 마스터에 없는 종목은 이름 규칙과 현재가 소수점으로 추정한다.
+func TestFallbackForUnlistedName(t *testing.T) {
+	classifier := New(nil, nil)
+
+	tests := []struct {
+		name         string
+		currentPrice *float64
+		want         domain.Category
+	}{
+		{"신규상장바이오", price(15000), domain.DomesticStock},
+		{"신규해외주", price(123456.78), domain.ForeignStock},
+		{"KODEX 신규테마", price(10000), domain.ThemeETF},
+		{"TIGER 신규나스닥100", price(10000), domain.IndexETF},
+		{"이름만레버리지", price(10000), domain.ThemeETF},
+
+		// 브랜드는 접두사로만 인정한다. SOLUS 는 SOL 브랜드가 아니다.
+		{"SOLUS첨단소재", price(15000), domain.DomesticStock},
+	}
+
+	for _, tt := range tests {
+		holding := domain.Holding{Name: tt.name, CurrentPrice: tt.currentPrice}
+		if got := classifier.Classify(holding); got != tt.want {
+			t.Errorf("Classify(%q) = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }
