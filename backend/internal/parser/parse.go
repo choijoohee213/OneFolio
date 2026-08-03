@@ -116,8 +116,8 @@ func holdingsOwner(table *goquery.Selection) (string, bool) {
 	return normalizeAccountNo(m[1]), true
 }
 
-// normalizeAccountNo 는 숫자만 남긴다. 같은 계좌라도 전체 계좌현황은
-// "616-8228-7204-0", 상품보유현황 헤더는 "616-82-2872040" 이라 그대로는 join 이 안 된다.
+// normalizeAccountNo 는 숫자만 남긴다. 같은 계좌라도 전체 계좌현황은 4-4-4-1,
+// 상품보유현황 헤더는 3-2-7 로 하이픈 위치가 달라서 그대로는 join 이 안 된다.
 func normalizeAccountNo(s string) string {
 	var b strings.Builder
 	for _, r := range s {

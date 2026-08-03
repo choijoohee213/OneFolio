@@ -1,8 +1,8 @@
 package domain
 
 type Account struct {
-	// Number 는 하이픈을 제거한 계좌번호다. 파일 안에서도 표기가 갈려서
-	// ("616-8228-7204-0" vs "616-82-2872040") 정규화해야 Holding 과 이어붙는다.
+	// Number 는 하이픈을 제거한 계좌번호다. 파일 안에서도 하이픈 위치가 갈려서
+	// 정규화해야 Holding 과 이어붙는다.
 	Number        string
 	DisplayNumber string
 	Type          string
