@@ -1,0 +1,26 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	</head>
+	<body>
+		<table><tr><td height="30" colspan="8">계좌별잔고</td></tr></table>
+		<table><tr><td></td></tr></table>
+		<table><tr><td>전체 계좌현황</td><td colspan="4">(단위: 원)</td></tr></table>
+		<table class="col_type" summary="계좌번호, 계좌유형, 계좌별명, 자산총액, 출금가능액, 바로가기로 구성된 표 입니다.">
+			<tr><th>계좌번호</th><th>계좌유형</th><th>계좌별명</th><th>자산총액</th><th>출금가능액</th><th>바로가기</th></tr>
+			<tr><td>111-1111-1111-0</td><td>ISA(중개형)</td><td></td><td>1,000,000</td><td>100,000</td><td>계좌상세		이체</td></tr>
+			<tr><td>222-2222-2222-0</td><td>종합</td><td></td><td>2,500,000</td><td>250,000</td><td>계좌상세		이체</td></tr>
+			<tr><td>333-3333-3333-0</td><td>연금저축계좌(신)</td><td></td><td>3,000,000</td><td>0</td><td>계좌상세		이체</td></tr>
+		</table>
+		<table><tr><td></td></tr></table>
+		<table><tr><td colspan="7">[222-22-2222220] 상품보유현황</td></tr></table>
+		<table class="col_type" summary="상품명, 보유수량, 현재가, 평균매입가, 매입금액, 평가금액, 평가손익, 손익률로 구성된 표 입니다.">
+			<tr><th>상품명</th><th>보유수량</th><th>현재가</th><th>평균매입가</th><th>매입금액</th><th>평가금액</th><th>평가손익</th><th>손익률</th></tr>
+			<tr><td>삼성전자</td><td>10.00</td><td>70,000</td><td>65,000</td><td>650,000</td><td>700,000</td><td>50,000</td><td>7.69%</td></tr>
+			<tr><td>TIGER 미국S&amp;P500</td><td>50.00</td><td>18,000</td><td>20,000</td><td>1,000,000</td><td>900,000</td><td>-100,000</td><td>-10.00%</td></tr>
+			<tr><td>KODEX 레버리지</td><td>7.00</td><td>12,345.67</td><td>15,000.00</td><td>105,000.00</td><td>86,419.69</td><td>-18,580.31</td><td>-17.70%</td></tr>
+			<tr><td>애플</td><td>2.00</td><td>250,000.50</td><td>240,000.00</td><td>480,000.00</td><td>500,001.00</td><td>20,001.00</td><td>4.17%</td></tr>
+			<tr><td>미국달러</td><td>-58.320000</td><td>1,441.10</td><td>-</td><td>-84,045.00</td><td>-84,045.00</td><td>-</td><td>-</td></tr>
+		</table>
+	</body>
+</html>
