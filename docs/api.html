@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneFolio API</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f8fa;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --muted: #656d7a;
+    --accent: #2f6fd0;
+    --code-bg: #f2f4f7;
+    --get: #1f8a52;
+    --post: #b06a00;
+    --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c;
+      --surface: #1b1f26;
+      --border: #2c323c;
+      --text: #e4e7ec;
+      --muted: #9aa3b2;
+      --accent: #6fa8ff;
+      --code-bg: #1f242c;
+      --get: #4cc98a;
+      --post: #e3a44b;
+      --danger: #ff7b6b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171c; --surface: #1b1f26; --border: #2c323c; --text: #e4e7ec;
+    --muted: #9aa3b2; --accent: #6fa8ff; --code-bg: #1f242c;
+    --get: #4cc98a; --post: #e3a44b; --danger: #ff7b6b;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --surface: #f7f8fa; --border: #e2e5ea; --text: #1a1d23;
+    --muted: #656d7a; --accent: #2f6fd0; --code-bg: #f2f4f7;
+    --get: #1f8a52; --post: #b06a00; --danger: #c0392b;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.5rem 1.25rem 5rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.7 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Pretendard", "Segoe UI", sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 1.9rem; margin: 0 0 .35rem; letter-spacing: -.02em; }
+  h2 {
+    font-size: 1.25rem; margin: 3rem 0 1rem; padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border); letter-spacing: -.01em;
+  }
+  h3 { font-size: 1rem; margin: 2rem 0 .6rem; }
+  h4 { font-size: .875rem; margin: 1.5rem 0 .5rem; color: var(--muted);
+       text-transform: uppercase; letter-spacing: .06em; }
+  p { margin: .75rem 0; }
+  .lead { color: var(--muted); margin-bottom: 2rem; }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .875em; background: var(--code-bg);
+    padding: .12em .4em; border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1rem; overflow-x: auto; margin: .75rem 0;
+  }
+  pre code { background: none; padding: 0; font-size: .8125rem; line-height: 1.6; }
+
+  table { width: 100%; border-collapse: collapse; margin: .75rem 0; font-size: .875rem; }
+  .scroll { overflow-x: auto; margin: .75rem 0; }
+  .scroll table { margin: 0; min-width: 30rem; }
+  .scroll td:first-child { white-space: nowrap; }
+  th, td {
+    text-align: left; padding: .55rem .7rem;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  th { font-weight: 600; color: var(--muted); font-size: .8125rem;
+       text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+  td code { white-space: nowrap; }
+
+  .endpoint {
+    display: flex; align-items: center; gap: .7rem; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: .7rem .9rem; margin: 1rem 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem;
+  }
+  .method { font-weight: 700; font-size: .75rem; letter-spacing: .06em; }
+  .method.get { color: var(--get); }
+  .method.post { color: var(--post); }
+
+  .note {
+    background: var(--surface); border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0; padding: .8rem 1rem; margin: 1.25rem 0;
+    font-size: .9rem;
+  }
+  .note strong { color: var(--accent); }
+  .note.warn { border-left-color: var(--danger); }
+  .note.warn strong { color: var(--danger); }
+
+  .req { color: var(--danger); font-size: .75rem; font-weight: 600; }
+  .opt { color: var(--muted); font-size: .75rem; }
+  a { color: var(--accent); }
+  footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--border);
+           color: var(--muted); font-size: .8125rem; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>OneFolio API</h1>
+<p class="lead">
+  미래에셋 계좌별 잔고파일을 받아 자산배분과 종목별 손익을 계산해 돌려주는 백엔드 API.
+</p>
+
+<div class="note">
+  <strong>서버는 아무것도 저장하지 않는다.</strong>
+  업로드된 잔고파일과 계산 결과는 응답을 보낸 뒤 폐기된다.
+  보유종목·평단·잔고는 프론트 로컬(IndexedDB)에만 남는다.
+</div>
+
+<h2>기본 정보</h2>
+
+<div class="scroll">
+<table>
+  <tr><th>항목</th><th>값</th></tr>
+  <tr><td>Base URL (로컬)</td><td><code>http://localhost:8080</code></td></tr>
+  <tr><td>Base URL (배포)</td><td>Render 배포 주소</td></tr>
+  <tr><td>인증</td><td>없음 (개인용, 상태 없음)</td></tr>
+  <tr><td>응답 형식</td><td><code>application/json; charset=utf-8</code></td></tr>
+  <tr><td>금액 단위</td><td>원 (해외 종목도 원화 환산된 값)</td></tr>
+</table>
+</div>
+
+<h2>엔드포인트</h2>
+
+<h3>헬스체크</h3>
+
+<div class="endpoint"><span class="method get">GET</span><span>/health</span></div>
+
+<p>서버가 살아있는지 확인한다. Render 헬스체크용.</p>
+
+<h4>응답 200</h4>
+<pre><code>{ "status": "ok" }</code></pre>
+
+<h3>자산배분 집계</h3>
+
+<div class="endpoint"><span class="method post">POST</span><span>/api/portfolio</span></div>
+
+<p>
+  잔고파일을 하나 이상 받아 통합·분류·집계한 결과를 돌려준다.
+  미래에셋은 다운로드 시 선택한 계좌의 종목 상세만 파일에 담기 때문에,
+  전체 자산을 보려면 <strong>계좌별로 받은 파일을 한 번에 모두 올려야 한다.</strong>
+</p>
+
+<h4>요청</h4>
+
+<p><code>Content-Type: multipart/form-data</code></p>
+
+<div class="scroll">
+<table>
+  <tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr>
+  <tr>
+    <td><code>files</code></td>
+    <td>file (반복)</td>
+    <td><span class="req">필수</span></td>
+    <td>
+      잔고파일. 같은 필드명으로 여러 개를 보낸다.<br>
+      확장자는 <code>.xls</code>지만 실제 내용은 HTML이며, 서버가 알아서 처리한다.<br>
+      전체 업로드 크기 상한 32MB.
+    </td>
+  </tr>
+  <tr>
+    <td><code>overrides</code></td>
+    <td>string (JSON)</td>
+    <td><span class="opt">선택</span></td>
+    <td>
+      자동 분류를 덮어쓸 <code>{"종목명": "카테고리"}</code> 매핑.<br>
+      사용자가 수동 태깅한 결과를 넘기는 용도.
+    </td>
+  </tr>
+</table>
+</div>
+
+<div class="note">
+  같은 파일을 두 번 올려도 종목이 중복되지 않는다.
+  계좌는 계좌번호로, 종목은 <em>계좌 + 종목명</em>으로 중복을 제거하며, 겹치면 나중 파일 값이 이긴다.
+</div>
+
+<h4>응답 200</h4>
+
+<div class="scroll">
+<table>
+  <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+  <tr><td><code>totalAsset</code></td><td>number</td><td>계좌 자산총액의 합. 모든 비중의 분모</td></tr>
+  <tr><td><code>categories</code></td><td>array</td><td>카테고리별 집계. 금액 내림차순</td></tr>
+  <tr><td><code>holdings</code></td><td>array</td><td>종목별 상세. 평가금액 내림차순</td></tr>
+</table>
+</div>
+
+<h4>categories[]</h4>
+
+<div class="scroll">
+<table>
+  <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+  <tr><td><code>category</code></td><td>string</td><td>카테고리명 (아래 목록 참고)</td></tr>
+  <tr><td><code>amount</code></td><td>number</td><td>평가금액 합계</td></tr>
+  <tr><td><code>weight</code></td><td>number</td><td>총자산 대비 비중 (%)</td></tr>
+</table>
+</div>
+
+<h4>holdings[]</h4>
+
+<div class="scroll">
+<table>
+  <tr><th>필드</th><th>타입</th><th>설명</th></tr>
+  <tr><td><code>name</code></td><td>string</td><td>상품명</td></tr>
+  <tr><td><code>category</code></td><td>string</td><td>분류 결과</td></tr>
+  <tr><td><code>accountNumber</code></td><td>string</td><td>소속 계좌번호 (하이픈 제거)</td></tr>
+  <tr><td><code>quantity</code></td><td>number</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
+  <tr><td><code>currentPrice</code></td><td>number 또는 null</td><td>현재가</td></tr>
+  <tr><td><code>avgBuyPrice</code></td><td>number 또는 null</td><td>평균매입가</td></tr>
+  <tr><td><code>buyAmount</code></td><td>number 또는 null</td><td>매입금액</td></tr>
+  <tr><td><code>evalAmount</code></td><td>number</td><td>평가금액</td></tr>
+  <tr><td><code>profitLoss</code></td><td>number 또는 null</td><td>평가손익</td></tr>
+  <tr><td><code>profitRate</code></td><td>number 또는 null</td><td>손익률 (%). <code>-3.21</code> 형태</td></tr>
+  <tr><td><code>weight</code></td><td>number</td><td>총자산 대비 비중 (%)</td></tr>
+</table>
+</div>
+
+<div class="note">
+  <strong>같은 종목이 여러 행으로 나올 수 있다.</strong>
+  계좌를 나눠 같은 ETF를 들고 있으면 계좌마다 별도 행으로 온다.
+  종목 단위로 합치려면 프론트에서 <code>name</code>으로 묶어야 한다.
+</div>
+
+<h4>예시 요청</h4>
+<pre><code>curl -X POST http://localhost:8080/api/portfolio \
+  -F "files=@ISA계좌.xls" \
+  -F "files=@연금저축계좌.xls" \
+  -F "files=@종합주식계좌.xls" \
+  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}'</code></pre>
+
+<h4>예시 응답</h4>
+<pre><code>{
+  "totalAsset": 10000000,
+  "categories": [
+    { "category": "지수 ETF",    "amount": 5000000, "weight": 50 },
+    { "category": "개별주(국내)", "amount": 3000000, "weight": 30 },
+    { "category": "현금성",      "amount": 2000000, "weight": 20 }
+  ],
+  "holdings": [
+    {
+      "accountNumber": "111111111110",
+      "name": "TIGER 미국S&amp;P500",
+      "category": "지수 ETF",
+      "quantity": 100,
+      "currentPrice": 50000,
+      "avgBuyPrice": 45000,
+      "buyAmount": 4500000,
+      "evalAmount": 5000000,
+      "profitLoss": 500000,
+      "profitRate": 11.11,
+      "weight": 50
+    },
+    {
+      "accountNumber": "111111111110",
+      "name": "삼성전자",
+      "category": "개별주(국내)",
+      "quantity": 40,
+      "currentPrice": 75000,
+      "avgBuyPrice": 70000,
+      "buyAmount": 2800000,
+      "evalAmount": 3000000,
+      "profitLoss": 200000,
+      "profitRate": 7.14,
+      "weight": 30
+    }
+  ]
+}</code></pre>
+
+<div class="note warn">
+  <strong>주의.</strong> 위 값은 전부 예시용 가짜 데이터다.
+  이 문서와 커밋·PR 어디에도 실제 계좌번호나 금액을 적지 않는다.
+</div>
+
+<h2>카테고리</h2>
+
+<p><code>category</code> 필드와 <code>overrides</code> 값에 쓰이는 문자열은 다음 다섯 가지뿐이다.</p>
+
+<div class="scroll">
+<table>
+  <tr><th>값</th><th>설명</th></tr>
+  <tr><td><code>개별주(국내)</code></td><td>국내 상장 주식</td></tr>
+  <tr><td><code>개별주(해외)</code></td><td>해외 상장 주식</td></tr>
+  <tr><td><code>지수 ETF</code></td><td>지수를 추종하는 ETF</td></tr>
+  <tr><td><code>레버리지·테마 ETF</code></td><td>레버리지·인버스·테마형 ETF</td></tr>
+  <tr><td><code>현금성</code></td><td>예수금, 외화 등 종목으로 잡히지 않는 잔액</td></tr>
+</table>
+</div>
+
+<h3>분류 우선순위</h3>
+
+<p>세 단계로 결정된다. 위쪽이 이긴다.</p>
+
+<ol>
+  <li><strong>사용자 매핑</strong> — 요청의 <code>overrides</code></li>
+  <li><strong>종목마스터 조회</strong> — 종목명으로 국내/해외와 ETF/개별주를 확정한다.
+      띄어쓰기와 대소문자는 무시한다</li>
+  <li><strong>이름 규칙</strong> — 마스터에 없는 신규 상장 종목용 폴백</li>
+</ol>
+
+<p>
+  마스터는 "ETF다"까지만 알려주고 그 안에서 지수추종이냐 레버리지·테마냐는 구분하지 않는다.
+  이 갈래는 <code>3X</code>, <code>레버리지</code>, <code>나스닥100</code> 같은 이름 키워드로 판단하므로
+  애매한 종목은 <code>overrides</code>로 잡아주면 된다.
+</p>
+
+<h2>현금성 계산</h2>
+
+<p>
+  현금성 금액은 별도로 집계하지 않고 <strong>총자산에서 종목 평가금액 합을 뺀 나머지</strong>다.
+  예수금은 잔고파일에 행으로 나오지 않고 자산총액에만 반영되기 때문이다.
+  외화처럼 취득원가가 없는 행도 종목이 아니라 이쪽으로 들어간다.
+</p>
+
+<h2>에러</h2>
+
+<p>모든 에러는 같은 형태로 온다.</p>
+
+<pre><code>{ "error": "설명 메시지" }</code></pre>
+
+<div class="scroll">
+<table>
+  <tr><th>상태</th><th>상황</th></tr>
+  <tr><td><code>400</code></td><td><code>files</code> 필드가 비었거나, 업로드를 읽지 못했거나, <code>overrides</code>가 JSON이 아니거나 모르는 카테고리를 담고 있을 때</td></tr>
+  <tr><td><code>422</code></td><td>파일은 받았지만 잔고파일 형식이 아닐 때 (전체 계좌현황 테이블 없음)</td></tr>
+</table>
+</div>
+
+<h2>환경변수</h2>
+
+<div class="scroll">
+<table>
+  <tr><th>이름</th><th>기본값</th><th>설명</th></tr>
+  <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
+  <tr><td><code>ALLOWED_ORIGINS</code></td><td>(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
+</table>
+</div>
+
+<p>로컬 실행:</p>
+<pre><code>cd backend
+go run ./cmd/server</code></pre>
+
+<p>배포 시 프론트 도메인을 지정한다:</p>
+<pre><code>ALLOWED_ORIGINS=https://onefolio.pages.dev</code></pre>
+
+<div class="note">
+  Render의 <strong>Root Directory를 <code>backend</code>로</strong> 지정해야 한다.
+  Go 모듈이 저장소 루트가 아니라 하위 디렉토리에 있다.
+</div>
+
+<footer>
+  OneFolio · 개인용 자산 대시보드
+</footer>
+
+</main>
+</body>
+</html>
