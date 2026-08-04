@@ -8,21 +8,21 @@ import (
 )
 
 type Summary struct {
-	TotalAsset float64
-	Categories []CategoryTotal
-	Holdings   []HoldingDetail
+	TotalAsset float64         `json:"totalAsset"`
+	Categories []CategoryTotal `json:"categories"`
+	Holdings   []HoldingDetail `json:"holdings"`
 }
 
 type CategoryTotal struct {
-	Category domain.Category
-	Amount   float64
-	Weight   float64
+	Category domain.Category `json:"category"`
+	Amount   float64         `json:"amount"`
+	Weight   float64         `json:"weight"`
 }
 
 type HoldingDetail struct {
 	domain.Holding
-	Category domain.Category
-	Weight   float64
+	Category domain.Category `json:"category"`
+	Weight   float64         `json:"weight"`
 }
 
 // Summarize 는 계좌 자산총액 합을 분모로 카테고리별·종목별 비중을 낸다.
