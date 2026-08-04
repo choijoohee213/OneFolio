@@ -3,63 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OneFolio API</title>
+<title>OneFolio API 명세서</title>
 <style>
   :root {
     --bg: #ffffff;
-    --surface: #f7f8fa;
-    --surface-2: #eef0f4;
-    --border: #e2e5ea;
+    --surface: #fafbfc;
+    --border: #dfe3e8;
     --text: #16191f;
-    --muted: #5f6773;
+    --muted: #5b6472;
     --faint: #8b93a1;
     --accent: #2f6fd0;
     --code-bg: #f2f4f7;
-    --get: #17794a;
-    --get-bg: #e3f3ea;
-    --post: #9a5b00;
-    --post-bg: #fbeeda;
+    --code-text: #1f2933;
+    --get: #61affe;
+    --get-bg: #eaf4ff;
+    --post: #49cc90;
+    --post-bg: #e8f8f0;
     --danger: #c0392b;
+    --danger-bg: #fdecea;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #13161b; --surface: #191d23; --surface-2: #212630; --border: #2b313b;
-      --text: #e5e8ee; --muted: #9aa3b2; --faint: #737d8c; --accent: #6fa8ff;
-      --code-bg: #1e232b;
-      --get: #58d69a; --get-bg: #14301f;
-      --post: #e8b05c; --post-bg: #33240d;
-      --danger: #ff8071;
+      --bg: #13161b; --surface: #191d24; --border: #2b313b; --text: #e5e8ee;
+      --muted: #9aa3b2; --faint: #737d8c; --accent: #6fa8ff;
+      --code-bg: #1e232b; --code-text: #d7dce5;
+      --get: #61affe; --get-bg: #16283c;
+      --post: #49cc90; --post-bg: #12301f;
+      --danger: #ff8071; --danger-bg: #331a17;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #13161b; --surface: #191d23; --surface-2: #212630; --border: #2b313b;
-    --text: #e5e8ee; --muted: #9aa3b2; --faint: #737d8c; --accent: #6fa8ff;
-    --code-bg: #1e232b; --get: #58d69a; --get-bg: #14301f;
-    --post: #e8b05c; --post-bg: #33240d; --danger: #ff8071;
+    --bg: #13161b; --surface: #191d24; --border: #2b313b; --text: #e5e8ee;
+    --muted: #9aa3b2; --faint: #737d8c; --accent: #6fa8ff;
+    --code-bg: #1e232b; --code-text: #d7dce5;
+    --get: #61affe; --get-bg: #16283c; --post: #49cc90; --post-bg: #12301f;
+    --danger: #ff8071; --danger-bg: #331a17;
   }
   :root[data-theme="light"] {
-    --bg: #ffffff; --surface: #f7f8fa; --surface-2: #eef0f4; --border: #e2e5ea;
-    --text: #16191f; --muted: #5f6773; --faint: #8b93a1; --accent: #2f6fd0;
-    --code-bg: #f2f4f7; --get: #17794a; --get-bg: #e3f3ea;
-    --post: #9a5b00; --post-bg: #fbeeda; --danger: #c0392b;
+    --bg: #ffffff; --surface: #fafbfc; --border: #dfe3e8; --text: #16191f;
+    --muted: #5b6472; --faint: #8b93a1; --accent: #2f6fd0;
+    --code-bg: #f2f4f7; --code-text: #1f2933;
+    --get: #61affe; --get-bg: #eaf4ff; --post: #49cc90; --post-bg: #e8f8f0;
+    --danger: #c0392b; --danger-bg: #fdecea;
   }
 
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 0 1.25rem 6rem;
-    background: var(--bg); color: var(--text);
+    margin: 0; padding: 0 1.25rem 6rem; background: var(--bg); color: var(--text);
     font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
           "Pretendard", "Segoe UI", sans-serif;
   }
-  main { max-width: 900px; margin: 0 auto; }
-  code, .mono {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  }
+  main { max-width: 940px; margin: 0 auto; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
 
-  /* ---------- 헤더 ---------- */
-  header { padding: 2.75rem 0 1.5rem; }
-  h1 { font-size: 1.75rem; margin: 0 0 .3rem; letter-spacing: -.02em; }
-  .lead { color: var(--muted); margin: 0 0 1.25rem; }
+  header { padding: 2.75rem 0 1.25rem; border-bottom: 1px solid var(--border); }
+  h1 { font-size: 1.8rem; margin: 0 0 .3rem; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 1.1rem; }
   .facts { display: flex; flex-wrap: wrap; gap: .4rem; }
   .fact {
     font-size: .78rem; background: var(--surface); border: 1px solid var(--border);
@@ -67,117 +66,102 @@
   }
   .fact b { color: var(--text); font-weight: 600; }
 
-  /* ---------- 엔드포인트 한눈에 ---------- */
-  .glance { margin: 1.5rem 0 2.25rem; }
-  .glance h2 {
-    font-size: .78rem; text-transform: uppercase; letter-spacing: .09em;
-    color: var(--faint); margin: 0 0 .55rem; font-weight: 600;
+  h2 {
+    font-size: 1.3rem; margin: 3.25rem 0 .35rem; letter-spacing: -.015em;
+    scroll-margin-top: 1rem;
   }
-  .glance-list {
-    border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
-  }
-  .glance-row {
-    display: grid; grid-template-columns: 4.2rem minmax(0,1fr);
-    gap: .15rem .75rem; align-items: center;
-    padding: .8rem .95rem; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    cursor: pointer; width: 100%; text-align: left;
-    font: inherit; color: inherit;
-  }
-  .glance-row:last-child { border-bottom: 0; }
-  .glance-row:hover, .glance-row:focus-visible { background: var(--surface-2); outline: none; }
-  .glance-row .path {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: .875rem; font-weight: 600; white-space: nowrap;
-  }
-  .glance-row .desc { grid-column: 2; color: var(--muted); font-size: .82rem; }
-  @media (min-width: 40rem) {
-    .glance-row { grid-template-columns: 4.2rem minmax(0,11rem) minmax(0,1fr); gap: .75rem; }
-    .glance-row .desc { grid-column: 3; }
-  }
-
-  .badge {
-    display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .05em;
-    padding: .2rem .45rem; border-radius: 5px; text-align: center;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  .badge.get { color: var(--get); background: var(--get-bg); }
-  .badge.post { color: var(--post); background: var(--post-bg); }
-
-  /* ---------- 탭 ---------- */
-  .tabs {
-    display: flex; gap: .15rem; border-bottom: 1px solid var(--border);
-    overflow-x: auto; scrollbar-width: none; position: sticky; top: 0;
-    background: var(--bg); z-index: 5; padding-top: .25rem;
-  }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab {
-    flex: 0 0 auto; background: none; border: 0; cursor: pointer;
-    font: inherit; font-size: .9rem; color: var(--muted);
-    padding: .65rem .9rem; border-bottom: 2px solid transparent;
-    margin-bottom: -1px; white-space: nowrap;
-  }
-  .tab:hover { color: var(--text); }
-  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-  .panel { display: none; padding-top: 1.5rem; }
-  .panel.active { display: block; }
-
-  /* ---------- 엔드포인트 상세 ---------- */
-  .ep { margin-bottom: 3rem; scroll-margin-top: 4rem; }
-  .ep-head {
-    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
-    padding: .7rem .9rem; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 8px; margin-bottom: .9rem;
-  }
-  .ep-head .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-                   font-size: .95rem; font-weight: 600; }
-
-  h3 { font-size: 1.05rem; margin: 0 0 .5rem; letter-spacing: -.01em; }
+  .h2sub { color: var(--muted); font-size: .875rem; margin: 0 0 1.25rem; }
+  h3 { font-size: 1rem; margin: 2rem 0 .5rem; }
   h4 {
-    font-size: .74rem; text-transform: uppercase; letter-spacing: .09em;
-    color: var(--faint); margin: 1.6rem 0 .5rem; font-weight: 600;
+    font-size: .73rem; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--faint); margin: 1.5rem 0 .45rem; font-weight: 700;
   }
-  h4:first-of-type { margin-top: 1.2rem; }
-  p { margin: .7rem 0; }
-  ol, ul { margin: .7rem 0; padding-left: 1.3rem; }
-  li { margin: .3rem 0; }
+  p { margin: .65rem 0; }
+  ol, ul { margin: .65rem 0; padding-left: 1.35rem; }
+  li { margin: .35rem 0; }
 
   /* ---------- 표 ---------- */
-  .scroll { overflow-x: auto; margin: .6rem 0 1rem; }
-  table { width: 100%; border-collapse: collapse; font-size: .86rem; min-width: 30rem; }
-  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--border);
-           vertical-align: top; }
+  .scroll { overflow-x: auto; margin: .55rem 0 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; min-width: 32rem; }
+  th, td {
+    text-align: left; padding: .5rem .7rem;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
   thead th {
-    font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--faint); font-weight: 600; white-space: nowrap;
-    border-bottom: 1px solid var(--border);
+    font-size: .71rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--faint); font-weight: 700; white-space: nowrap;
+    background: var(--surface);
   }
   tbody tr:last-child td { border-bottom: 0; }
   td:first-child { white-space: nowrap; }
-  td code { white-space: nowrap; }
   .type { color: var(--muted); font-size: .82rem; white-space: nowrap; }
+  .req { color: var(--danger); font-weight: 700; font-size: .74rem; }
+  .opt { color: var(--faint); font-size: .74rem; }
 
-  code {
-    font-size: .86em; background: var(--code-bg);
-    padding: .1em .38em; border-radius: 4px;
-  }
+  code { font-size: .86em; background: var(--code-bg); color: var(--code-text);
+         padding: .1em .38em; border-radius: 4px; }
   pre {
-    background: var(--code-bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: .9rem; overflow-x: auto; margin: .6rem 0 1rem;
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: .85rem; overflow-x: auto; margin: .5rem 0 1rem;
   }
   pre code { background: none; padding: 0; font-size: .8rem; line-height: 1.6; }
 
-  .req { color: var(--danger); font-weight: 600; font-size: .74rem; }
-  .opt { color: var(--faint); font-size: .74rem; }
+  /* ---------- 메서드 배지 ---------- */
+  .badge {
+    display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: #fff;
+    padding: .28rem .55rem; border-radius: 4px; text-align: center; min-width: 3.6rem;
+  }
+  .badge.get { background: var(--get); }
+  .badge.post { background: var(--post); }
+
+  /* ---------- API 목록 ---------- */
+  .index td:nth-child(2) { width: 1%; }
+  .index tbody tr { cursor: pointer; }
+  .index tbody tr:hover { background: var(--surface); }
+  .index .path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                 font-weight: 600; font-size: .84rem; }
+
+  /* ---------- Swagger 식 오퍼레이션 ---------- */
+  .op {
+    border: 1px solid var(--border); border-radius: 8px;
+    margin: .75rem 0; overflow: hidden; scroll-margin-top: 1rem;
+  }
+  .op.get { border-color: var(--get); background: var(--get-bg); }
+  .op.post { border-color: var(--post); background: var(--post-bg); }
+  .op > summary {
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    padding: .7rem .85rem; cursor: pointer; list-style: none; user-select: none;
+  }
+  .op > summary::-webkit-details-marker { display: none; }
+  .op > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .op .path {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700; font-size: .92rem;
+  }
+  .op .summary-text { color: var(--muted); font-size: .84rem; margin-left: auto; }
+  .op .chevron { color: var(--muted); font-size: .7rem; transition: transform .15s; }
+  .op[open] .chevron { transform: rotate(90deg); }
+  .op-body {
+    background: var(--bg); border-top: 1px solid var(--border);
+    padding: .35rem 1rem 1.25rem;
+  }
 
   .note {
     background: var(--surface); border-left: 3px solid var(--accent);
-    border-radius: 0 7px 7px 0; padding: .75rem .95rem; margin: 1rem 0;
-    font-size: .875rem;
+    border-radius: 0 7px 7px 0; padding: .7rem .9rem; margin: .9rem 0; font-size: .865rem;
   }
   .note strong { color: var(--accent); }
-  .note.warn { border-left-color: var(--danger); }
+  .note.warn { border-left-color: var(--danger); background: var(--danger-bg); }
   .note.warn strong { color: var(--danger); }
+
+  .toc {
+    display: flex; flex-wrap: wrap; gap: .3rem .5rem; margin: 1.25rem 0 0;
+    font-size: .82rem;
+  }
+  .toc a { color: var(--muted); text-decoration: none; }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+  .toc span { color: var(--border); }
 
   footer {
     margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--border);
@@ -189,163 +173,276 @@
 <main>
 
 <header>
-  <h1>OneFolio API</h1>
-  <p class="lead">계좌별 잔고파일을 받아 자산배분과 종목별 손익을 계산해 돌려준다.</p>
+  <h1>OneFolio API 명세서</h1>
+  <p class="lead">계좌별 잔고파일을 받아 자산배분과 종목별 손익을 계산해 돌려주는 백엔드 API.</p>
   <div class="facts">
     <span class="fact"><b>Base</b> <code>http://localhost:8080</code></span>
     <span class="fact"><b>인증</b> 없음</span>
-    <span class="fact"><b>응답</b> JSON (UTF-8)</span>
-    <span class="fact"><b>금액</b> 원 (해외도 환산됨)</span>
+    <span class="fact"><b>버전</b> v1</span>
   </div>
+  <nav class="toc">
+    <a href="#overview">1. 개요</a><span>·</span>
+    <a href="#start">2. 시작하기</a><span>·</span>
+    <a href="#reference">3. API 레퍼런스</a><span>·</span>
+    <a href="#models">4. 데이터 모델</a><span>·</span>
+    <a href="#appendix">5. 부록</a>
+  </nav>
 </header>
 
-<section class="glance">
-  <h2>엔드포인트</h2>
-  <div class="glance-list">
-    <button class="glance-row" data-target="ep-health">
-      <span class="badge get">GET</span>
-      <span class="path">/health</span>
-      <span class="desc">헬스체크</span>
-    </button>
-    <button class="glance-row" data-target="ep-portfolio">
-      <span class="badge post">POST</span>
-      <span class="path">/api/portfolio</span>
-      <span class="desc">잔고파일 업로드 → 자산배분 집계</span>
-    </button>
-  </div>
-</section>
+<!-- ============ 1. 개요 ============ -->
+<h2 id="overview">1. 개요</h2>
+<p class="h2sub">API의 목적과 모든 요청에 공통으로 적용되는 규칙.</p>
 
-<div class="tabs" role="tablist">
-  <button class="tab" role="tab" aria-selected="true"  aria-controls="p-ref"    id="t-ref">레퍼런스</button>
-  <button class="tab" role="tab" aria-selected="false" aria-controls="p-schema" id="t-schema">응답 스키마</button>
-  <button class="tab" role="tab" aria-selected="false" aria-controls="p-rules"  id="t-rules">분류 규칙</button>
-  <button class="tab" role="tab" aria-selected="false" aria-controls="p-ops"    id="t-ops">운영·배포</button>
+<h3>API 소개</h3>
+<p>
+  증권사 앱은 종목별 손익은 잘 보여주지만 <strong>"내 전체 자산에서 지수 몇 %, 개별주 몇 %, 현금 몇 %"</strong>라는
+  배분 관점은 보여주지 않는다. 이 API는 증권사에서 내려받은 잔고파일을 받아 그 질문에 답한다.
+</p>
+<p>
+  잔고파일에는 이미 현재가·평가금액·손익·원화환산이 다운로드 시점 기준으로 들어있다.
+  그래서 별도 시세 API 없이 파일 파싱만으로 계산이 끝난다.
+</p>
+
+<div class="note">
+  <strong>서버는 아무것도 저장하지 않는다.</strong>
+  업로드된 잔고파일과 계산 결과는 응답을 보낸 뒤 폐기된다.
+  보유종목·평단·잔고는 클라이언트 로컬(IndexedDB)에만 남는다.
 </div>
 
-<!-- ===================== 레퍼런스 ===================== -->
-<section class="panel active" id="p-ref" role="tabpanel" aria-labelledby="t-ref">
+<h3>공통 요청 형식</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>항목</th><th>값</th></tr></thead>
+  <tbody>
+    <tr><td>프로토콜</td><td>HTTP/1.1</td></tr>
+    <tr><td>Content-Type</td><td><code>multipart/form-data</code> (파일 업로드), 그 외 본문 없음</td></tr>
+    <tr><td>인증</td><td>없음. 개인용이며 서버가 상태를 갖지 않는다</td></tr>
+    <tr><td>문자 인코딩</td><td>UTF-8</td></tr>
+  </tbody>
+</table>
+</div>
 
-  <article class="ep" id="ep-health">
-    <h3>헬스체크</h3>
-    <div class="ep-head"><span class="badge get">GET</span><span class="path">/health</span></div>
-    <p>서버가 살아있는지 확인한다. Render 헬스체크용.</p>
-    <h4>응답 200</h4>
-    <pre><code>{ "status": "ok" }</code></pre>
-  </article>
+<h3>공통 응답 형식</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>항목</th><th>값</th></tr></thead>
+  <tbody>
+    <tr><td>Content-Type</td><td><code>application/json; charset=utf-8</code></td></tr>
+    <tr><td>성공·실패 판별</td><td>HTTP 상태 코드로 제공한다. 본문에 <code>success</code> 같은 필드를 두지 않는다</td></tr>
+    <tr><td>금액 단위</td><td>원. 해외 종목도 원화로 환산된 값이다</td></tr>
+    <tr><td>비율 단위</td><td>퍼센트. <code>11.11</code>은 11.11%를 뜻한다</td></tr>
+  </tbody>
+</table>
+</div>
 
-  <article class="ep" id="ep-portfolio">
-    <h3>자산배분 집계</h3>
-    <div class="ep-head"><span class="badge post">POST</span><span class="path">/api/portfolio</span></div>
+<h4>에러 응답 본문</h4>
+<pre><code>{
+  "error": "설명 메시지"
+}</code></pre>
 
-    <p>잔고파일을 하나 이상 받아 통합·분류·집계한 결과를 돌려준다.</p>
+<h3>공통 에러</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>상태 코드</th><th>의미</th><th>본문</th><th>발생 조건</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>400</code></td><td>Bad Request</td><td class="type">JSON</td>
+      <td>필수 필드 누락, 파라미터 형식 오류</td>
+    </tr>
+    <tr>
+      <td><code>404</code></td><td>Not Found</td><td class="type">text/plain</td>
+      <td>정의되지 않은 경로. 라우터 기본 응답이라 JSON이 아니다</td>
+    </tr>
+    <tr>
+      <td><code>405</code></td><td>Method Not Allowed</td><td class="type">text/plain</td>
+      <td>경로는 맞지만 메서드가 다를 때. 라우터 기본 응답이라 JSON이 아니다</td>
+    </tr>
+    <tr>
+      <td><code>422</code></td><td>Unprocessable Entity</td><td class="type">JSON</td>
+      <td>요청 형식은 맞지만 내용을 처리할 수 없을 때</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
-    <h4>요청 — multipart/form-data</h4>
+<!-- ============ 2. 시작하기 ============ -->
+<h2 id="start">2. 시작하기</h2>
+<p class="h2sub">API를 호출하기까지 필요한 사전 작업과 사용 순서.</p>
+
+<h3>사전 작업 — 잔고파일 준비</h3>
+<ol>
+  <li>증권사 웹에서 <strong>계좌를 하나 선택</strong>해 잔고파일을 내려받는다.</li>
+  <li>계좌를 바꿔가며 <strong>보유 계좌 수만큼 반복</strong>한다.</li>
+</ol>
+<div class="note">
+  <strong>계좌마다 따로 받아야 한다.</strong>
+  파일에는 전체 계좌의 자산총액 요약이 모두 들어있지만,
+  <em>종목 상세는 다운로드 시 선택한 계좌 것만</em> 담긴다.
+  한 파일만 올리면 나머지 계좌의 종목이 빠진 채로 집계된다.
+</div>
+
+<h3>API 사용 시퀀스</h3>
+<ol>
+  <li><code>GET /health</code> — 서버가 떠 있는지 확인한다. (선택)</li>
+  <li><code>POST /api/portfolio</code> — 준비한 잔고파일을 <strong>한 번에 모두</strong> 올린다.</li>
+  <li>응답의 <code>holdings[].category</code>를 확인한다. 잘못 분류된 종목이 있으면 사용자가 태깅한다.</li>
+  <li>태깅 결과를 <code>overrides</code>에 담아 <code>POST /api/portfolio</code>를 다시 호출한다.</li>
+</ol>
+<p>
+  서버는 상태를 갖지 않으므로 <code>overrides</code>는 매 요청에 함께 보내야 한다.
+  매핑의 보관은 클라이언트 책임이다.
+</p>
+
+<!-- ============ 3. API 레퍼런스 ============ -->
+<h2 id="reference">3. API 레퍼런스</h2>
+<p class="h2sub">행을 누르면 상세가 열린다.</p>
+
+<div class="scroll">
+<table class="index">
+  <thead><tr><th>기능</th><th>Method</th><th>API Path</th><th>인증</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr data-op="op-health">
+      <td>헬스체크</td>
+      <td><span class="badge get">GET</span></td>
+      <td class="path">/health</td>
+      <td class="type">불필요</td>
+      <td>서버 상태 확인</td>
+    </tr>
+    <tr data-op="op-portfolio">
+      <td>자산배분 집계</td>
+      <td><span class="badge post">POST</span></td>
+      <td class="path">/api/portfolio</td>
+      <td class="type">불필요</td>
+      <td>잔고파일 업로드 → 통합·분류·집계</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ---- GET /health ---- -->
+<details class="op get" id="op-health">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge get">GET</span>
+    <span class="path">/health</span>
+    <span class="summary-text">헬스체크</span>
+  </summary>
+  <div class="op-body">
+    <p>서버가 요청을 받을 수 있는 상태인지 확인한다. Render 헬스체크에 쓴다.</p>
+
+    <h4>Request Syntax</h4>
+<pre><code>GET /health HTTP/1.1
+Host: localhost:8080</code></pre>
+
+    <h4>Request Header</h4>
+    <p class="type">없음</p>
+
+    <h4>Request Element</h4>
+    <p class="type">없음</p>
+
+    <h4>Response Element</h4>
     <div class="scroll">
     <table>
-      <thead><tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+      <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><code>status</code></td><td class="type">string</td><td>항상 <code>"ok"</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Response 200</h4>
+<pre><code>{ "status": "ok" }</code></pre>
+
+    <h4>에러</h4>
+    <p class="type">공통 에러만 발생한다.</p>
+  </div>
+</details>
+
+<!-- ---- POST /api/portfolio ---- -->
+<details class="op post" id="op-portfolio">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge post">POST</span>
+    <span class="path">/api/portfolio</span>
+    <span class="summary-text">잔고파일 업로드 → 자산배분 집계</span>
+  </summary>
+  <div class="op-body">
+    <p>
+      잔고파일을 하나 이상 받아 계좌를 통합하고, 종목을 분류하고, 자산배분과 손익을 집계해 돌려준다.
+    </p>
+
+    <h4>Request Syntax</h4>
+<pre><code>POST /api/portfolio HTTP/1.1
+Host: localhost:8080
+Content-Type: multipart/form-data; boundary=----Boundary
+
+------Boundary
+Content-Disposition: form-data; name="files"; filename="계좌1.xls"
+Content-Type: application/vnd.ms-excel
+
+(파일 내용)
+------Boundary
+Content-Disposition: form-data; name="overrides"
+
+{"종목명":"카테고리"}
+------Boundary--</code></pre>
+
+    <h4>Request Header</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>헤더</th><th>필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>Content-Type</code></td>
+          <td><span class="req">필수</span></td>
+          <td><code>multipart/form-data</code>. boundary 포함. 대부분의 HTTP 클라이언트가 자동으로 붙인다</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Request Element</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th><th>제약</th></tr></thead>
       <tbody>
         <tr>
           <td><code>files</code></td>
           <td class="type">file (반복)</td>
           <td><span class="req">필수</span></td>
-          <td>잔고파일. 같은 필드명으로 여러 개를 보낸다. 전체 32MB 이하.</td>
+          <td>잔고파일. 같은 필드명으로 여러 개를 보낸다. 계좌 수만큼 올린다</td>
+          <td class="type">전체 32MB 이하<br>최소 1개</td>
         </tr>
         <tr>
           <td><code>overrides</code></td>
           <td class="type">string (JSON)</td>
           <td><span class="opt">선택</span></td>
-          <td>자동 분류를 덮어쓸 <code>{"종목명": "카테고리"}</code> 매핑.</td>
+          <td>자동 분류를 덮어쓸 <code>{"종목명": "카테고리"}</code> 매핑</td>
+          <td class="type">값은 <a href="#category-values">카테고리 5종</a> 중 하나</td>
         </tr>
       </tbody>
     </table>
     </div>
 
-    <h4>응답</h4>
+    <div class="note">
+      확장자는 <code>.xls</code>지만 실제 내용은 HTML 문서다. 서버가 알아서 처리하므로 변환할 필요 없다.
+      같은 파일을 두 번 올려도 종목이 중복되지 않는다. 계좌는 계좌번호로,
+      종목은 <em>계좌 + 종목명</em>으로 중복을 제거하며 겹치면 나중 파일 값이 이긴다.
+    </div>
+
+    <h4>Response Element</h4>
     <div class="scroll">
     <table>
-      <thead><tr><th>코드</th><th>본문</th><th>상황</th></tr></thead>
+      <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td><code>200</code></td><td class="type">Summary</td><td>정상</td></tr>
-        <tr><td><code>400</code></td><td class="type">Error</td><td><code>files</code>가 비었거나, <code>overrides</code>가 JSON이 아니거나 모르는 카테고리를 담았을 때</td></tr>
-        <tr><td><code>422</code></td><td class="type">Error</td><td>파일은 받았지만 잔고파일 형식이 아닐 때</td></tr>
+        <tr><td><code>totalAsset</code></td><td class="type">number</td><td>계좌 자산총액의 합. 모든 비중의 분모</td></tr>
+        <tr><td><code>categories</code></td><td class="type"><a href="#model-category">Category</a>[]</td><td>카테고리별 집계. 금액 내림차순</td></tr>
+        <tr><td><code>holdings</code></td><td class="type"><a href="#model-holding">Holding</a>[]</td><td>종목별 상세. 평가금액 내림차순</td></tr>
       </tbody>
     </table>
     </div>
 
-    <h4>예시</h4>
-<pre><code>curl -X POST http://localhost:8080/api/portfolio \
-  -F "files=@ISA계좌.xls" \
-  -F "files=@연금저축계좌.xls" \
-  -F "files=@종합주식계좌.xls" \
-  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}'</code></pre>
-
-    <div class="note">
-      미래에셋은 다운로드 시 <strong>선택한 계좌의 종목 상세만</strong> 파일에 담는다.
-      전체 자산을 보려면 계좌별로 받은 파일을 한 번에 모두 올려야 한다.
-      같은 파일을 두 번 올려도 중복되지 않는다.
-    </div>
-  </article>
-
-  <h4>에러 형식</h4>
-  <p>모든 에러는 같은 형태로 온다.</p>
-  <pre><code>{ "error": "설명 메시지" }</code></pre>
-
-</section>
-
-<!-- ===================== 응답 스키마 ===================== -->
-<section class="panel" id="p-schema" role="tabpanel" aria-labelledby="t-schema">
-
-  <h3>Summary</h3>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
-    <tbody>
-      <tr><td><code>totalAsset</code></td><td class="type">number</td><td>계좌 자산총액의 합. 모든 비중의 분모</td></tr>
-      <tr><td><code>categories</code></td><td class="type">Category[]</td><td>카테고리별 집계. 금액 내림차순</td></tr>
-      <tr><td><code>holdings</code></td><td class="type">Holding[]</td><td>종목별 상세. 평가금액 내림차순</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h3>Category</h3>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
-    <tbody>
-      <tr><td><code>category</code></td><td class="type">string</td><td>카테고리명</td></tr>
-      <tr><td><code>amount</code></td><td class="type">number</td><td>평가금액 합계</td></tr>
-      <tr><td><code>weight</code></td><td class="type">number</td><td>총자산 대비 비중 (%)</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <h3>Holding</h3>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
-    <tbody>
-      <tr><td><code>name</code></td><td class="type">string</td><td>상품명</td></tr>
-      <tr><td><code>category</code></td><td class="type">string</td><td>분류 결과</td></tr>
-      <tr><td><code>accountNumber</code></td><td class="type">string</td><td>소속 계좌번호 (하이픈 제거)</td></tr>
-      <tr><td><code>quantity</code></td><td class="type">number</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
-      <tr><td><code>currentPrice</code></td><td class="type">number · null</td><td>현재가</td></tr>
-      <tr><td><code>avgBuyPrice</code></td><td class="type">number · null</td><td>평균매입가</td></tr>
-      <tr><td><code>buyAmount</code></td><td class="type">number · null</td><td>매입금액</td></tr>
-      <tr><td><code>evalAmount</code></td><td class="type">number</td><td>평가금액</td></tr>
-      <tr><td><code>profitLoss</code></td><td class="type">number · null</td><td>평가손익</td></tr>
-      <tr><td><code>profitRate</code></td><td class="type">number · null</td><td>손익률 (%). <code>-3.21</code> 형태</td></tr>
-      <tr><td><code>weight</code></td><td class="type">number</td><td>총자산 대비 비중 (%)</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <div class="note">
-    <strong>같은 종목이 여러 행으로 올 수 있다.</strong>
-    계좌를 나눠 같은 ETF를 들고 있으면 계좌마다 별도 행이다.
-    종목 단위로 합치려면 <code>name</code>으로 묶어야 한다.
-  </div>
-
-  <h4>예시 응답</h4>
+    <h4>Response 200</h4>
 <pre><code>{
   "totalAsset": 10000000,
   "categories": [
@@ -370,126 +467,166 @@
   ]
 }</code></pre>
 
-  <div class="note warn">
-    <strong>주의.</strong> 문서의 모든 값은 예시용 가짜 데이터다.
-    이 문서와 커밋·PR 어디에도 실제 계좌번호나 금액을 적지 않는다.
+    <h4>에러</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>코드</th><th>메시지 예시</th><th>발생 조건</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">files 필드에 잔고파일이 없습니다</td>
+          <td><code>files</code>를 하나도 보내지 않았을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">overrides 는 JSON 객체여야 합니다</td>
+          <td><code>overrides</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">삼성전자: 알 수 없는 카테고리 "…"</td>
+          <td><code>overrides</code> 값이 정의된 카테고리가 아닐 때</td>
+        </tr>
+        <tr>
+          <td><code>422</code></td>
+          <td class="type">계좌1.xls 파싱 실패: 전체 계좌현황 테이블이 없음</td>
+          <td>업로드한 파일이 잔고파일 형식이 아닐 때</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>호출 예시</h4>
+<pre><code>curl -X POST http://localhost:8080/api/portfolio \
+  -F "files=@계좌1.xls" \
+  -F "files=@계좌2.xls" \
+  -F "files=@계좌3.xls" \
+  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}'</code></pre>
   </div>
+</details>
 
-</section>
+<!-- ============ 4. 데이터 모델 ============ -->
+<h2 id="models">4. 데이터 모델</h2>
+<p class="h2sub">응답 본문에 쓰이는 JSON 객체 정의.</p>
 
-<!-- ===================== 분류 규칙 ===================== -->
-<section class="panel" id="p-rules" role="tabpanel" aria-labelledby="t-rules">
+<h3 id="model-category">Category</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>category</code></td><td class="type">string</td><td>카테고리명</td></tr>
+    <tr><td><code>amount</code></td><td class="type">number</td><td>평가금액 합계</td></tr>
+    <tr><td><code>weight</code></td><td class="type">number</td><td>총자산 대비 비중 (%)</td></tr>
+  </tbody>
+</table>
+</div>
 
-  <h3>카테고리</h3>
-  <p><code>category</code> 필드와 <code>overrides</code> 값에 쓰이는 문자열은 다섯 가지뿐이다.</p>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>값</th><th>설명</th></tr></thead>
-    <tbody>
-      <tr><td><code>개별주(국내)</code></td><td>국내 상장 주식</td></tr>
-      <tr><td><code>개별주(해외)</code></td><td>해외 상장 주식</td></tr>
-      <tr><td><code>지수 ETF</code></td><td>지수를 추종하는 ETF</td></tr>
-      <tr><td><code>레버리지·테마 ETF</code></td><td>레버리지·인버스·테마형 ETF</td></tr>
-      <tr><td><code>현금성</code></td><td>예수금, 외화 등 종목으로 잡히지 않는 잔액</td></tr>
-    </tbody>
-  </table>
-  </div>
+<h3 id="model-holding">Holding</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>Nullable</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>name</code></td><td class="type">string</td><td class="type">아니오</td><td>상품명</td></tr>
+    <tr><td><code>category</code></td><td class="type">string</td><td class="type">아니오</td><td>분류 결과</td></tr>
+    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거)</td></tr>
+    <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
+    <tr><td><code>currentPrice</code></td><td class="type">number</td><td class="type">예</td><td>현재가</td></tr>
+    <tr><td><code>avgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>평균매입가</td></tr>
+    <tr><td><code>buyAmount</code></td><td class="type">number</td><td class="type">예</td><td>매입금액</td></tr>
+    <tr><td><code>evalAmount</code></td><td class="type">number</td><td class="type">아니오</td><td>평가금액</td></tr>
+    <tr><td><code>profitLoss</code></td><td class="type">number</td><td class="type">예</td><td>평가손익</td></tr>
+    <tr><td><code>profitRate</code></td><td class="type">number</td><td class="type">예</td><td>손익률 (%)</td></tr>
+    <tr><td><code>weight</code></td><td class="type">number</td><td class="type">아니오</td><td>총자산 대비 비중 (%)</td></tr>
+  </tbody>
+</table>
+</div>
 
-  <h3>우선순위</h3>
-  <p>세 단계로 결정된다. 위쪽이 이긴다.</p>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>순위</th><th>근거</th><th>결정하는 것</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>요청의 <code>overrides</code></td><td>전부</td></tr>
-      <tr><td>2</td><td>KIS 종목마스터 조회</td><td>국내/해외, ETF/개별주</td></tr>
-      <tr><td>3</td><td>이름 키워드 규칙</td><td>마스터에 없는 신규 상장 종목 폴백</td></tr>
-    </tbody>
-  </table>
-  </div>
+<div class="note">
+  <strong>같은 종목이 여러 행으로 올 수 있다.</strong>
+  계좌를 나눠 같은 ETF를 들고 있으면 계좌마다 별도 행이다.
+  종목 단위로 합치려면 <code>name</code>으로 묶어야 한다.
+</div>
 
-  <p>
-    마스터 조회는 띄어쓰기와 대소문자를 무시한다.
-    마스터는 "ETF다"까지만 알려주고 그 안에서 지수추종이냐 레버리지·테마냐는 구분하지 않으므로,
-    이 갈래만 <code>3X</code>, <code>레버리지</code>, <code>나스닥100</code> 같은 이름 키워드로 판단한다.
-    애매한 종목은 <code>overrides</code>로 잡아주면 된다.
-  </p>
+<h3 id="category-values">카테고리 값</h3>
+<p><code>Holding.category</code>와 <code>overrides</code>의 값에 쓰이는 문자열은 다섯 가지뿐이다.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>값</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>개별주(국내)</code></td><td>국내 상장 주식</td></tr>
+    <tr><td><code>개별주(해외)</code></td><td>해외 상장 주식</td></tr>
+    <tr><td><code>지수 ETF</code></td><td>지수를 추종하는 ETF</td></tr>
+    <tr><td><code>레버리지·테마 ETF</code></td><td>레버리지·인버스·테마형 ETF</td></tr>
+    <tr><td><code>현금성</code></td><td>예수금, 외화 등 종목으로 잡히지 않는 잔액</td></tr>
+  </tbody>
+</table>
+</div>
 
-  <h3>현금성 계산</h3>
-  <p>
-    현금성은 별도로 집계하지 않고 <strong>총자산에서 종목 평가금액 합을 뺀 나머지</strong>다.
-    예수금은 잔고파일에 행으로 나오지 않고 자산총액에만 반영되기 때문이다.
-    외화처럼 취득원가가 없는 행도 종목이 아니라 이쪽으로 들어간다.
-  </p>
+<div class="note warn">
+  <strong>주의.</strong> 이 문서의 모든 값은 예시용 가짜 데이터다.
+  문서와 커밋·PR 어디에도 실제 계좌번호나 금액을 적지 않는다.
+</div>
 
-</section>
+<!-- ============ 5. 부록 ============ -->
+<h2 id="appendix">5. 부록</h2>
+<p class="h2sub">분류 동작과 서버 운영에 관한 참고 사항.</p>
 
-<!-- ===================== 운영·배포 ===================== -->
-<section class="panel" id="p-ops" role="tabpanel" aria-labelledby="t-ops">
+<h3>분류 우선순위</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>순위</th><th>근거</th><th>결정하는 것</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>요청의 <code>overrides</code></td><td>전부</td></tr>
+    <tr><td>2</td><td>KIS 종목마스터 조회</td><td>국내/해외, ETF/개별주</td></tr>
+    <tr><td>3</td><td>이름 키워드 규칙</td><td>마스터에 없는 신규 상장 종목 폴백</td></tr>
+  </tbody>
+</table>
+</div>
+<p>
+  마스터 조회는 띄어쓰기와 대소문자를 무시한다.
+  마스터는 "ETF다"까지만 알려주고 그 안에서 지수추종이냐 레버리지·테마냐는 구분하지 않으므로,
+  이 갈래만 <code>3X</code>, <code>레버리지</code>, <code>나스닥100</code> 같은 이름 키워드로 판단한다.
+  애매한 종목은 <code>overrides</code>로 잡아준다.
+</p>
 
-  <h3>환경변수</h3>
-  <div class="scroll">
-  <table>
-    <thead><tr><th>이름</th><th>기본값</th><th>설명</th></tr></thead>
-    <tbody>
-      <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
-      <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
-    </tbody>
-  </table>
-  </div>
+<h3>현금성 계산</h3>
+<p>
+  현금성은 별도로 집계하지 않고 <strong>총자산에서 종목 평가금액 합을 뺀 나머지</strong>다.
+  예수금은 잔고파일에 행으로 나오지 않고 자산총액에만 반영되기 때문이다.
+  외화처럼 취득원가가 없는 행도 종목이 아니라 이쪽으로 들어간다.
+</p>
 
-  <h3>로컬 실행</h3>
+<h3>환경변수</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>이름</th><th>기본값</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
+    <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>실행과 배포</h3>
 <pre><code>cd backend
 go run ./cmd/server</code></pre>
-
-  <h3>배포</h3>
-  <p>배포 시 프론트 도메인을 지정한다.</p>
+<p>배포 시 프론트 도메인을 지정한다.</p>
 <pre><code>ALLOWED_ORIGINS=https://onefolio.pages.dev</code></pre>
-
-  <div class="note">
-    Render의 <strong>Root Directory를 <code>backend</code>로</strong> 지정해야 한다.
-    Go 모듈이 저장소 루트가 아니라 하위 디렉토리에 있다.
-  </div>
-
-  <h3>데이터 보관</h3>
-  <div class="note">
-    <strong>서버는 아무것도 저장하지 않는다.</strong>
-    업로드된 잔고파일과 계산 결과는 응답을 보낸 뒤 폐기된다.
-    보유종목·평단·잔고는 프론트 로컬(IndexedDB)에만 남는다.
-  </div>
-
-</section>
+<div class="note">
+  Render의 <strong>Root Directory를 <code>backend</code>로</strong> 지정해야 한다.
+  Go 모듈이 저장소 루트가 아니라 하위 디렉토리에 있다.
+</div>
 
 <footer>OneFolio · 개인용 자산 대시보드</footer>
 
 </main>
 
 <script>
-  const tabs = [...document.querySelectorAll('.tab')];
-
-  function show(id, focus) {
-    tabs.forEach(tab => {
-      const on = tab.id === id;
-      tab.setAttribute('aria-selected', on);
-      document.getElementById(tab.getAttribute('aria-controls')).classList.toggle('active', on);
-      if (on && focus) tab.focus();
-    });
-  }
-
-  tabs.forEach(tab => tab.addEventListener('click', () => show(tab.id)));
-
-  document.querySelector('.tabs').addEventListener('keydown', event => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-    if (!step) return;
-    event.preventDefault();
-    const current = tabs.findIndex(tab => tab.getAttribute('aria-selected') === 'true');
-    show(tabs[(current + step + tabs.length) % tabs.length].id, true);
-  });
-
-  document.querySelectorAll('.glance-row').forEach(row => {
+  document.querySelectorAll('.index tbody tr').forEach(row => {
     row.addEventListener('click', () => {
-      show('t-ref');
-      document.getElementById(row.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const op = document.getElementById(row.dataset.op);
+      op.open = true;
+      op.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 </script>
