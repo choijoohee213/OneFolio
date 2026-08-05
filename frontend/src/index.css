@@ -10,6 +10,8 @@
   --accent: #2a78d6;
   --gain: #c0392b;
   --loss: #2a78d6;
+  /* 상태 표시용. 차트 계열색과 겹치면 배지가 범례처럼 읽혀서 따로 둔다 */
+  --flag: #b45309;
 
   /* 검증된 카테고리 색. 슬롯은 금액 순위가 아니라 카테고리 정체성에 고정한다 */
   --cat-1: #2a78d6;
@@ -31,6 +33,7 @@
     --accent: #3987e5;
     --gain: #e66767;
     --loss: #3987e5;
+    --flag: #e8a33d;
     --cat-1: #3987e5;
     --cat-2: #d95926;
     --cat-3: #199e70;
@@ -50,6 +53,7 @@
   --accent: #3987e5;
   --gain: #e66767;
   --loss: #3987e5;
+  --flag: #e8a33d;
   --cat-1: #3987e5;
   --cat-2: #d95926;
   --cat-3: #199e70;
@@ -180,28 +184,39 @@ main {
 .accounts {
   margin-top: 2rem;
 }
-.notice {
-  margin: 0 0 1rem;
-  padding: 0.75rem 0.9rem;
-  border-left: 3px solid var(--cat-4);
-  background: var(--surface);
-  border-radius: 0 7px 7px 0;
-  font-size: 0.865rem;
-  line-height: 1.55;
-}
 .account-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
+/* 좁은 화면에서는 계좌명+상태 / 금액+빼기 두 줄로 접는다.
+   한 줄로 밀어넣으면 계좌유형이 글자 단위로 쪼개진다. */
 .account-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0;
+  gap: 0.15rem 0.5rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
+}
+.account-type {
+  word-break: keep-all;
+}
+.account-list li > .account-amount {
+  grid-column: 1;
+  text-align: left;
+}
+@media (min-width: 34rem) {
+  .account-list li {
+    grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+  }
+  .account-list li > .account-amount {
+    grid-column: auto;
+    text-align: right;
+  }
 }
 .account-list li.excluded .account-type,
 .account-list li.excluded .account-amount {
@@ -213,19 +228,25 @@ main {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+  justify-self: start;
 }
-.account-list li.excluded .account-state {
-  color: var(--cat-4);
-  border-color: var(--cat-4);
+.account-state.on {
+  color: var(--flag);
+  border-color: var(--flag);
 }
 .account-amount {
   font-variant-numeric: tabular-nums;
   text-align: right;
-  min-width: 7rem;
+  white-space: nowrap;
 }
+/* 아래 모든 비중의 분모라 계좌 목록 끝에서 한 번 더 못박는다 */
 .account-sum {
   font-weight: 600;
   border-bottom: 0 !important;
+  border-top: 1px solid var(--border);
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
 }
 .account-sum .account-state {
   border: 0;
@@ -269,6 +290,12 @@ main {
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
 }
+/* 좁으면 같은 비중이라도 픽셀 폭이 모자라 숫자가 잘린다. 바로 아래 범례에 다 있다 */
+@media (max-width: 34rem) {
+  .segment-label {
+    display: none;
+  }
+}
 
 .legend {
   list-style: none;
@@ -277,12 +304,30 @@ main {
 }
 .legend li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0;
+  gap: 0.15rem 0.5rem;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
+}
+.legend-name {
+  word-break: keep-all;
+}
+.legend li > .legend-amount {
+  grid-column: 2 / -1;
+  text-align: left;
+}
+@media (min-width: 34rem) {
+  .legend li {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+  }
+  .legend li > .legend-amount {
+    grid-column: auto;
+    text-align: right;
+  }
 }
 .legend li:last-child {
   border-bottom: 0;

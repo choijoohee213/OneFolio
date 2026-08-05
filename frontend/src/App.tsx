@@ -51,16 +51,14 @@ export default function App() {
     await clearState()
   }
 
-  const complete = summary?.accounts.every((account) => account.covered) ?? false
-
   return (
     <main>
       <header className="page-head">
         <h1>OneFolio</h1>
         {summary && (
           <div className="total">
-            <span className="total-label">{complete ? '총자산' : '집계 기준'}</span>
-            <strong>{won(summary.coveredAsset)}</strong>
+            <span className="total-label">계좌 총합</span>
+            <strong>{won(summary.totalAsset)}</strong>
           </div>
         )}
       </header>
@@ -78,7 +76,6 @@ export default function App() {
           <AccountsPanel
             accounts={summary.accounts}
             coveredAsset={summary.coveredAsset}
-            totalAsset={summary.totalAsset}
             busy={busy}
             onRemove={(number) => apply(withoutAccount(files, number))}
           />
