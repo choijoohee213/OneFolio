@@ -176,6 +176,61 @@ main {
   font-size: 0.9rem;
 }
 
+/* ---------- 계좌 ---------- */
+.accounts {
+  margin-top: 2rem;
+}
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--cat-4);
+  background: var(--surface);
+  border-radius: 0 7px 7px 0;
+  font-size: 0.865rem;
+  line-height: 1.55;
+}
+.account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.account-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.account-list li.excluded .account-type,
+.account-list li.excluded .account-amount {
+  color: var(--muted);
+}
+.account-state {
+  font-size: 0.72rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+.account-list li.excluded .account-state {
+  color: var(--cat-4);
+  border-color: var(--cat-4);
+}
+.account-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 7rem;
+}
+.account-sum {
+  font-weight: 600;
+  border-bottom: 0 !important;
+}
+.account-sum .account-state {
+  border: 0;
+}
+
 /* ---------- 자산배분 ---------- */
 .allocation {
   margin-top: 2.5rem;

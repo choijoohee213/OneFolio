@@ -12,6 +12,20 @@ interface SavedState {
   savedAt: string
 }
 
+// 응답 모양이 바뀌면 예전 기록이 남아 화면이 깨진다. 버전 번호로는 못 잡는 경우가
+// 있어서(같은 번호로 저장된 옛 응답) 화면이 실제로 읽는 필드가 다 있는지 본다.
+function renderable(summary: unknown): summary is Summary {
+  const s = summary as Summary | null
+  return (
+    !!s &&
+    typeof s.coveredAsset === 'number' &&
+    typeof s.totalAsset === 'number' &&
+    Array.isArray(s.accounts) &&
+    Array.isArray(s.categories) &&
+    Array.isArray(s.holdings)
+  )
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, VERSION)
@@ -34,7 +48,13 @@ function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDB
 
 export async function loadState(): Promise<SavedState | null> {
   try {
-    return (await run<SavedState | undefined>('readonly', (store) => store.get('current'))) ?? null
+    const state = await run<SavedState | undefined>('readonly', (store) => store.get('current'))
+    if (!state) return null
+    return {
+      ...state,
+      summary: renderable(state.summary) ? state.summary : null,
+      overrides: state.overrides ?? {},
+    }
   } catch {
     return null
   }

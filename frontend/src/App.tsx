@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchPortfolio } from './api'
+import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationBar } from './components/AllocationBar'
 import { FileDrop } from './components/FileDrop'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
@@ -49,8 +50,10 @@ export default function App() {
         <h1>OneFolio</h1>
         {summary && (
           <div className="total">
-            <span className="total-label">총자산</span>
-            <strong>{won(summary.totalAsset)}</strong>
+            <span className="total-label">
+              {summary.accounts.every((account) => account.covered) ? '총자산' : '집계 기준'}
+            </span>
+            <strong>{won(summary.coveredAsset)}</strong>
           </div>
         )}
       </header>
@@ -61,6 +64,11 @@ export default function App() {
 
       {summary && (
         <>
+          <AccountsPanel
+            accounts={summary.accounts}
+            coveredAsset={summary.coveredAsset}
+            totalAsset={summary.totalAsset}
+          />
           <AllocationBar categories={summary.categories} />
           <HoldingsTable holdings={summary.holdings} mode={mode} onModeChange={setMode} />
           <footer className="page-foot">

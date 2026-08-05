@@ -435,16 +435,31 @@ Content-Disposition: form-data; name="overrides"
     <table>
       <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td><code>totalAsset</code></td><td class="type">number</td><td>계좌 자산총액의 합. 모든 비중의 분모</td></tr>
+        <tr><td><code>coveredAsset</code></td><td class="type">number</td><td>종목 상세가 올라온 계좌들의 자산총액 합. <strong>모든 비중의 분모</strong></td></tr>
+        <tr><td><code>totalAsset</code></td><td class="type">number</td><td>파일에 적힌 전체 계좌 자산총액 합. 올리지 않은 계좌도 포함된다</td></tr>
+        <tr><td><code>accounts</code></td><td class="type"><a href="#model-account">Account</a>[]</td><td>계좌별 총액과 집계 포함 여부</td></tr>
         <tr><td><code>categories</code></td><td class="type"><a href="#model-category">Category</a>[]</td><td>카테고리별 집계. 금액 내림차순</td></tr>
         <tr><td><code>holdings</code></td><td class="type"><a href="#model-holding">Holding</a>[]</td><td>종목별 상세. 평가금액 내림차순</td></tr>
       </tbody>
     </table>
     </div>
 
+    <div class="note warn">
+      <strong>비중의 분모는 <code>coveredAsset</code>이지 <code>totalAsset</code>이 아니다.</strong>
+      잔고파일은 어느 계좌 것을 받아도 전체 계좌 요약을 담고 있어서, 한 계좌만 올리면
+      <code>totalAsset</code>에는 올리지 않은 계좌까지 들어간다. 그 차액을 현금성으로 잡으면
+      보유하지도 않은 현금이 생기므로, 집계는 종목이 실제로 올라온 계좌로만 한다.
+      어느 계좌가 빠졌는지는 <code>accounts[].covered</code>로 알 수 있다.
+    </div>
+
     <h4>Response 200</h4>
 <pre><code>{
-  "totalAsset": 10000000,
+  "coveredAsset": 10000000,
+  "totalAsset": 24000000,
+  "accounts": [
+    { "number": "111111111110", "type": "ISA(중개형)", "totalAsset": 10000000, "covered": true },
+    { "number": "222222222220", "type": "종합",        "totalAsset": 14000000, "covered": false }
+  ],
   "categories": [
     { "category": "지수 ETF",    "amount": 5000000, "weight": 50 },
     { "category": "개별주(국내)", "amount": 3000000, "weight": 30 },
@@ -508,6 +523,19 @@ Content-Disposition: form-data; name="overrides"
 <!-- ============ 4. 데이터 모델 ============ -->
 <h2 id="models">4. 데이터 모델</h2>
 <p class="h2sub">응답 본문에 쓰이는 JSON 객체 정의.</p>
+
+<h3 id="model-account">Account</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>number</code></td><td class="type">string</td><td>계좌번호 (하이픈 제거)</td></tr>
+    <tr><td><code>type</code></td><td class="type">string</td><td>계좌유형. 예: <code>ISA(중개형)</code></td></tr>
+    <tr><td><code>totalAsset</code></td><td class="type">number</td><td>이 계좌의 자산총액</td></tr>
+    <tr><td><code>covered</code></td><td class="type">boolean</td><td>이 계좌의 종목 상세가 업로드에 포함됐는지. <code>false</code>면 집계에서 빠진다</td></tr>
+  </tbody>
+</table>
+</div>
 
 <h3 id="model-category">Category</h3>
 <div class="scroll">
@@ -591,9 +619,14 @@ Content-Disposition: form-data; name="overrides"
 
 <h3>현금성 계산</h3>
 <p>
-  현금성은 별도로 집계하지 않고 <strong>총자산에서 종목 평가금액 합을 뺀 나머지</strong>다.
-  예수금은 잔고파일에 행으로 나오지 않고 자산총액에만 반영되기 때문이다.
+  현금성은 별도로 집계하지 않고 <strong><code>coveredAsset</code>에서 종목 평가금액 합을 뺀
+  나머지</strong>다. 예수금은 잔고파일에 행으로 나오지 않고 자산총액에만 반영되기 때문이다.
   외화처럼 취득원가가 없는 행도 종목이 아니라 이쪽으로 들어간다.
+</p>
+<p>
+  분모가 <code>totalAsset</code>이 아닌 이유가 여기 있다. 계좌 하나만 올렸는데 전체 계좌 합에서
+  빼면 올리지 않은 계좌의 자산이 통째로 현금성이 된다.
+  계좌 총액을 하나도 모르면(<code>coveredAsset</code>이 0) 현금성 항목 자체를 만들지 않는다.
 </p>
 
 <h3>환경변수</h3>

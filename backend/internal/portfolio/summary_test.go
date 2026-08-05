@@ -100,4 +100,51 @@ func TestSummarizeWithoutAccounts(t *testing.T) {
 			t.Errorf("Weight = %v, want 0", detail.Weight)
 		}
 	}
+	if _, ok := categoryAmount(summary, domain.Cash); ok {
+		t.Error("계좌 총액을 모르면 현금성을 만들 수 없다")
+	}
+}
+
+// 계좌 하나만 올려도 파일에는 세 계좌 요약이 다 들어있다. 올리지 않은 계좌의
+// 자산이 현금성으로 새면 안 되고, 비중 분모도 올린 계좌로 좁혀야 한다.
+func TestSummarizePartialUpload(t *testing.T) {
+	summary := Summarize(&Portfolio{
+		Accounts: []domain.Account{account("111", 6000), account("222", 4000), account("333", 3000)},
+		Holdings: []domain.Holding{priced("333", "TIGER 미국S&P500", 26545, 2800)},
+	}, classify.New(nil, nil))
+
+	if summary.TotalAsset != 13000 {
+		t.Errorf("TotalAsset = %v, want 13000 (파일의 전체 계좌)", summary.TotalAsset)
+	}
+	if summary.CoveredAsset != 3000 {
+		t.Errorf("CoveredAsset = %v, want 3000 (종목이 올라온 계좌만)", summary.CoveredAsset)
+	}
+
+	cash, ok := categoryAmount(summary, domain.Cash)
+	if !ok {
+		t.Fatal("현금성 카테고리가 없음")
+	}
+	if cash != 200 {
+		t.Errorf("현금성 = %v, want 200 (3000 - 2800). 올리지 않은 계좌가 섞이면 안 된다", cash)
+	}
+
+	if want := 2800.0 / 3000 * 100; summary.Holdings[0].Weight != want {
+		t.Errorf("종목 비중 = %v, want %v", summary.Holdings[0].Weight, want)
+	}
+}
+
+func TestSummarizeMarksCoveredAccounts(t *testing.T) {
+	summary := Summarize(&Portfolio{
+		Accounts: []domain.Account{account("111", 6000), account("222", 4000)},
+		Holdings: []domain.Holding{holding("222", "삼성전자", 1000)},
+		Cash:     []domain.Holding{holding("222", "미국달러", -100)},
+	}, classify.New(nil, nil))
+
+	covered := map[string]bool{}
+	for _, account := range summary.Accounts {
+		covered[account.Number] = account.Covered
+	}
+	if covered["222"] != true || covered["111"] != false {
+		t.Errorf("Covered 표시가 틀림: %+v", summary.Accounts)
+	}
 }
