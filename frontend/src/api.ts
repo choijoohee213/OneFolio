@@ -1,10 +1,10 @@
-import type { Overrides, Summary } from './types'
+import type { Overrides, Summary, UploadedFile } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
-export async function fetchPortfolio(files: File[], overrides: Overrides): Promise<Summary> {
+export async function fetchPortfolio(files: UploadedFile[], overrides: Overrides): Promise<Summary> {
   const form = new FormData()
-  files.forEach((file) => form.append('files', file))
+  files.forEach((file) => form.append('files', new Blob([file.data]), file.name))
   if (Object.keys(overrides).length > 0) {
     form.append('overrides', JSON.stringify(overrides))
   }
@@ -14,6 +14,12 @@ export async function fetchPortfolio(files: File[], overrides: Overrides): Promi
     throw new Error(await readError(response))
   }
   return response.json()
+}
+
+export async function toUploadedFiles(files: File[]): Promise<UploadedFile[]> {
+  return Promise.all(
+    files.map(async (file) => ({ name: file.name, data: await file.arrayBuffer(), accounts: [] })),
+  )
 }
 
 // 400·422 는 {"error"} JSON 이지만 404·405 는 라우터 기본 응답이라 평문이다.

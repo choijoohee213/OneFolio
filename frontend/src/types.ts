@@ -37,6 +37,19 @@ export interface AccountSummary {
   covered: boolean
 }
 
+export interface Source {
+  fileName: string
+  accountNumbers: string[]
+}
+
+/** 브라우저에 쌓아두는 잔고파일. 서버가 상태를 갖지 않아 매번 전부 다시 보낸다. */
+export interface UploadedFile {
+  name: string
+  data: ArrayBuffer
+  /** 이 파일이 종목 상세를 담고 있는 계좌. 응답의 sources 로 채운다 */
+  accounts: string[]
+}
+
 export interface Summary {
   /** 종목 상세가 올라온 계좌들의 자산총액 합. 모든 비중의 분모다 */
   coveredAsset: number
@@ -45,6 +58,8 @@ export interface Summary {
   accounts: AccountSummary[]
   categories: CategoryTotal[]
   holdings: Holding[]
+  /** 보낸 파일 순서대로, 각 파일이 담당한 계좌 */
+  sources: Source[]
 }
 
 export type Overrides = Record<string, Category>

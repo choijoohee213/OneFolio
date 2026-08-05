@@ -57,6 +57,7 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := make([]*parser.Result, 0, len(uploads))
+	sources := make([]portfolio.Source, 0, len(uploads))
 	for _, upload := range uploads {
 		file, err := upload.Open()
 		if err != nil {
@@ -70,10 +71,15 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		results = append(results, result)
+		sources = append(sources, portfolio.Source{
+			FileName:       upload.Filename,
+			AccountNumbers: portfolio.CoveredAccounts(result),
+		})
 	}
 
 	classifier := classify.New(s.listings, overrides)
 	summary := portfolio.Summarize(portfolio.Merge(results...), classifier)
+	summary.Sources = sources
 	writeJSON(w, http.StatusOK, summary)
 }
 

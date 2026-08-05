@@ -57,6 +57,20 @@ func TestMergeKeepsSameNameInDifferentAccounts(t *testing.T) {
 	}
 }
 
+// 파일마다 어느 계좌를 담당했는지 알아야 클라이언트가 계좌 단위로 파일을 지운다.
+func TestCoveredAccounts(t *testing.T) {
+	result := &parser.Result{
+		Accounts: []domain.Account{account("111", 1000), account("222", 2000), account("333", 3000)},
+		Holdings: []domain.Holding{holding("222", "삼성전자", 500), holding("222", "AMD", 300)},
+		Cash:     []domain.Holding{holding("222", "미국달러", -100)},
+	}
+
+	got := CoveredAccounts(result)
+	if len(got) != 1 || got[0] != "222" {
+		t.Errorf("CoveredAccounts = %v, want [222] (계좌 요약이 아니라 종목 기준)", got)
+	}
+}
+
 func TestMergeLatestValueWins(t *testing.T) {
 	merged := Merge(
 		&parser.Result{Accounts: []domain.Account{account("111", 1000)}, Holdings: []domain.Holding{holding("111", "삼성전자", 500)}},

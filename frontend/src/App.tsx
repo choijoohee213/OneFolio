@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { fetchPortfolio } from './api'
+import { toUploadedFiles } from './api'
+import { recompute, withoutAccount } from './collection'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationBar } from './components/AllocationBar'
 import { FileDrop } from './components/FileDrop'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { won } from './format'
 import { clearState, loadState, saveState } from './storage'
-import type { Overrides, Summary } from './types'
+import type { Overrides, Summary, UploadedFile } from './types'
 
 export default function App() {
+  const [files, setFiles] = useState<UploadedFile[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('name')
@@ -18,19 +20,23 @@ export default function App() {
 
   useEffect(() => {
     loadState().then((state) => {
-      if (state?.summary) setSummary(state.summary)
-      if (state?.overrides) setOverrides(state.overrides)
+      if (state) {
+        setFiles(state.files)
+        setSummary(state.summary)
+        setOverrides(state.overrides)
+      }
       setRestored(true)
     })
   }, [])
 
-  async function upload(files: File[]) {
+  async function apply(next: UploadedFile[]) {
     setBusy(true)
     setError(null)
     try {
-      const result = await fetchPortfolio(files, overrides)
-      setSummary(result)
-      await saveState(result, overrides)
+      const collection = await recompute(next, overrides)
+      setFiles(collection.files)
+      setSummary(collection.summary)
+      await saveState(collection.files, collection.summary, overrides)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -39,10 +45,13 @@ export default function App() {
   }
 
   async function reset() {
+    setFiles([])
     setSummary(null)
     setError(null)
     await clearState()
   }
+
+  const complete = summary?.accounts.every((account) => account.covered) ?? false
 
   return (
     <main>
@@ -50,15 +59,17 @@ export default function App() {
         <h1>OneFolio</h1>
         {summary && (
           <div className="total">
-            <span className="total-label">
-              {summary.accounts.every((account) => account.covered) ? '총자산' : '집계 기준'}
-            </span>
+            <span className="total-label">{complete ? '총자산' : '집계 기준'}</span>
             <strong>{won(summary.coveredAsset)}</strong>
           </div>
         )}
       </header>
 
-      <FileDrop onFiles={upload} busy={busy} compact={summary !== null} />
+      <FileDrop
+        onFiles={async (picked) => apply([...files, ...(await toUploadedFiles(picked))])}
+        busy={busy}
+        compact={summary !== null}
+      />
 
       {error && <p className="error">{error}</p>}
 
@@ -68,13 +79,18 @@ export default function App() {
             accounts={summary.accounts}
             coveredAsset={summary.coveredAsset}
             totalAsset={summary.totalAsset}
+            busy={busy}
+            onRemove={(number) => apply(withoutAccount(files, number))}
           />
           <AllocationBar categories={summary.categories} />
           <HoldingsTable holdings={summary.holdings} mode={mode} onModeChange={setMode} />
           <footer className="page-foot">
-            <p>자산 데이터는 이 브라우저에만 저장됩니다. 서버는 계산 후 아무것도 남기지 않습니다.</p>
+            <p>
+              올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산
+              후 아무것도 남기지 않습니다.
+            </p>
             <button type="button" className="link" onClick={reset}>
-              저장된 데이터 지우기
+              전부 지우기
             </button>
           </footer>
         </>

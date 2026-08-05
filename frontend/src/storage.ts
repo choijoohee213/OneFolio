@@ -1,12 +1,13 @@
-import type { Overrides, Summary } from './types'
+import type { Overrides, Summary, UploadedFile } from './types'
 
-// 자산 데이터는 서버에 남기지 않는다. 마지막 집계 결과와 사용자 분류 매핑만
-// 브라우저 안에 보관해서 앱을 다시 열었을 때 파일을 또 올리지 않아도 되게 한다.
+// 자산 데이터는 서버에 남기지 않는다. 올린 잔고파일과 마지막 집계 결과, 분류 매핑은
+// 브라우저 안에만 둔다. 파일을 들고 있어야 계좌를 추가할 때 누적 집계가 된다.
 const DB_NAME = 'onefolio'
 const STORE = 'state'
 const VERSION = 1
 
 interface SavedState {
+  files: UploadedFile[]
   summary: Summary | null
   overrides: Overrides
   savedAt: string
@@ -22,7 +23,18 @@ function renderable(summary: unknown): summary is Summary {
     typeof s.totalAsset === 'number' &&
     Array.isArray(s.accounts) &&
     Array.isArray(s.categories) &&
-    Array.isArray(s.holdings)
+    Array.isArray(s.holdings) &&
+    Array.isArray(s.sources)
+  )
+}
+
+function storedFiles(files: unknown): UploadedFile[] {
+  if (!Array.isArray(files)) return []
+  return files.filter(
+    (file: UploadedFile) =>
+      typeof file?.name === 'string' &&
+      file.data instanceof ArrayBuffer &&
+      Array.isArray(file.accounts),
   )
 }
 
@@ -52,6 +64,7 @@ export async function loadState(): Promise<SavedState | null> {
     if (!state) return null
     return {
       ...state,
+      files: storedFiles(state.files),
       summary: renderable(state.summary) ? state.summary : null,
       overrides: state.overrides ?? {},
     }
@@ -60,8 +73,12 @@ export async function loadState(): Promise<SavedState | null> {
   }
 }
 
-export async function saveState(summary: Summary | null, overrides: Overrides): Promise<void> {
-  const state: SavedState = { summary, overrides, savedAt: new Date().toISOString() }
+export async function saveState(
+  files: UploadedFile[],
+  summary: Summary | null,
+  overrides: Overrides,
+): Promise<void> {
+  const state: SavedState = { files, summary, overrides, savedAt: new Date().toISOString() }
   try {
     await run('readwrite', (store) => store.put(state, 'current'))
   } catch {

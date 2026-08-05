@@ -16,6 +16,15 @@ type Summary struct {
 	Accounts     []AccountSummary `json:"accounts"`
 	Categories   []CategoryTotal  `json:"categories"`
 	Holdings     []HoldingDetail  `json:"holdings"`
+
+	// Sources 는 업로드한 파일이 각각 어느 계좌를 담당했는지 알려준다.
+	// 요청에 보낸 파일 순서와 같다.
+	Sources []Source `json:"sources"`
+}
+
+type Source struct {
+	FileName       string   `json:"fileName"`
+	AccountNumbers []string `json:"accountNumbers"`
 }
 
 type AccountSummary struct {

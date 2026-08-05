@@ -430,6 +430,14 @@ Content-Disposition: form-data; name="overrides"
       종목은 <em>계좌 + 종목명</em>으로 중복을 제거하며 겹치면 나중 파일 값이 이긴다.
     </div>
 
+    <div class="note warn">
+      <strong>이 API 는 이전 요청을 기억하지 않는다.</strong>
+      계좌를 하나 더 올린다고 앞서 올린 계좌에 더해지지 않는다. 매 요청은 그 요청에 담긴
+      파일만으로 계산한다. 여러 계좌를 누적해서 보려면 <strong>클라이언트가 파일을 들고 있다가
+      매번 전부 다시 보내야 한다.</strong> 어떤 파일을 빼면 어느 계좌가 빠지는지는
+      <code>sources</code>로 알 수 있다.
+    </div>
+
     <h4>Response Element</h4>
     <div class="scroll">
     <table>
@@ -440,6 +448,7 @@ Content-Disposition: form-data; name="overrides"
         <tr><td><code>accounts</code></td><td class="type"><a href="#model-account">Account</a>[]</td><td>계좌별 총액과 집계 포함 여부</td></tr>
         <tr><td><code>categories</code></td><td class="type"><a href="#model-category">Category</a>[]</td><td>카테고리별 집계. 금액 내림차순</td></tr>
         <tr><td><code>holdings</code></td><td class="type"><a href="#model-holding">Holding</a>[]</td><td>종목별 상세. 평가금액 내림차순</td></tr>
+        <tr><td><code>sources</code></td><td class="type"><a href="#model-source">Source</a>[]</td><td>보낸 파일이 각각 어느 계좌를 담당했는지. <strong>요청의 파일 순서와 같다</strong></td></tr>
       </tbody>
     </table>
     </div>
@@ -479,6 +488,9 @@ Content-Disposition: form-data; name="overrides"
       "profitRate": 11.11,
       "weight": 50
     }
+  ],
+  "sources": [
+    { "fileName": "계좌1.xls", "accountNumbers": ["111111111110"] }
   ]
 }</code></pre>
 
@@ -523,6 +535,17 @@ Content-Disposition: form-data; name="overrides"
 <!-- ============ 4. 데이터 모델 ============ -->
 <h2 id="models">4. 데이터 모델</h2>
 <p class="h2sub">응답 본문에 쓰이는 JSON 객체 정의.</p>
+
+<h3 id="model-source">Source</h3>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>fileName</code></td><td class="type">string</td><td>업로드한 파일 이름</td></tr>
+    <tr><td><code>accountNumbers</code></td><td class="type">string[]</td><td>이 파일이 종목 상세를 담고 있던 계좌. 보통 1개다</td></tr>
+  </tbody>
+</table>
+</div>
 
 <h3 id="model-account">Account</h3>
 <div class="scroll">

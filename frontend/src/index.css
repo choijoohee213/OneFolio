@@ -196,7 +196,7 @@ main {
 }
 .account-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0;
@@ -229,6 +229,14 @@ main {
 }
 .account-sum .account-state {
   border: 0;
+}
+.remove {
+  text-align: right;
+  white-space: nowrap;
+}
+.remove:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* ---------- 자산배분 ---------- */
