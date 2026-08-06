@@ -13,12 +13,15 @@
   /* 상태 표시용. 차트 계열색과 겹치면 배지가 범례처럼 읽혀서 따로 둔다 */
   --flag: #b45309;
 
-  /* 검증된 카테고리 색. 슬롯은 금액 순위가 아니라 카테고리 정체성에 고정한다 */
-  --cat-1: #2a78d6;
-  --cat-2: #eb6834;
-  --cat-3: #1baf7a;
-  --cat-4: #eda100;
-  --cat-5: #e87ba4;
+  /* 카테고리 색. 슬롯은 금액 순위가 아니라 카테고리 정체성에 고정한다.
+     도넛은 모든 조각 쌍이 서로 비교되므로 인접 쌍만 보는 막대보다 조건이 빡세다.
+     8색 팔레트에서 5개를 뽑는 56가지 중 전 항목을 통과하는 조합은 없고,
+     이 다섯이 그중 최선이다(라이트 정상시력 통과, 다크 색각이상 ΔE 6.5). */
+  --cat-1: #2a78d6; /* 개별주(국내) */
+  --cat-2: #1baf7a; /* 개별주(해외) */
+  --cat-3: #008300; /* 지수 ETF */
+  --cat-4: #e34948; /* 레버리지·테마 ETF */
+  --cat-5: #eda100; /* 현금성 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -35,10 +38,10 @@
     --loss: #3987e5;
     --flag: #e8a33d;
     --cat-1: #3987e5;
-    --cat-2: #d95926;
-    --cat-3: #199e70;
-    --cat-4: #c98500;
-    --cat-5: #d55181;
+    --cat-2: #199e70;
+    --cat-3: #008300;
+    --cat-4: #e66767;
+    --cat-5: #c98500;
   }
 }
 
@@ -55,10 +58,10 @@
   --loss: #3987e5;
   --flag: #e8a33d;
   --cat-1: #3987e5;
-  --cat-2: #d95926;
-  --cat-3: #199e70;
-  --cat-4: #c98500;
-  --cat-5: #d55181;
+  --cat-2: #199e70;
+  --cat-3: #008300;
+  --cat-4: #e66767;
+  --cat-5: #c98500;
 }
 
 * {
@@ -264,37 +267,41 @@ main {
 .allocation {
   margin-top: 2.5rem;
 }
-.allocation-bar {
-  display: flex;
-  gap: 2px;
-  height: 44px;
-  margin-bottom: 1rem;
-}
-.segment {
-  display: flex;
+.donut-row {
+  display: grid;
+  gap: 1.25rem;
   align-items: center;
-  justify-content: center;
-  min-width: 3px;
-  overflow: hidden;
+  margin-bottom: 0.5rem;
 }
-.segment:first-child {
-  border-radius: 4px 0 0 4px;
-}
-.segment:last-child {
-  border-radius: 0 4px 4px 0;
-}
-.segment-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #fff;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
-}
-/* 좁으면 같은 비중이라도 픽셀 폭이 모자라 숫자가 잘린다. 바로 아래 범례에 다 있다 */
-@media (max-width: 34rem) {
-  .segment-label {
-    display: none;
+@media (min-width: 34rem) {
+  .donut-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2rem;
   }
+}
+.donut {
+  width: 200px;
+  height: 200px;
+  justify-self: center;
+}
+.donut-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #fff;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 2.5px;
+}
+.donut-center-label {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.donut-center-value {
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .legend {

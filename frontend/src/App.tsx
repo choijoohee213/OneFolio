@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { toUploadedFiles } from './api'
 import { recompute, withoutAccount } from './collection'
 import { AccountsPanel } from './components/AccountsPanel'
-import { AllocationBar } from './components/AllocationBar'
+import { AllocationDonut } from './components/AllocationDonut'
 import { FileDrop } from './components/FileDrop'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { won } from './format'
@@ -79,7 +79,7 @@ export default function App() {
             busy={busy}
             onRemove={(number) => apply(withoutAccount(files, number))}
           />
-          <AllocationBar categories={summary.categories} />
+          <AllocationDonut categories={summary.categories} coveredAsset={summary.coveredAsset} />
           <HoldingsTable holdings={summary.holdings} mode={mode} onModeChange={setMode} />
           <footer className="page-foot">
             <p>
