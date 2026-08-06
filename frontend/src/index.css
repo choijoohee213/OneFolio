@@ -289,15 +289,21 @@ main {
   display: block;
   overflow: visible;
 }
+.pie-visual {
+  pointer-events: none;
+}
 .slice {
-  cursor: pointer;
   transition: transform 0.12s ease-out;
-  outline: none;
 }
 .slice.on {
   filter: brightness(1.06);
 }
-.slice:focus-visible {
+.hit {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+.hit:focus-visible {
   stroke: var(--text);
   stroke-width: 2;
 }

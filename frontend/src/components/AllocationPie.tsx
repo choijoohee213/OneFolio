@@ -55,47 +55,60 @@ export function AllocationPie({ categories, coveredAsset }: Props) {
             role="img"
             aria-label={`자산배분: ${slices.map((s) => `${s.total.category} ${percent(s.total.weight)}`).join(', ')}`}
           >
-            {slices.map((slice) => {
-              const on = slice.total.category === active
-              return (
-                <path
-                  key={slice.total.category}
-                  className={`slice ${on ? 'on' : ''}`}
-                  d={wedge(slice)}
-                  fill={categoryColor(slice.total.category)}
-                  transform={on ? popOut(slice) : undefined}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`${slice.total.category} ${percent(slice.total.weight)}, ${won(slice.total.amount)}`}
-                  onMouseEnter={(event) => {
-                    setActive(slice.total.category)
-                    moveTip(event)
-                  }}
-                  onMouseMove={moveTip}
-                  onMouseLeave={() => setActive(null)}
-                  onFocus={() => {
-                    setActive(slice.total.category)
-                    tipAtSlice(slice)
-                  }}
-                  onBlur={() => setActive(null)}
-                />
-              )
-            })}
+            <g className="pie-visual">
+              {slices.map((slice) => {
+                const on = slice.total.category === active
+                return (
+                  <path
+                    key={slice.total.category}
+                    className={`slice ${on ? 'on' : ''}`}
+                    d={wedge(slice, GAP_RADIANS)}
+                    fill={categoryColor(slice.total.category)}
+                    transform={on ? popOut(slice) : undefined}
+                  />
+                )
+              })}
 
-            {slices
-              .filter((slice) => slice.total.weight >= LABEL_MIN_WEIGHT)
-              .map((slice) => (
-                <text
-                  key={slice.total.category}
-                  className="pie-label"
-                  x={CENTER + Math.cos(slice.middle) * RADIUS * 0.62}
-                  y={CENTER + Math.sin(slice.middle) * RADIUS * 0.62}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                >
-                  {slice.total.weight.toFixed(0)}%
-                </text>
-              ))}
+              {slices
+                .filter((slice) => slice.total.weight >= LABEL_MIN_WEIGHT)
+                .map((slice) => (
+                  <text
+                    key={slice.total.category}
+                    className="pie-label"
+                    x={CENTER + Math.cos(slice.middle) * RADIUS * 0.62}
+                    y={CENTER + Math.sin(slice.middle) * RADIUS * 0.62}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    {slice.total.weight.toFixed(0)}%
+                  </text>
+                ))}
+            </g>
+
+            {/* 마우스를 받는 층은 따로 둔다. 보이는 조각이 튀어나오면 커서 밑에서
+                빠져나가 hover 가 풀렸다 걸렸다 반복하고, 조각 사이 간격도 빈틈이 된다.
+                이 층은 틈 없이 원을 덮고 절대 움직이지 않는다. */}
+            {slices.map((slice) => (
+              <path
+                key={slice.total.category}
+                className="hit"
+                d={wedge(slice, 0)}
+                tabIndex={0}
+                role="button"
+                aria-label={`${slice.total.category} ${percent(slice.total.weight)}, ${won(slice.total.amount)}`}
+                onMouseEnter={(event) => {
+                  setActive(slice.total.category)
+                  moveTip(event)
+                }}
+                onMouseMove={moveTip}
+                onMouseLeave={() => setActive(null)}
+                onFocus={() => {
+                  setActive(slice.total.category)
+                  tipAtSlice(slice)
+                }}
+                onBlur={() => setActive(null)}
+              />
+            ))}
           </svg>
 
           {hovered && (
@@ -153,9 +166,9 @@ function toSlices(categories: CategoryTotal[]): Slice[] {
     })
 }
 
-function wedge({ start, end }: Slice): string {
+function wedge({ start, end }: Slice, gap: number): string {
   // 조각이 아주 얇으면 간격을 빼다가 뒤집힌다.
-  const pad = Math.min(GAP_RADIANS, (end - start) / 4)
+  const pad = Math.min(gap, (end - start) / 4)
   const from = start + pad
   const to = end - pad
   const large = to - from > Math.PI ? 1 : 0
