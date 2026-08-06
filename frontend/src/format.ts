@@ -5,14 +5,6 @@ export function won(value: number): string {
   return `${Math.round(value).toLocaleString('ko-KR')}원`
 }
 
-// 도넛 가운데처럼 폭이 좁은 자리용. 정확한 금액은 범례와 계좌 목록에 그대로 있다.
-export function wonCompact(value: number): string {
-  const abs = Math.abs(value)
-  if (abs >= 1e8) return `${(value / 1e8).toFixed(2)}억원`
-  if (abs >= 1e4) return `${Math.round(value / 1e4).toLocaleString('ko-KR')}만원`
-  return won(value)
-}
-
 export function signedWon(value: number): string {
   return `${value > 0 ? '+' : ''}${won(value)}`
 }

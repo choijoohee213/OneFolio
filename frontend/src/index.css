@@ -14,14 +14,14 @@
   --flag: #b45309;
 
   /* 카테고리 색. 슬롯은 금액 순위가 아니라 카테고리 정체성에 고정한다.
-     도넛은 모든 조각 쌍이 서로 비교되므로 인접 쌍만 보는 막대보다 조건이 빡세다.
-     8색 팔레트에서 5개를 뽑는 56가지 중 전 항목을 통과하는 조합은 없고,
-     이 다섯이 그중 최선이다(라이트 정상시력 통과, 다크 색각이상 ΔE 6.5). */
-  --cat-1: #2a78d6; /* 개별주(국내) */
-  --cat-2: #1baf7a; /* 개별주(해외) */
-  --cat-3: #008300; /* 지수 ETF */
-  --cat-4: #e34948; /* 레버리지·테마 ETF */
-  --cat-5: #eda100; /* 현금성 */
+     파스텔은 채도를 낮춰 색끼리 가까워지므로, 색상환에서 최대한 벌린 다섯을 골랐다.
+     파랑↔보라가 색각이상에서 거의 겹치는 게 이 조합의 약점이라, 두 개별주에
+     배정해 헷갈려도 성격이 비슷하도록 두었다. */
+  --cat-1: #5b93db; /* 개별주(국내) */
+  --cat-2: #c77fd4; /* 개별주(해외) */
+  --cat-3: #2fb98d; /* 지수 ETF */
+  --cat-4: #e86b69; /* 레버리지·테마 ETF */
+  --cat-5: #e5ae3c; /* 현금성 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -37,11 +37,11 @@
     --gain: #e66767;
     --loss: #3987e5;
     --flag: #e8a33d;
-    --cat-1: #3987e5;
-    --cat-2: #199e70;
-    --cat-3: #008300;
-    --cat-4: #e66767;
-    --cat-5: #c98500;
+    --cat-1: #6fa3e2;
+    --cat-2: #ce8dda;
+    --cat-3: #3fc79a;
+    --cat-4: #ee8480;
+    --cat-5: #edbb55;
   }
 }
 
@@ -57,11 +57,11 @@
   --gain: #e66767;
   --loss: #3987e5;
   --flag: #e8a33d;
-  --cat-1: #3987e5;
-  --cat-2: #199e70;
-  --cat-3: #008300;
-  --cat-4: #e66767;
-  --cat-5: #c98500;
+  --cat-1: #6fa3e2;
+  --cat-2: #ce8dda;
+  --cat-3: #3fc79a;
+  --cat-4: #ee8480;
+  --cat-5: #edbb55;
 }
 
 * {
@@ -267,41 +267,91 @@ main {
 .allocation {
   margin-top: 2.5rem;
 }
-.donut-row {
+.pie-row {
   display: grid;
   gap: 1.25rem;
   align-items: center;
   margin-bottom: 0.5rem;
 }
 @media (min-width: 34rem) {
-  .donut-row {
+  .pie-row {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 2rem;
   }
 }
-.donut {
-  width: 200px;
-  height: 200px;
+.pie-wrap {
+  position: relative;
   justify-self: center;
 }
-.donut-label {
-  font-size: 12px;
+.pie {
+  width: 220px;
+  height: 220px;
+  display: block;
+  overflow: visible;
+}
+.slice {
+  cursor: pointer;
+  transition: transform 0.12s ease-out;
+  outline: none;
+}
+.slice.on {
+  filter: brightness(1.06);
+}
+.slice:focus-visible {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.pie-label {
+  font-size: 13px;
   font-weight: 700;
   fill: #fff;
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
   paint-order: stroke;
-  stroke: rgba(0, 0, 0, 0.35);
-  stroke-width: 2.5px;
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 3px;
 }
-.donut-center-label {
-  font-size: 11px;
-  fill: var(--muted);
+
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  white-space: nowrap;
+  display: grid;
+  gap: 0.1rem;
+  z-index: 2;
 }
-.donut-center-value {
-  font-size: 17px;
+.tooltip-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+.tooltip-weight {
+  font-size: 1.05rem;
   font-weight: 700;
-  fill: var(--text);
   font-variant-numeric: tabular-nums;
+}
+.tooltip-amount {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tooltip-of {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.legend li {
+  transition: opacity 0.12s;
+}
+.legend li.dim {
+  opacity: 0.4;
 }
 
 .legend {
