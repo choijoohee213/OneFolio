@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { categoryColor, percent, won } from '../format'
 import type { Category, CategoryTotal } from '../types'
-import { CATEGORIES } from '../types'
 
 const SIZE = 220
 const CENTER = SIZE / 2
@@ -150,14 +149,14 @@ export function AllocationPie({ categories, coveredAsset }: Props) {
   )
 }
 
-// 조각은 항상 카테고리 고정 순서다. 금액 순으로 그리면 데이터가 바뀔 때마다
-// 맞닿는 색 조합이 달라진다.
+// 12시부터 비중이 큰 순으로 시계방향으로 그린다. 색은 순서가 아니라 카테고리에
+// 묶여 있어서(categoryColor) 비중이 바뀌어도 같은 카테고리는 같은 색을 유지한다.
 function toSlices(categories: CategoryTotal[]): Slice[] {
-  const byCategory = new Map(categories.map((total) => [total.category, total]))
   let angle = -Math.PI / 2
 
-  return CATEGORIES.map((category) => byCategory.get(category))
-    .filter((total): total is CategoryTotal => total !== undefined && total.weight > 0)
+  return categories
+    .filter((total) => total.weight > 0)
+    .sort((a, b) => b.weight - a.weight)
     .map((total) => {
       const span = (total.weight / 100) * 2 * Math.PI
       const slice = { total, start: angle, end: angle + span, middle: angle + span / 2 }
