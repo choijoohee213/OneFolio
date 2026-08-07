@@ -12,6 +12,24 @@ type Portfolio struct {
 	Cash     []domain.Holding
 }
 
+// CoveredAccounts 는 이 파일이 종목 상세를 담고 있는 계좌 번호를 돌려준다.
+// 잔고파일은 어느 것을 받아도 전체 계좌현황을 담고 있어서, 계좌 목록만으로는
+// 무엇을 담당한 파일인지 알 수 없다. 클라이언트가 계좌 단위로 파일을 관리할 때 쓴다.
+func CoveredAccounts(result *parser.Result) []string {
+	seen := make(map[string]bool)
+	var numbers []string
+	for _, group := range [][]domain.Holding{result.Holdings, result.Cash} {
+		for _, h := range group {
+			if seen[h.AccountNumber] {
+				continue
+			}
+			seen[h.AccountNumber] = true
+			numbers = append(numbers, h.AccountNumber)
+		}
+	}
+	return numbers
+}
+
 // Merge 는 계좌별로 받은 파일들을 합친다. 어느 파일에나 전체 계좌현황이 똑같이
 // 들어있고 같은 파일을 두 번 올릴 수도 있어서, 계좌와 종목 모두 중복을 제거한다.
 func Merge(files ...*parser.Result) *Portfolio {

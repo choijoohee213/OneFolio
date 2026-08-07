@@ -1,0 +1,595 @@
+:root {
+  color-scheme: light;
+
+  --bg: #fcfcfb;
+  --surface: #f4f4f2;
+  --border: #e0e0dc;
+  --text: #0b0b0b;
+  --text-secondary: #52514e;
+  --muted: #7c7b76;
+  --accent: #2a78d6;
+  --gain: #c0392b;
+  --loss: #2a78d6;
+  /* 상태 표시용. 차트 계열색과 겹치면 배지가 범례처럼 읽혀서 따로 둔다 */
+  --flag: #b45309;
+
+  /* 카테고리 색. 슬롯은 금액 순위가 아니라 카테고리 정체성에 고정한다.
+     파스텔은 채도를 낮춰 색끼리 가까워지므로, 색상환에서 최대한 벌린 다섯을 골랐다.
+     파랑↔보라가 색각이상에서 거의 겹치는 게 이 조합의 약점이라, 두 개별주에
+     배정해 헷갈려도 성격이 비슷하도록 두었다. */
+  --cat-1: #5b93db; /* 개별주(국내) */
+  --cat-2: #c77fd4; /* 개별주(해외) */
+  --cat-3: #2fb98d; /* 지수 ETF */
+  --cat-4: #e86b69; /* 레버리지·테마 ETF */
+  --cat-5: #e5ae3c; /* 현금성 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --bg: #1a1a19;
+    --surface: #232322;
+    --border: #33332f;
+    --text: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #94938b;
+    --accent: #3987e5;
+    --gain: #e66767;
+    --loss: #3987e5;
+    --flag: #e8a33d;
+    --cat-1: #6fa3e2;
+    --cat-2: #ce8dda;
+    --cat-3: #3fc79a;
+    --cat-4: #ee8480;
+    --cat-5: #edbb55;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #1a1a19;
+  --surface: #232322;
+  --border: #33332f;
+  --text: #ffffff;
+  --text-secondary: #c3c2b7;
+  --muted: #94938b;
+  --accent: #3987e5;
+  --gain: #e66767;
+  --loss: #3987e5;
+  --flag: #e8a33d;
+  --cat-1: #6fa3e2;
+  --cat-2: #ce8dda;
+  --cat-3: #3fc79a;
+  --cat-4: #ee8480;
+  --cat-5: #edbb55;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', 'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+/* ---------- 헤더 ---------- */
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.page-head h1 {
+  font-size: 1.35rem;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+/* 총자산은 오른쪽 끝에 두고 테마 전환은 제목 옆에 붙인다 */
+.theme-toggle {
+  margin-right: auto;
+}
+.theme-toggle button {
+  font-size: 0.72rem;
+  padding: 0.22rem 0.5rem;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.total-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.total strong {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- 업로드 ---------- */
+.drop {
+  border: 1.5px dashed var(--border);
+  border-radius: 12px;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+.drop.compact {
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: left;
+}
+.drop.dragging {
+  border-color: var(--accent);
+  border-style: solid;
+}
+.drop-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+.drop.compact .drop-title {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.drop-hint {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.drop button {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.45rem 1rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.drop button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.drop button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  margin: 1rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--gain);
+  background: var(--surface);
+  border-radius: 0 7px 7px 0;
+  font-size: 0.9rem;
+}
+.empty {
+  margin-top: 2rem;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* ---------- 계좌 ---------- */
+.accounts {
+  margin-top: 2rem;
+}
+.account-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* 좁은 화면에서는 계좌명+상태 / 금액+빼기 두 줄로 접는다.
+   한 줄로 밀어넣으면 계좌유형이 글자 단위로 쪼개진다. */
+.account-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.account-type {
+  word-break: keep-all;
+}
+.account-list li > .account-amount {
+  grid-column: 1;
+  text-align: left;
+}
+@media (min-width: 34rem) {
+  .account-list li {
+    grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+  }
+  .account-list li > .account-amount {
+    grid-column: auto;
+    text-align: right;
+  }
+}
+.account-list li.excluded .account-type,
+.account-list li.excluded .account-amount {
+  color: var(--muted);
+}
+.account-state {
+  font-size: 0.72rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+  justify-self: start;
+}
+.account-state.on {
+  color: var(--flag);
+  border-color: var(--flag);
+}
+.account-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+/* 아래 모든 비중의 분모라 계좌 목록 끝에서 한 번 더 못박는다 */
+.account-sum {
+  font-weight: 600;
+  border-bottom: 0 !important;
+  border-top: 1px solid var(--border);
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+}
+.account-sum .account-state {
+  border: 0;
+}
+.remove {
+  text-align: right;
+  white-space: nowrap;
+}
+.remove:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- 자산배분 ---------- */
+.allocation {
+  margin-top: 2.5rem;
+}
+.pie-row {
+  display: grid;
+  gap: 1.25rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+@media (min-width: 34rem) {
+  .pie-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+.pie-wrap {
+  position: relative;
+  justify-self: center;
+}
+.pie {
+  width: 220px;
+  height: 220px;
+  display: block;
+  overflow: visible;
+}
+.pie-visual {
+  pointer-events: none;
+}
+.slice {
+  transition: transform 0.12s ease-out;
+}
+.slice.on {
+  filter: brightness(1.06);
+}
+.hit {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+.hit:focus-visible {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.pie-label {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #fff;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.3);
+  stroke-width: 3px;
+}
+
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  white-space: nowrap;
+  display: grid;
+  gap: 0.1rem;
+  z-index: 2;
+}
+.tooltip-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+.tooltip-weight {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tooltip-amount {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tooltip-of {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.legend li {
+  transition: opacity 0.12s;
+}
+.legend li.dim {
+  opacity: 0.4;
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.legend li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.legend-name {
+  word-break: keep-all;
+}
+.legend li > .legend-amount {
+  grid-column: 2 / -1;
+  text-align: left;
+}
+@media (min-width: 34rem) {
+  .legend li {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 0.6rem;
+    padding: 0.4rem 0;
+  }
+  .legend li > .legend-amount {
+    grid-column: auto;
+    text-align: right;
+  }
+}
+.legend li:last-child {
+  border-bottom: 0;
+}
+.legend-weight,
+.legend-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.legend-weight {
+  font-weight: 600;
+}
+.legend-amount {
+  color: var(--muted);
+  min-width: 7rem;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+.swatch.small {
+  width: 8px;
+  height: 8px;
+  margin-right: 0.4rem;
+}
+
+/* ---------- 종목 표 ---------- */
+.holdings {
+  margin-top: 2.75rem;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.section-head h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+.toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.toggle button {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+  border: 0;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.toggle button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---------- 계좌별 아코디언 ---------- */
+.groups {
+  display: grid;
+  gap: 0.5rem;
+}
+.group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.group > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+.group > summary::-webkit-details-marker {
+  display: none;
+}
+.group > summary:hover {
+  color: var(--accent);
+}
+.group > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.group .chevron {
+  font-size: 0.65rem;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.group[open] .chevron {
+  transform: rotate(90deg);
+}
+.group-name {
+  font-weight: 600;
+}
+.group-count {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.group-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.group .scroll {
+  border-top: 1px solid var(--border);
+  padding: 0 0.85rem;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  min-width: 34rem;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+td.name {
+  white-space: normal;
+  font-weight: 500;
+}
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.gain {
+  color: var(--gain);
+}
+.loss {
+  color: var(--loss);
+}
+
+/* ---------- 푸터 ---------- */
+.page-foot {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.page-foot p {
+  margin: 0;
+}
+button.link {
+  font: inherit;
+  font-size: 0.8rem;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+button.link:hover {
+  color: var(--text);
+}

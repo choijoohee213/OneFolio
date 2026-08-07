@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OneFolio</title>
+    <!-- 앱이 뜨기 전에 테마를 입혀야 반대 색으로 한 번 번쩍이지 않는다 -->
+    <script>
+      try {
+        const saved = localStorage.getItem('onefolio-theme')
+        if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
