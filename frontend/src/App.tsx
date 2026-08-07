@@ -13,7 +13,7 @@ export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [overrides, setOverrides] = useState<Overrides>({})
-  const [mode, setMode] = useState<GroupMode>('name')
+  const [mode, setMode] = useState<GroupMode>('all')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [restored, setRestored] = useState(false)
@@ -80,7 +80,12 @@ export default function App() {
             onRemove={(number) => apply(withoutAccount(files, number))}
           />
           <AllocationPie categories={summary.categories} coveredAsset={summary.coveredAsset} />
-          <HoldingsTable holdings={summary.holdings} mode={mode} onModeChange={setMode} />
+          <HoldingsTable
+            holdings={summary.holdings}
+            accounts={summary.accounts}
+            mode={mode}
+            onModeChange={setMode}
+          />
           <footer className="page-foot">
             <p>
               올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산

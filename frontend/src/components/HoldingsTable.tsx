@@ -1,28 +1,24 @@
-import { categoryColor, percent, quantity, signedPercent, signedWon, won } from '../format'
-import type { Holding } from '../types'
+import { won } from '../format'
+import type { AccountSummary, Holding } from '../types'
+import { HoldingRows } from './HoldingRows'
 
-export type GroupMode = 'account' | 'name'
+export type GroupMode = 'all' | 'account'
 
 interface Props {
   holdings: Holding[]
+  accounts: AccountSummary[]
   mode: GroupMode
   onModeChange: (mode: GroupMode) => void
 }
 
-export function HoldingsTable({ holdings, mode, onModeChange }: Props) {
-  const rows = mode === 'name' ? mergeByName(holdings) : holdings
-
+export function HoldingsTable({ holdings, accounts, mode, onModeChange }: Props) {
   return (
     <section className="holdings">
       <header className="section-head">
         <h2>보유 종목</h2>
-        <div className="toggle" role="group" aria-label="종목 묶음 기준">
-          <button
-            type="button"
-            aria-pressed={mode === 'name'}
-            onClick={() => onModeChange('name')}
-          >
-            종목별
+        <div className="toggle" role="group" aria-label="보기 방식">
+          <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>
+            전체
           </button>
           <button
             type="button"
@@ -34,52 +30,50 @@ export function HoldingsTable({ holdings, mode, onModeChange }: Props) {
         </div>
       </header>
 
-      <div className="scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>종목</th>
-              <th>분류</th>
-              <th className="num">수량</th>
-              <th className="num">평가금액</th>
-              <th className="num">평가손익</th>
-              <th className="num">손익률</th>
-              <th className="num">비중</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((holding) => (
-              <tr key={`${holding.accountNumber}-${holding.name}`}>
-                <td className="name">{holding.name}</td>
-                <td>
-                  <span className="swatch small" style={{ background: categoryColor(holding.category) }} />
-                  {holding.category}
-                </td>
-                <td className="num">{quantity(holding.quantity)}</td>
-                <td className="num">{won(holding.evalAmount)}</td>
-                <td className={`num ${sign(holding.profitLoss)}`}>
-                  {holding.profitLoss === null ? '—' : signedWon(holding.profitLoss)}
-                </td>
-                <td className={`num ${sign(holding.profitRate)}`}>
-                  {holding.profitRate === null ? '—' : signedPercent(holding.profitRate)}
-                </td>
-                <td className="num">{percent(holding.weight)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {mode === 'all' ? (
+        <HoldingRows holdings={mergeByName(holdings)} />
+      ) : (
+        <AccountGroups holdings={holdings} accounts={accounts} />
+      )}
     </section>
   )
 }
 
-function sign(value: number | null): string {
-  if (value === null || value === 0) return ''
-  return value > 0 ? 'gain' : 'loss'
+function AccountGroups({ holdings, accounts }: { holdings: Holding[]; accounts: AccountSummary[] }) {
+  const groups = accounts
+    .map((account) => ({
+      account,
+      rows: holdings
+        .filter((holding) => holding.accountNumber === account.number)
+        .sort((a, b) => b.evalAmount - a.evalAmount),
+    }))
+    .filter((group) => group.rows.length > 0)
+
+  return (
+    <div className="groups">
+      {groups.map(({ account, rows }) => (
+        <details key={account.number} className="group">
+          <summary>
+            <span className="chevron" aria-hidden="true">
+              ▶
+            </span>
+            <span className="group-name">{account.type}</span>
+            <span className="group-count">{rows.length}종목</span>
+            <span className="group-amount">{won(sumEvalAmount(rows))}</span>
+          </summary>
+          <HoldingRows holdings={rows} />
+        </details>
+      ))}
+    </div>
+  )
+}
+
+function sumEvalAmount(holdings: Holding[]): number {
+  return holdings.reduce((total, holding) => total + holding.evalAmount, 0)
 }
 
 // 같은 종목을 여러 계좌에 나눠 들고 있으면 API 는 계좌마다 별도 행으로 준다.
-// 종목별 보기에서는 수량·금액을 합치고, 평단은 합산 매입금액에서 다시 낸다.
+// 전체 보기에서는 수량·금액을 합치고, 평단과 손익률은 합산 매입금액에서 다시 낸다.
 function mergeByName(holdings: Holding[]): Holding[] {
   const merged = new Map<string, Holding>()
 
