@@ -97,6 +97,15 @@ main {
   margin: 0;
   letter-spacing: -0.02em;
 }
+/* 총자산은 오른쪽 끝에 두고 테마 전환은 제목 옆에 붙인다 */
+.theme-toggle {
+  margin-right: auto;
+}
+.theme-toggle button {
+  font-size: 0.72rem;
+  padding: 0.22rem 0.5rem;
+}
+
 .total {
   display: flex;
   align-items: baseline;

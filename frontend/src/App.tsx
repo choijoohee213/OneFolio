@@ -5,8 +5,10 @@ import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { FileDrop } from './components/FileDrop'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
+import { ThemeToggle } from './components/ThemeToggle'
 import { won } from './format'
 import { clearState, loadState, saveState } from './storage'
+import { applyTheme, loadTheme, type Theme } from './theme'
 import type { Overrides, Summary, UploadedFile } from './types'
 
 export default function App() {
@@ -17,6 +19,7 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [restored, setRestored] = useState(false)
+  const [theme, setTheme] = useState<Theme>(loadTheme)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -55,6 +58,13 @@ export default function App() {
     <main>
       <header className="page-head">
         <h1>OneFolio</h1>
+        <ThemeToggle
+          theme={theme}
+          onChange={(next) => {
+            setTheme(next)
+            applyTheme(next)
+          }}
+        />
         {summary && (
           <div className="total">
             <span className="total-label">계좌 총합</span>
