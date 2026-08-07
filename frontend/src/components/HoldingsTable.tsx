@@ -1,5 +1,5 @@
 import { won } from '../format'
-import type { AccountSummary, Holding } from '../types'
+import type { AccountSummary, Category, Holding, Overrides } from '../types'
 import { HoldingRows } from './HoldingRows'
 
 export type GroupMode = 'all' | 'account'
@@ -9,9 +9,21 @@ interface Props {
   accounts: AccountSummary[]
   mode: GroupMode
   onModeChange: (mode: GroupMode) => void
+  overrides: Overrides
+  busy: boolean
+  onCategoryChange: (name: string, category: Category | null) => void
 }
 
-export function HoldingsTable({ holdings, accounts, mode, onModeChange }: Props) {
+export function HoldingsTable({
+  holdings,
+  accounts,
+  mode,
+  onModeChange,
+  overrides,
+  busy,
+  onCategoryChange,
+}: Props) {
+  const rowProps = { overrides, busy, onCategoryChange }
   return (
     <section className="holdings">
       <header className="section-head">
@@ -31,15 +43,25 @@ export function HoldingsTable({ holdings, accounts, mode, onModeChange }: Props)
       </header>
 
       {mode === 'all' ? (
-        <HoldingRows holdings={mergeByName(holdings)} />
+        <HoldingRows holdings={mergeByName(holdings)} {...rowProps} />
       ) : (
-        <AccountGroups holdings={holdings} accounts={accounts} />
+        <AccountGroups holdings={holdings} accounts={accounts} rowProps={rowProps} />
       )}
     </section>
   )
 }
 
-function AccountGroups({ holdings, accounts }: { holdings: Holding[]; accounts: AccountSummary[] }) {
+type RowProps = Pick<Props, 'overrides' | 'busy' | 'onCategoryChange'>
+
+function AccountGroups({
+  holdings,
+  accounts,
+  rowProps,
+}: {
+  holdings: Holding[]
+  accounts: AccountSummary[]
+  rowProps: RowProps
+}) {
   const groups = accounts
     .map((account) => ({
       account,
@@ -61,7 +83,7 @@ function AccountGroups({ holdings, accounts }: { holdings: Holding[]; accounts: 
             <span className="group-count">{rows.length}종목</span>
             <span className="group-amount">{won(sumEvalAmount(rows))}</span>
           </summary>
-          <HoldingRows holdings={rows} />
+          <HoldingRows holdings={rows} {...rowProps} />
         </details>
       ))}
     </div>

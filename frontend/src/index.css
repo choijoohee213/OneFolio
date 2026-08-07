@@ -430,6 +430,59 @@ main {
   margin-right: 0.4rem;
 }
 
+/* ---------- 분류 직접 지정 ---------- */
+.category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.category select {
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.1rem 0.2rem;
+  cursor: pointer;
+  max-width: 11rem;
+}
+.category select:hover:not(:disabled) {
+  border-color: var(--border);
+}
+.category select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.category select:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+/* 직접 바꾼 종목은 자동 분류와 구분되게 표시한다 */
+.category.overridden select {
+  color: var(--flag);
+  font-weight: 600;
+}
+.revert {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.revert:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface);
+}
+.revert:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ---------- 종목 표 ---------- */
 .holdings {
   margin-top: 2.75rem;

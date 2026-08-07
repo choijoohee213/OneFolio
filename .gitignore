@@ -28,3 +28,6 @@ Thumbs.db
 # ===== 로컬 전용 문서 (커밋 안 함) =====
 CLAUDE.md
 OneFolio_proposal.md
+
+# 개발 서버 로그
+.dev/

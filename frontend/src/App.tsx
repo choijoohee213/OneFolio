@@ -9,7 +9,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { won } from './format'
 import { clearState, loadState, saveState } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
-import type { Overrides, Summary, UploadedFile } from './types'
+import type { Category, Overrides, Summary, UploadedFile } from './types'
 
 export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
@@ -32,19 +32,32 @@ export default function App() {
     })
   }, [])
 
-  async function apply(next: UploadedFile[]) {
+  async function apply(nextFiles: UploadedFile[], nextOverrides: Overrides = overrides) {
     setBusy(true)
     setError(null)
     try {
-      const collection = await recompute(next, overrides)
+      const collection = await recompute(nextFiles, nextOverrides)
       setFiles(collection.files)
       setSummary(collection.summary)
-      await saveState(collection.files, collection.summary, overrides)
+      setOverrides(nextOverrides)
+      await saveState(collection.files, collection.summary, nextOverrides)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setBusy(false)
     }
+  }
+
+  // 분류를 바꾸면 서버가 그 매핑으로 다시 집계한다. 비중과 카테고리 합계가
+  // 함께 움직여야 해서 화면에서 값만 갈아끼울 수는 없다.
+  function changeCategory(name: string, category: Category | null) {
+    const next = { ...overrides }
+    if (category === null) {
+      delete next[name]
+    } else {
+      next[name] = category
+    }
+    return apply(files, next)
   }
 
   async function reset() {
@@ -95,6 +108,9 @@ export default function App() {
             accounts={summary.accounts}
             mode={mode}
             onModeChange={setMode}
+            overrides={overrides}
+            busy={busy}
+            onCategoryChange={changeCategory}
           />
           <footer className="page-foot">
             <p>
