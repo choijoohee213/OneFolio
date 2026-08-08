@@ -5,14 +5,16 @@ import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { FileDrop } from './components/FileDrop'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
+import { ManualAssets } from './components/ManualAssets'
 import { ThemeToggle } from './components/ThemeToggle'
 import { won } from './format'
 import { clearState, loadState, saveState } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
-import type { Category, Overrides, Summary, UploadedFile } from './types'
+import type { Category, ManualHolding, Overrides, Summary, UploadedFile } from './types'
 
 export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
+  const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
@@ -25,6 +27,7 @@ export default function App() {
     loadState().then((state) => {
       if (state) {
         setFiles(state.files)
+        setManualHoldings(state.manualHoldings)
         setSummary(state.summary)
         setOverrides(state.overrides)
       }
@@ -32,15 +35,20 @@ export default function App() {
     })
   }, [])
 
-  async function apply(nextFiles: UploadedFile[], nextOverrides: Overrides = overrides) {
+  async function apply(
+    nextFiles: UploadedFile[] = files,
+    nextOverrides: Overrides = overrides,
+    nextManual: ManualHolding[] = manualHoldings,
+  ) {
     setBusy(true)
     setError(null)
     try {
-      const collection = await recompute(nextFiles, nextOverrides)
+      const collection = await recompute(nextFiles, nextOverrides, nextManual)
       setFiles(collection.files)
+      setManualHoldings(nextManual)
       setSummary(collection.summary)
       setOverrides(nextOverrides)
-      await saveState(collection.files, collection.summary, nextOverrides)
+      await saveState(collection.files, nextManual, collection.summary, nextOverrides)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -60,8 +68,39 @@ export default function App() {
     return apply(files, next)
   }
 
+  function addManualHolding(input: { name: string; category: Category; evalAmount: number }) {
+    const nextManual = [...manualHoldings, { id: crypto.randomUUID(), name: input.name, evalAmount: input.evalAmount }]
+    const nextOverrides = { ...overrides, [input.name]: input.category }
+    return apply(files, nextOverrides, nextManual)
+  }
+
+  // 이름을 바꾸면 예전 이름에 걸려 있던 분류 매핑은 더 이상 이 종목을 못 찾는다.
+  // 그대로 두면 새 이름은 분류를 잃고 자동 추정으로 떨어지므로, 매핑을 새 이름으로 옮긴다.
+  function updateManualHolding(id: string, input: { name: string; category: Category; evalAmount: number }) {
+    const current = manualHoldings.find((item) => item.id === id)
+    if (!current) return
+
+    const nextManual = manualHoldings.map((item) =>
+      item.id === id ? { ...item, name: input.name, evalAmount: input.evalAmount } : item,
+    )
+    const nextOverrides = { ...overrides }
+    if (current.name !== input.name) delete nextOverrides[current.name]
+    nextOverrides[input.name] = input.category
+
+    return apply(files, nextOverrides, nextManual)
+  }
+
+  function removeManualHolding(id: string) {
+    return apply(
+      files,
+      overrides,
+      manualHoldings.filter((item) => item.id !== id),
+    )
+  }
+
   async function reset() {
     setFiles([])
+    setManualHoldings([])
     setSummary(null)
     setError(null)
     await clearState()
@@ -80,8 +119,12 @@ export default function App() {
         />
         {summary && (
           <div className="total">
-            <span className="total-label">계좌 총합</span>
-            <strong>{won(summary.totalAsset)}</strong>
+            {/* 계좌가 하나도 없으면(직접 추가한 자산만 있을 때) 계좌 총합은 0원이라
+                아무것도 없는 것처럼 보인다. 그럴 땐 실제로 집계된 금액을 보여준다. */}
+            <span className="total-label">
+              {summary.accounts.length > 0 ? '계좌 총합' : '직접 추가한 자산'}
+            </span>
+            <strong>{won(summary.accounts.length > 0 ? summary.totalAsset : summary.coveredAsset)}</strong>
           </div>
         )}
       </header>
@@ -93,6 +136,15 @@ export default function App() {
       />
 
       {error && <p className="error">{error}</p>}
+
+      <ManualAssets
+        manualHoldings={manualHoldings}
+        holdings={summary?.holdings ?? []}
+        busy={busy}
+        onAdd={addManualHolding}
+        onUpdate={updateManualHolding}
+        onRemove={removeManualHolding}
+      />
 
       {summary && (
         <>
@@ -125,7 +177,7 @@ export default function App() {
       )}
 
       {restored && !summary && !busy && !error && (
-        <p className="empty">잔고파일을 올리면 자산 배분과 종목별 손익을 보여줍니다.</p>
+        <p className="empty">잔고파일을 올리거나 자산을 직접 추가하면 자산 배분과 손익을 보여줍니다.</p>
       )}
     </main>
   )

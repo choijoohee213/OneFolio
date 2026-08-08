@@ -60,6 +60,13 @@ func Summarize(p *Portfolio, classifier *classify.Classifier) Summary {
 			summary.CoveredAsset += account.TotalAsset
 		}
 	}
+	// 사용자가 직접 추가한 자산은 자기 평가금액만큼 스스로 분모를 늘린다.
+	// 기존 계좌 총액에서 끌어오면 그 계좌의 현금성이 없던 돈을 쓴 것처럼 깎인다.
+	for _, holding := range p.Holdings {
+		if IsManual(holding.AccountNumber) {
+			summary.CoveredAsset += holding.EvalAmount
+		}
+	}
 
 	amountByCategory := make(map[domain.Category]float64)
 	var holdingsTotal float64

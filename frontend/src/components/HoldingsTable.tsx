@@ -102,7 +102,10 @@ function mergeByName(holdings: Holding[]): Holding[] {
   for (const holding of holdings) {
     const found = merged.get(holding.name)
     if (!found) {
-      merged.set(holding.name, { ...holding, accountNumber: 'merged' })
+      // accountNumber 는 그대로 첫 항목 것을 쓴다. 화면에서는 name 으로만 묶어
+      // 보여주므로 값 자체는 의미가 없지만, manual: 접두사가 남아 있어야
+      // 직접 추가한 자산인지 구분하는 로직(수량 표시 등)이 병합 후에도 맞는다.
+      merged.set(holding.name, { ...holding })
       continue
     }
     found.quantity += holding.quantity

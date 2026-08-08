@@ -2,6 +2,8 @@
 package portfolio
 
 import (
+	"strings"
+
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
 	"github.com/choijoohee213/OneFolio/backend/internal/parser"
 )
@@ -10,6 +12,15 @@ type Portfolio struct {
 	Accounts []domain.Account
 	Holdings []domain.Holding
 	Cash     []domain.Holding
+}
+
+// ManualAccountPrefix 는 잔고파일에 없는, 사용자가 직접 추가한 보유를 표시하는
+// 가상 계좌번호 접두사다. 이런 보유는 어느 계좌 자산총액에도 기대지 않고
+// Summarize 에서 자기 평가금액만큼 스스로 집계 분모를 채운다.
+const ManualAccountPrefix = "manual:"
+
+func IsManual(accountNumber string) bool {
+	return strings.HasPrefix(accountNumber, ManualAccountPrefix)
 }
 
 // CoveredAccounts 는 이 파일이 종목 상세를 담고 있는 계좌 번호를 돌려준다.

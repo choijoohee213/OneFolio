@@ -133,6 +133,48 @@ func TestSummarizePartialUpload(t *testing.T) {
 	}
 }
 
+// 어느 계좌 파일에도 속하지 않는 보유(사용자가 직접 추가한 자산)는 자기
+// 평가금액만큼 스스로 분모를 늘려야 한다. 기존 계좌에서 끌어오면 그 계좌의
+// 현금성이 없던 돈을 쓴 것처럼 깎인다.
+func TestSummarizeManualHoldingFundsItsOwnWeight(t *testing.T) {
+	summary := Summarize(&Portfolio{
+		Accounts: []domain.Account{account("111", 8000)},
+		Holdings: []domain.Holding{
+			priced("111", "삼성전자", 262500, 5000),
+			holding(ManualAccountPrefix+"abc", "예금", 2000),
+		},
+	}, classify.New(nil, nil))
+
+	if summary.CoveredAsset != 10000 {
+		t.Fatalf("CoveredAsset = %v, want 10000 (8000 계좌 + 2000 직접 추가)", summary.CoveredAsset)
+	}
+
+	cash, ok := categoryAmount(summary, domain.Cash)
+	if !ok || cash != 3000 {
+		t.Errorf("현금성 = %v(있음=%v), want 3000 (8000 - 5000, 직접 추가분은 건드리지 않음)", cash, ok)
+	}
+
+	for _, h := range summary.Holdings {
+		if h.Name == "예금" && h.Weight != 20 {
+			t.Errorf("예금 비중 = %v, want 20 (2000/10000)", h.Weight)
+		}
+	}
+}
+
+// 계좌 파일 없이 직접 추가한 자산만 있어도 비중이 정상적으로 100% 가 나와야 한다.
+func TestSummarizeOnlyManualHoldings(t *testing.T) {
+	summary := Summarize(&Portfolio{
+		Holdings: []domain.Holding{holding(ManualAccountPrefix+"a", "예금", 1000), holding(ManualAccountPrefix+"b", "적금", 3000)},
+	}, classify.New(nil, nil))
+
+	if summary.CoveredAsset != 4000 {
+		t.Fatalf("CoveredAsset = %v, want 4000", summary.CoveredAsset)
+	}
+	if _, ok := categoryAmount(summary, domain.Cash); ok {
+		t.Error("직접 추가한 자산으로 분모가 다 채워지면 현금성이 남으면 안 된다")
+	}
+}
+
 func TestSummarizeMarksCoveredAccounts(t *testing.T) {
 	summary := Summarize(&Portfolio{
 		Accounts: []domain.Account{account("111", 6000), account("222", 4000)},

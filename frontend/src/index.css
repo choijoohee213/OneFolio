@@ -192,6 +192,97 @@ main {
   font-size: 0.9rem;
 }
 
+/* ---------- 직접 추가한 자산 ---------- */
+.manual {
+  margin-top: 1.5rem;
+}
+.manual-hint {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.manual-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+.manual-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.manual-name {
+  font-weight: 500;
+}
+.manual-category {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.manual-amount {
+  font-variant-numeric: tabular-nums;
+  justify-self: end;
+}
+.manual-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.9rem;
+  justify-self: end;
+}
+@media (min-width: 34rem) {
+  .manual-list li {
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 0.6rem;
+  }
+  .manual-category,
+  .manual-actions {
+    grid-column: auto;
+  }
+}
+.manual-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.manual-form input,
+.manual-form select {
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+}
+.manual-form input[placeholder='종목명 (예: 정기예금)'] {
+  flex: 1 1 10rem;
+}
+.manual-form input[placeholder='평가금액'] {
+  flex: 0 1 8rem;
+}
+.manual-form button[type='submit'] {
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.manual-form button[type='submit']:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.manual-form button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ---------- 계좌 ---------- */
 .accounts {
   margin-top: 2rem;
@@ -643,6 +734,10 @@ button.link {
   cursor: pointer;
   padding: 0;
 }
-button.link:hover {
+button.link:hover:not(:disabled) {
   color: var(--text);
+}
+button.link:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

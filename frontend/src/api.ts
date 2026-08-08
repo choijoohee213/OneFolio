@@ -1,12 +1,22 @@
-import type { Overrides, Summary, UploadedFile } from './types'
+import type { ManualHolding, Overrides, Summary, UploadedFile } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
-export async function fetchPortfolio(files: UploadedFile[], overrides: Overrides): Promise<Summary> {
+export async function fetchPortfolio(
+  files: UploadedFile[],
+  overrides: Overrides,
+  manualHoldings: ManualHolding[],
+): Promise<Summary> {
   const form = new FormData()
   files.forEach((file) => form.append('files', new Blob([file.data]), file.name))
   if (Object.keys(overrides).length > 0) {
     form.append('overrides', JSON.stringify(overrides))
+  }
+  if (manualHoldings.length > 0) {
+    form.append(
+      'manualHoldings',
+      JSON.stringify(manualHoldings.map(({ id, name, evalAmount }) => ({ id, name, evalAmount }))),
+    )
   }
 
   const response = await fetch(`${BASE}/api/portfolio`, { method: 'POST', body: form })

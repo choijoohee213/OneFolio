@@ -50,6 +50,22 @@ export interface UploadedFile {
   accounts: string[]
 }
 
+/** 잔고파일에 없는, 사용자가 직접 추가한 자산(예금·부동산 등).
+ *  분류는 따로 안 들고 다닌다 — 추가·수정 시 overrides 에 이름으로 얹어서
+ *  서버가 다른 종목과 똑같이 분류하고 응답의 holdings 에 섞여 나온다. */
+export interface ManualHolding {
+  id: string
+  name: string
+  evalAmount: number
+}
+
+/** Holding.accountNumber 에 이 접두사가 붙어 있으면 직접 추가한 자산이다. */
+export const MANUAL_PREFIX = 'manual:'
+
+export function isManualHolding(holding: Pick<Holding, 'accountNumber'>): boolean {
+  return holding.accountNumber.startsWith(MANUAL_PREFIX)
+}
+
 export interface Summary {
   /** 종목 상세가 올라온 계좌들의 자산총액 합. 모든 비중의 분모다 */
   coveredAsset: number

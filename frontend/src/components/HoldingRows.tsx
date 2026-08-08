@@ -1,6 +1,6 @@
 import { categoryColor, percent, quantity, signedPercent, signedWon, won } from '../format'
 import type { Category, Holding, Overrides } from '../types'
-import { CATEGORIES } from '../types'
+import { CATEGORIES, isManualHolding } from '../types'
 
 interface Props {
   holdings: Holding[]
@@ -36,7 +36,7 @@ export function HoldingRows({ holdings, overrides, busy, onCategoryChange }: Pro
                   onChange={onCategoryChange}
                 />
               </td>
-              <td className="num">{quantity(holding.quantity)}</td>
+              <td className="num">{isManualHolding(holding) ? '—' : quantity(holding.quantity)}</td>
               <td className="num">{won(holding.evalAmount)}</td>
               <td className={`num ${sign(holding.profitLoss)}`}>
                 {holding.profitLoss === null ? '—' : signedWon(holding.profitLoss)}

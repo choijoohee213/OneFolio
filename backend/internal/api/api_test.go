@@ -28,6 +28,10 @@ func newServer(t *testing.T) http.Handler {
 }
 
 func uploadRequest(t *testing.T, overrides string, fileCount int) *http.Request {
+	return buildRequest(t, overrides, fileCount, "")
+}
+
+func buildRequest(t *testing.T, overrides string, fileCount int, manualHoldings string) *http.Request {
 	t.Helper()
 	content, err := os.ReadFile(fixture)
 	if err != nil {
@@ -45,6 +49,9 @@ func uploadRequest(t *testing.T, overrides string, fileCount int) *http.Request 
 	}
 	if overrides != "" {
 		form.WriteField(overridesField, overrides)
+	}
+	if manualHoldings != "" {
+		form.WriteField(manualHoldingsField, manualHoldings)
 	}
 	form.Close()
 
@@ -118,6 +125,43 @@ func TestPortfolioAppliesOverrides(t *testing.T) {
 	}
 }
 
+// 파일 없이 직접 추가한 자산만 보내도 계산이 되어야 한다.
+func TestPortfolioAcceptsManualHoldingsWithoutFiles(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newServer(t).ServeHTTP(rec, buildRequest(t, "", 0,
+		`[{"id":"a1","name":"예금","evalAmount":1000000}]`))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	summary := decodeSummary(t, rec.Body)
+	if summary.CoveredAsset != 1000000 {
+		t.Errorf("coveredAsset = %v, want 1000000", summary.CoveredAsset)
+	}
+	if len(summary.Holdings) != 1 || summary.Holdings[0].Name != "예금" {
+		t.Errorf("holdings = %+v, want [예금]", summary.Holdings)
+	}
+}
+
+// 파일과 직접 추가한 자산을 함께 보내면 둘 다 반영되어야 한다.
+func TestPortfolioMergesManualHoldingsWithFiles(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newServer(t).ServeHTTP(rec, buildRequest(t, "", 1,
+		`[{"id":"a1","name":"예금","evalAmount":1000000}]`))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	summary := decodeSummary(t, rec.Body)
+	// 픽스처는 계좌 3개 요약에 종목 상세는 한 계좌(2,500,000)만 담고 있다.
+	if want := 2500000.0 + 1000000; summary.CoveredAsset != want {
+		t.Errorf("coveredAsset = %v, want %v", summary.CoveredAsset, want)
+	}
+	if len(summary.Holdings) != 5 {
+		t.Errorf("종목 %d개, want 5 (파일 4 + 직접 추가 1)", len(summary.Holdings))
+	}
+}
+
 func TestPortfolioRejectsBadRequests(t *testing.T) {
 	server := newServer(t)
 
@@ -126,9 +170,11 @@ func TestPortfolioRejectsBadRequests(t *testing.T) {
 		request *http.Request
 		want    int
 	}{
-		{"파일 없음", uploadRequest(t, "", 0), http.StatusBadRequest},
+		{"파일도 직접 추가한 자산도 없음", uploadRequest(t, "", 0), http.StatusBadRequest},
 		{"잘못된 카테고리", uploadRequest(t, `{"삼성전자":"없는분류"}`, 1), http.StatusBadRequest},
 		{"JSON 아닌 overrides", uploadRequest(t, `삼성전자=현금성`, 1), http.StatusBadRequest},
+		{"직접 추가한 자산의 평가금액이 0 이하", buildRequest(t, "", 0, `[{"id":"a1","name":"예금","evalAmount":0}]`), http.StatusBadRequest},
+		{"직접 추가한 자산의 이름이 비어있음", buildRequest(t, "", 0, `[{"id":"a1","name":"","evalAmount":1000}]`), http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
