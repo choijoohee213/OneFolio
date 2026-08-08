@@ -14,13 +14,25 @@ type Portfolio struct {
 	Cash     []domain.Holding
 }
 
-// ManualAccountPrefix 는 잔고파일에 없는, 사용자가 직접 추가한 보유를 표시하는
-// 가상 계좌번호 접두사다. 이런 보유는 어느 계좌 자산총액에도 기대지 않고
-// Summarize 에서 자기 평가금액만큼 스스로 집계 분모를 채운다.
-const ManualAccountPrefix = "manual:"
+// 사용자가 직접 추가하는 자산은 두 층위다.
+//
+//   - 계좌(ManualAccountPrefix) — 잔고파일이 없는 통째 계좌. "저축은행 800만원"처럼
+//     이름과 총액만 있고, 종목을 안 붙이면 전액이 현금성으로 잡힌다. 진짜 계좌와
+//     똑같은 방식으로 계산되므로 Summarize 에 별도 분기가 필요 없다 — 단,
+//     파일 계좌와 달리 상세가 없어도 "집계됨" 이어야 하므로 그 부분만 다르다.
+//   - 종목(ManualHoldingPrefix) — 계좌를 만들지 않고 툭 던져 넣는 개별 자산.
+//     어느 계좌에도 안 속하니 자기 평가금액만큼 스스로 집계 분모를 채운다.
+const (
+	ManualAccountPrefix = "manual-account:"
+	ManualHoldingPrefix = "manual-item:"
+)
 
-func IsManual(accountNumber string) bool {
+func IsManualAccount(accountNumber string) bool {
 	return strings.HasPrefix(accountNumber, ManualAccountPrefix)
+}
+
+func IsManualHolding(accountNumber string) bool {
+	return strings.HasPrefix(accountNumber, ManualHoldingPrefix)
 }
 
 // CoveredAccounts 는 이 파일이 종목 상세를 담고 있는 계좌 번호를 돌려준다.

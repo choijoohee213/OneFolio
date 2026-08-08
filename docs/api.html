@@ -386,9 +386,13 @@ Content-Disposition: form-data; name="overrides"
 
 {"종목명":"카테고리"}
 ------Boundary
+Content-Disposition: form-data; name="manualAccounts"
+
+[{"id":"임의id","name":"저축은행","totalAsset":8000000}]
+------Boundary
 Content-Disposition: form-data; name="manualHoldings"
 
-[{"id":"임의id","name":"정기예금","evalAmount":10000000}]
+[{"id":"임의id","name":"정기예금","evalAmount":5000000,"accountId":"manualAccounts 항목의 id"}]
 ------Boundary--</code></pre>
 
     <h4>Request Header</h4>
@@ -415,7 +419,7 @@ Content-Disposition: form-data; name="manualHoldings"
           <td class="type">file (반복)</td>
           <td><span class="opt">선택</span></td>
           <td>잔고파일. 같은 필드명으로 여러 개를 보낸다. 계좌 수만큼 올린다</td>
-          <td class="type">전체 32MB 이하<br><code>manualHoldings</code>가 있으면 0개도 가능</td>
+          <td class="type">전체 32MB 이하<br><code>manualAccounts</code>·<code>manualHoldings</code>가 있으면 0개도 가능</td>
         </tr>
         <tr>
           <td><code>overrides</code></td>
@@ -425,11 +429,18 @@ Content-Disposition: form-data; name="manualHoldings"
           <td class="type">값은 <a href="#category-values">카테고리 5종</a> 중 하나</td>
         </tr>
         <tr>
+          <td><code>manualAccounts</code></td>
+          <td class="type">string (JSON 배열)</td>
+          <td><span class="opt">선택</span></td>
+          <td>잔고파일 없이 이름·총액만으로 만든 계좌. <code>{"id","name","totalAsset"}</code> 객체 배열</td>
+          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>totalAsset</code> &gt; 0</td>
+        </tr>
+        <tr>
           <td><code>manualHoldings</code></td>
           <td class="type">string (JSON 배열)</td>
           <td><span class="opt">선택</span></td>
-          <td>잔고파일에 없는, 직접 추가한 자산. <code>{"id","name","evalAmount"}</code> 객체 배열</td>
-          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>evalAmount</code> &gt; 0</td>
+          <td>잔고파일에 없는, 직접 추가한 종목. <code>{"id","name","evalAmount","accountId"}</code> 객체 배열</td>
+          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>evalAmount</code> &gt; 0<br><code>accountId</code>는 선택. 주면 같은 요청의 <code>manualAccounts</code> 항목 <code>id</code>여야 함</td>
         </tr>
       </tbody>
     </table>
@@ -442,13 +453,25 @@ Content-Disposition: form-data; name="manualHoldings"
     </div>
 
     <div class="note">
-      <code>files</code>와 <code>manualHoldings</code> 중 <strong>적어도 하나는 있어야 한다.</strong>
-      직접 추가한 자산만으로도(잔고파일 없이) 호출할 수 있다.
-      <code>manualHoldings</code>의 <code>id</code>는 호출하는 쪽이 정한다 — 같은 <code>id</code>로 다시
-      보내면 그 항목을 수정한 것으로, 목록에서 빼고 보내면 삭제한 것으로 취급된다(서버가 상태를
-      기억하지 않으므로 매 요청은 그 요청에 담긴 <code>manualHoldings</code> 전체로 다시 계산한다).
-      분류는 <code>manualHoldings</code> 자체에 넣지 않고 <code>overrides</code>에 종목명으로 얹는다 —
-      그러면 다른 종목과 똑같은 방식으로 분류되어 응답의 <code>holdings</code>에 섞여 나온다.
+      <code>files</code>·<code>manualAccounts</code>·<code>manualHoldings</code> 중
+      <strong>적어도 하나는 있어야 한다.</strong> 직접 추가한 계좌나 종목만으로도(잔고파일 없이)
+      호출할 수 있다.
+    </div>
+
+    <div class="note">
+      직접 추가하는 자산은 두 층위다.
+      <ul>
+        <li><strong>계좌</strong>(<code>manualAccounts</code>) — 잔고파일이 없는 통째 계좌.
+          "저축은행 800만원"처럼 이름과 총액만 있다. 종목을 안 붙이면 전액이 현금성으로 잡힌다.</li>
+        <li><strong>종목</strong>(<code>manualHoldings</code>) — 개별 자산 하나. <code>accountId</code>를
+          주면 위 계좌에 붙어 그 계좌 총액에서 자기 몫을 떼어 가고, 비우면 계좌 없이 혼자
+          자기 평가금액만큼 스스로 집계에 잡힌다.</li>
+      </ul>
+      둘 다 <code>id</code>는 호출하는 쪽이 정한다 — 같은 <code>id</code>로 다시 보내면 그 항목을
+      수정한 것으로, 목록에서 빼고 보내면 삭제한 것으로 취급된다(서버가 상태를 기억하지 않으므로
+      매 요청은 그 요청에 담긴 목록 전체로 다시 계산한다). 종목의 분류는 <code>manualHoldings</code>
+      자체에 넣지 않고 <code>overrides</code>에 종목명으로 얹는다 — 그러면 다른 종목과 똑같은
+      방식으로 분류되어 응답의 <code>holdings</code>에 섞여 나온다.
     </div>
 
     <div class="note warn">
@@ -480,9 +503,11 @@ Content-Disposition: form-data; name="manualHoldings"
       <code>totalAsset</code>에는 올리지 않은 계좌까지 들어간다. 그 차액을 현금성으로 잡으면
       보유하지도 않은 현금이 생기므로, 집계는 종목이 실제로 올라온 계좌로만 한다.
       어느 계좌가 빠졌는지는 <code>accounts[].covered</code>로 알 수 있다.
-      <code>manualHoldings</code>는 계좌가 없으니 이 계산에서 아예 빠진다 — 대신 자기
-      <code>evalAmount</code>만큼 <code>coveredAsset</code>을 스스로 늘려서, 기존 계좌의 현금성을
-      깎아 먹지 않고 자기 몫의 비중만 새로 차지한다.
+      <code>manualAccounts</code>는 상세 종목이 없어도 항상 <code>covered: true</code>다 — 사용자가
+      총액을 직접 써넣은 것이라 "파일을 더 올려야 아는" 상태가 아니기 때문이다.
+      계좌 없이 던진 <code>manualHoldings</code>(<code>accountId</code> 생략)는 계좌가 없으니 이
+      계산에서 아예 빠진다 — 대신 자기 <code>evalAmount</code>만큼 <code>coveredAsset</code>을
+      스스로 늘려서, 기존 계좌의 현금성을 깎아 먹지 않고 자기 몫의 비중만 새로 차지한다.
     </div>
 
     <h4>Response 200</h4>
@@ -491,7 +516,8 @@ Content-Disposition: form-data; name="manualHoldings"
   "totalAsset": 24000000,
   "accounts": [
     { "number": "111111111110", "type": "ISA(중개형)", "totalAsset": 10000000, "covered": true },
-    { "number": "222222222220", "type": "종합",        "totalAsset": 14000000, "covered": false }
+    { "number": "222222222220", "type": "종합",        "totalAsset": 14000000, "covered": false },
+    { "number": "manual-account:임의id", "type": "저축은행", "totalAsset": 8000000, "covered": true }
   ],
   "categories": [
     { "category": "지수 ETF",    "amount": 5000000, "weight": 50 },
@@ -526,7 +552,7 @@ Content-Disposition: form-data; name="manualHoldings"
         <tr>
           <td><code>400</code></td>
           <td class="type">files 필드에 잔고파일이 없습니다</td>
-          <td><code>files</code>와 <code>manualHoldings</code>가 둘 다 없을 때</td>
+          <td><code>files</code>·<code>manualAccounts</code>·<code>manualHoldings</code>가 다 없을 때</td>
         </tr>
         <tr>
           <td><code>400</code></td>
@@ -552,6 +578,26 @@ Content-Disposition: form-data; name="manualHoldings"
           <td><code>400</code></td>
           <td class="type">정기예금: 평가금액은 0보다 커야 합니다</td>
           <td><code>manualHoldings</code> 항목의 <code>evalAmount</code>가 0 이하일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualAccounts 는 JSON 배열이어야 합니다</td>
+          <td><code>manualAccounts</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualAccounts: id 와 이름은 비어 있을 수 없습니다</td>
+          <td><code>manualAccounts</code> 항목의 <code>id</code> 또는 <code>name</code>이 빈 문자열일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">저축은행: 총자산은 0보다 커야 합니다</td>
+          <td><code>manualAccounts</code> 항목의 <code>totalAsset</code>이 0 이하일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">정기예금: 알 수 없는 계좌입니다</td>
+          <td><code>manualHoldings</code> 항목의 <code>accountId</code>가 같은 요청의 <code>manualAccounts</code>에 없을 때</td>
         </tr>
         <tr>
           <td><code>422</code></td>
@@ -591,10 +637,10 @@ Content-Disposition: form-data; name="manualHoldings"
 <table>
   <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
   <tbody>
-    <tr><td><code>number</code></td><td class="type">string</td><td>계좌번호 (하이픈 제거)</td></tr>
-    <tr><td><code>type</code></td><td class="type">string</td><td>계좌유형. 예: <code>ISA(중개형)</code></td></tr>
+    <tr><td><code>number</code></td><td class="type">string</td><td>계좌번호 (하이픈 제거). <code>manual-account:</code>로 시작하면 <code>manualAccounts</code>로 직접 추가한 계좌다</td></tr>
+    <tr><td><code>type</code></td><td class="type">string</td><td>계좌유형. 예: <code>ISA(중개형)</code>. 직접 추가한 계좌는 입력한 이름 그대로</td></tr>
     <tr><td><code>totalAsset</code></td><td class="type">number</td><td>이 계좌의 자산총액</td></tr>
-    <tr><td><code>covered</code></td><td class="type">boolean</td><td>이 계좌의 종목 상세가 업로드에 포함됐는지. <code>false</code>면 집계에서 빠진다</td></tr>
+    <tr><td><code>covered</code></td><td class="type">boolean</td><td>이 계좌의 종목 상세가 업로드에 포함됐는지. <code>false</code>면 집계에서 빠진다. 직접 추가한 계좌는 항상 <code>true</code></td></tr>
   </tbody>
 </table>
 </div>
@@ -618,7 +664,7 @@ Content-Disposition: form-data; name="manualHoldings"
   <tbody>
     <tr><td><code>name</code></td><td class="type">string</td><td class="type">아니오</td><td>상품명</td></tr>
     <tr><td><code>category</code></td><td class="type">string</td><td class="type">아니오</td><td>분류 결과</td></tr>
-    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거). <code>manual:</code>로 시작하면 <code>manualHoldings</code>로 직접 추가한 자산이고, 뒤는 그 항목의 <code>id</code>다</td></tr>
+    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거). <code>manual-account:</code>로 시작하면 직접 추가한 계좌(뒤는 그 계좌의 <code>id</code>), <code>manual-item:</code>으로 시작하면 계좌 없이 직접 추가한 종목(뒤는 그 종목의 <code>id</code>)이다</td></tr>
     <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
     <tr><td><code>currentPrice</code></td><td class="type">number</td><td class="type">예</td><td>현재가</td></tr>
     <tr><td><code>avgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>평균매입가</td></tr>

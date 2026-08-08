@@ -218,6 +218,11 @@ main {
 .manual-name {
   font-weight: 500;
 }
+.manual-account-tag {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.8em;
+}
 .manual-category {
   grid-column: 1;
   color: var(--muted);
@@ -258,10 +263,12 @@ main {
   background: var(--bg);
   color: var(--text);
 }
-.manual-form input[placeholder='종목명 (예: 정기예금)'] {
+.manual-form input[placeholder='종목명 (예: 정기예금)'],
+.manual-form input[placeholder='계좌 이름 (예: 저축은행)'] {
   flex: 1 1 10rem;
 }
-.manual-form input[placeholder='평가금액'] {
+.manual-form input[placeholder='평가금액'],
+.manual-form input[placeholder='총자산'] {
   flex: 0 1 8rem;
 }
 .manual-form button[type='submit'] {

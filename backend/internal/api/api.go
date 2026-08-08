@@ -20,6 +20,7 @@ const (
 	filesField     = "files"
 	overridesField = "overrides"
 
+	manualAccountsField = "manualAccounts"
 	manualHoldingsField = "manualHoldings"
 )
 
@@ -55,13 +56,24 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manualHoldings, err := parseManualHoldings(r.FormValue(manualHoldingsField))
+	manualAccounts, err := parseManualAccounts(r.FormValue(manualAccountsField))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "%v", err)
 		return
 	}
 
-	if len(uploads) == 0 && len(manualHoldings) == 0 {
+	manualAccountIDs := make(map[string]bool, len(manualAccounts))
+	for _, account := range manualAccounts {
+		manualAccountIDs[strings.TrimPrefix(account.Number, portfolio.ManualAccountPrefix)] = true
+	}
+
+	manualHoldings, err := parseManualHoldings(r.FormValue(manualHoldingsField), manualAccountIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "%v", err)
+		return
+	}
+
+	if len(uploads) == 0 && len(manualAccounts) == 0 && len(manualHoldings) == 0 {
 		writeError(w, http.StatusBadRequest, "%s 필드에 잔고파일이 없습니다", filesField)
 		return
 	}
@@ -88,6 +100,7 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	merged := portfolio.Merge(results...)
+	merged.Accounts = append(merged.Accounts, manualAccounts...)
 	merged.Holdings = append(merged.Holdings, manualHoldings...)
 
 	classifier := classify.New(s.listings, overrides)
@@ -96,10 +109,46 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, summary)
 }
 
-// parseManualHoldings 는 잔고파일에 없는, 사용자가 직접 추가한 자산을 읽는다.
+// parseManualAccounts 는 잔고파일 없이 사용자가 이름과 총액만으로 직접 만든
+// 계좌를 읽는다. 진짜 계좌와 똑같이 취급되므로 상세 종목이 없어도 된다.
+func parseManualAccounts(raw string) ([]domain.Account, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	var inputs []struct {
+		ID         string  `json:"id"`
+		Name       string  `json:"name"`
+		TotalAsset float64 `json:"totalAsset"`
+	}
+	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
+		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualAccountsField)
+	}
+
+	accounts := make([]domain.Account, 0, len(inputs))
+	for _, input := range inputs {
+		id := strings.TrimSpace(input.ID)
+		name := strings.TrimSpace(input.Name)
+		if id == "" || name == "" {
+			return nil, fmt.Errorf("%s: id 와 이름은 비어 있을 수 없습니다", manualAccountsField)
+		}
+		if input.TotalAsset <= 0 {
+			return nil, fmt.Errorf("%s: 총자산은 0보다 커야 합니다", name)
+		}
+		accounts = append(accounts, domain.Account{
+			Number:     portfolio.ManualAccountPrefix + id,
+			Type:       name,
+			TotalAsset: input.TotalAsset,
+		})
+	}
+	return accounts, nil
+}
+
+// parseManualHoldings 는 잔고파일에 없는, 사용자가 직접 추가한 종목을 읽는다.
 // 종목명으로 분류하는 overrides 와 달리 이건 종목 자체가 어디에도 없으니
-// 프런트가 준 id 로 구분한다.
-func parseManualHoldings(raw string) ([]domain.Holding, error) {
+// 프런트가 준 id 로 구분한다. accountID 를 주면 직접 추가한 계좌에 붙고,
+// 비우면 어느 계좌에도 안 속한 채 자기 몫만 집계에 잡힌다.
+func parseManualHoldings(raw string, manualAccountIDs map[string]bool) ([]domain.Holding, error) {
 	if raw == "" {
 		return nil, nil
 	}
@@ -108,6 +157,7 @@ func parseManualHoldings(raw string) ([]domain.Holding, error) {
 		ID         string  `json:"id"`
 		Name       string  `json:"name"`
 		EvalAmount float64 `json:"evalAmount"`
+		AccountID  string  `json:"accountId"`
 	}
 	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
 		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualHoldingsField)
@@ -123,8 +173,17 @@ func parseManualHoldings(raw string) ([]domain.Holding, error) {
 		if input.EvalAmount <= 0 {
 			return nil, fmt.Errorf("%s: 평가금액은 0보다 커야 합니다", name)
 		}
+
+		accountNumber := portfolio.ManualHoldingPrefix + id
+		if accountID := strings.TrimSpace(input.AccountID); accountID != "" {
+			if !manualAccountIDs[accountID] {
+				return nil, fmt.Errorf("%s: 알 수 없는 계좌입니다", name)
+			}
+			accountNumber = portfolio.ManualAccountPrefix + accountID
+		}
+
 		holdings = append(holdings, domain.Holding{
-			AccountNumber: portfolio.ManualAccountPrefix + id,
+			AccountNumber: accountNumber,
 			Name:          name,
 			EvalAmount:    input.EvalAmount,
 		})

@@ -1,5 +1,5 @@
 import { fetchPortfolio } from './api'
-import type { ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
 
 export interface Collection {
   files: UploadedFile[]
@@ -7,17 +7,19 @@ export interface Collection {
 }
 
 // 서버는 상태를 갖지 않으므로 계좌를 하나 더 올린다고 이전 결과에 더해지지 않는다.
-// 올린 파일과 직접 추가한 자산을 브라우저에 쌓아두고 매번 전부 다시 보내야 누적이 된다.
+// 올린 파일과 직접 추가한 계좌·종목을 브라우저에 쌓아두고 매번 전부 다시 보내야
+// 누적이 된다.
 export async function recompute(
   files: UploadedFile[],
   overrides: Overrides,
+  manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
 ): Promise<Collection> {
-  if (files.length === 0 && manualHoldings.length === 0) {
+  if (files.length === 0 && manualAccounts.length === 0 && manualHoldings.length === 0) {
     return { files: [], summary: null }
   }
 
-  const summary = await fetchPortfolio(files, overrides, manualHoldings)
+  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings)
   if (files.length === 0) {
     return { files: [], summary }
   }
@@ -34,7 +36,7 @@ export async function recompute(
 
   // 같은 계좌를 다시 올린 경우다. 낡은 파일에만 있던 종목(그새 판 종목 등)이
   // 남지 않도록 추려낸 파일로 다시 계산한다.
-  return { files: kept, summary: await fetchPortfolio(kept, overrides, manualHoldings) }
+  return { files: kept, summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings) }
 }
 
 export function withoutAccount(files: UploadedFile[], accountNumber: string): UploadedFile[] {

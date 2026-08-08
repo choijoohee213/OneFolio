@@ -1,7 +1,7 @@
-import type { ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
 
-// 자산 데이터는 서버에 남기지 않는다. 올린 잔고파일, 직접 추가한 자산, 마지막 집계
-// 결과, 분류 매핑은 브라우저 안에만 둔다. 파일을 들고 있어야 계좌를 추가할 때
+// 자산 데이터는 서버에 남기지 않는다. 올린 잔고파일, 직접 추가한 계좌·종목, 마지막
+// 집계 결과, 분류 매핑은 브라우저 안에만 둔다. 파일을 들고 있어야 계좌를 추가할 때
 // 누적 집계가 된다.
 const DB_NAME = 'onefolio'
 const STORE = 'state'
@@ -9,6 +9,7 @@ const VERSION = 1
 
 interface SavedState {
   files: UploadedFile[]
+  manualAccounts: ManualAccount[]
   manualHoldings: ManualHolding[]
   summary: Summary | null
   overrides: Overrides
@@ -37,6 +38,14 @@ function storedFiles(files: unknown): UploadedFile[] {
       typeof file?.name === 'string' &&
       file.data instanceof ArrayBuffer &&
       Array.isArray(file.accounts),
+  )
+}
+
+function storedManualAccounts(manualAccounts: unknown): ManualAccount[] {
+  if (!Array.isArray(manualAccounts)) return []
+  return manualAccounts.filter(
+    (a: ManualAccount) =>
+      typeof a?.id === 'string' && typeof a.name === 'string' && typeof a.totalAsset === 'number',
   )
 }
 
@@ -75,6 +84,7 @@ export async function loadState(): Promise<SavedState | null> {
     return {
       ...state,
       files: storedFiles(state.files),
+      manualAccounts: storedManualAccounts(state.manualAccounts),
       manualHoldings: storedManualHoldings(state.manualHoldings),
       summary: renderable(state.summary) ? state.summary : null,
       overrides: state.overrides ?? {},
@@ -86,12 +96,14 @@ export async function loadState(): Promise<SavedState | null> {
 
 export async function saveState(
   files: UploadedFile[],
+  manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
   summary: Summary | null,
   overrides: Overrides,
 ): Promise<void> {
   const state: SavedState = {
     files,
+    manualAccounts,
     manualHoldings,
     summary,
     overrides,

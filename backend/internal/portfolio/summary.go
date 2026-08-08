@@ -54,16 +54,22 @@ func Summarize(p *Portfolio, classifier *classify.Classifier) Summary {
 	summary := Summary{
 		TotalAsset: totalAsset(p.Accounts),
 		Accounts:   accountSummaries(p.Accounts, covered),
+		// 계좌만 추가되고 종목이 하나도 없으면 아래 루프가 한 번도 안 돈다.
+		// nil 슬라이스로 두면 JSON 에서 null 로 나가 프런트의 배열 처리가 깨진다.
+		Holdings:   []HoldingDetail{},
+		Categories: []CategoryTotal{},
 	}
 	for _, account := range summary.Accounts {
 		if account.Covered {
 			summary.CoveredAsset += account.TotalAsset
 		}
 	}
-	// 사용자가 직접 추가한 자산은 자기 평가금액만큼 스스로 분모를 늘린다.
+	// 계좌 없이 던져 넣은 종목은 자기 평가금액만큼 스스로 분모를 늘린다.
 	// 기존 계좌 총액에서 끌어오면 그 계좌의 현금성이 없던 돈을 쓴 것처럼 깎인다.
+	// 직접 추가한 계좌에 붙은 종목은 이미 그 계좌의 TotalAsset 이 분모를
+	// 채우고 있으니 여기서 또 더하지 않는다.
 	for _, holding := range p.Holdings {
-		if IsManual(holding.AccountNumber) {
+		if IsManualHolding(holding.AccountNumber) {
 			summary.CoveredAsset += holding.EvalAmount
 		}
 	}
@@ -83,9 +89,11 @@ func Summarize(p *Portfolio, classifier *classify.Classifier) Summary {
 		})
 	}
 
-	// 계좌 총액을 모르면 잔액을 뺄 기준이 없다.
+	// 계좌 총액을 모르면 잔액을 뺄 기준이 없다. += 여야 한다 — 사용자가 종목을
+	// 직접 "현금성"으로 지정하면 그 종목 몫이 이미 amountByCategory[Cash] 에
+	// 들어있는데, = 로 덮어쓰면 잔액만 남고 그 종목 금액이 사라진다.
 	if cash := summary.CoveredAsset - holdingsTotal; summary.CoveredAsset > 0 && cash != 0 {
-		amountByCategory[domain.Cash] = cash
+		amountByCategory[domain.Cash] += cash
 	}
 
 	for category, amount := range amountByCategory {
@@ -120,7 +128,9 @@ func accountSummaries(accounts []domain.Account, covered map[string]bool) []Acco
 			Number:     account.Number,
 			Type:       account.Type,
 			TotalAsset: account.TotalAsset,
-			Covered:    covered[account.Number],
+			// 직접 추가한 계좌는 상세 종목이 없어도 항상 집계 대상이다. 사용자가
+			// 총액을 직접 써넣은 것이라 "파일을 더 올려야 아는" 상태가 아니다.
+			Covered: covered[account.Number] || IsManualAccount(account.Number),
 		})
 	}
 	return summaries
