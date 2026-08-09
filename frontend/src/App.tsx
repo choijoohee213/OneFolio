@@ -8,7 +8,7 @@ import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { ManualAssets } from './components/ManualAssets'
 import { ThemeToggle } from './components/ThemeToggle'
 import { won } from './format'
-import { clearState, loadState, saveState } from './storage'
+import { clearState, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import type { Category, ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
 
@@ -72,12 +72,15 @@ export default function App() {
     return apply(files, next)
   }
 
-  function addManualAccount(input: { name: string; totalAsset: number }) {
+  function addManualAccount(input: { name: string; totalAsset: number; accountNumber?: string }) {
     const id = crypto.randomUUID()
     return apply(files, overrides, [...manualAccounts, { id, ...input }])
   }
 
-  function updateManualAccount(id: string, input: { name: string; totalAsset: number }) {
+  function updateManualAccount(
+    id: string,
+    input: { name: string; totalAsset: number; accountNumber?: string },
+  ) {
     const next = manualAccounts.map((a) => (a.id === id ? { ...a, ...input } : a))
     return apply(files, overrides, next)
   }
@@ -141,6 +144,8 @@ export default function App() {
     await clearState()
   }
 
+  const superseded = supersededManualAccounts(manualAccounts, summary)
+
   return (
     <main>
       <header className="page-head">
@@ -174,6 +179,8 @@ export default function App() {
 
       <AccountsPanel
         accounts={summary?.accounts ?? []}
+        manualAccounts={manualAccounts}
+        superseded={superseded}
         coveredAsset={summary?.coveredAsset ?? 0}
         busy={busy}
         onRemove={(number) => apply(withoutAccount(files, number))}
@@ -184,7 +191,8 @@ export default function App() {
 
       <ManualAssets
         manualHoldings={manualHoldings}
-        manualAccounts={manualAccounts}
+        // 파일로 갈음된 계좌는 고를 수 없어야 한다. 붙여 봐야 서버가 조용히 버린다.
+        manualAccounts={manualAccounts.filter((account) => !superseded.includes(account))}
         holdings={summary?.holdings ?? []}
         busy={busy}
         onAdd={addManualHolding}

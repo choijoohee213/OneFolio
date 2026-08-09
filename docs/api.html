@@ -388,7 +388,7 @@ Content-Disposition: form-data; name="overrides"
 ------Boundary
 Content-Disposition: form-data; name="manualAccounts"
 
-[{"id":"임의id","name":"저축은행","totalAsset":8000000}]
+[{"id":"임의id","name":"저축은행","totalAsset":8000000,"accountNumber":"111-1111-1111-0"}]
 ------Boundary
 Content-Disposition: form-data; name="manualHoldings"
 
@@ -432,8 +432,8 @@ Content-Disposition: form-data; name="manualHoldings"
           <td><code>manualAccounts</code></td>
           <td class="type">string (JSON 배열)</td>
           <td><span class="opt">선택</span></td>
-          <td>잔고파일 없이 이름·총액만으로 만든 계좌. <code>{"id","name","totalAsset"}</code> 객체 배열</td>
-          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>totalAsset</code> &gt; 0</td>
+          <td>잔고파일 없이 이름·총액만으로 만든 계좌. <code>{"id","name","totalAsset","accountNumber"}</code> 객체 배열</td>
+          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>totalAsset</code> &gt; 0<br><code>accountNumber</code>는 선택</td>
         </tr>
         <tr>
           <td><code>manualHoldings</code></td>
@@ -472,6 +472,19 @@ Content-Disposition: form-data; name="manualHoldings"
       매 요청은 그 요청에 담긴 목록 전체로 다시 계산한다). 종목의 분류는 <code>manualHoldings</code>
       자체에 넣지 않고 <code>overrides</code>에 종목명으로 얹는다 — 그러면 다른 종목과 똑같은
       방식으로 분류되어 응답의 <code>holdings</code>에 섞여 나온다.
+    </div>
+
+    <div class="note warn">
+      <strong>같은 계좌를 직접 추가해 두고 나중에 그 계좌의 잔고파일을 올리면 파일이 이긴다.</strong>
+      <code>manualAccounts</code>에 <code>accountNumber</code>를 적어 두면, 같은 요청의
+      잔고파일에 그 계좌가 들어 있는지 하이픈을 뗀 숫자로 맞춰본다. 겹치면 파일 쪽이
+      실제 총액과 종목 상세를 갖고 있으므로 <strong>수동 계좌와 거기 붙어 있던
+      <code>manualHoldings</code>는 응답에서 빠진다.</strong> 안 그러면 같은 계좌가 두 줄로
+      잡혀 자산이 두 번 세어진다.
+      <br><br>
+      <code>accountNumber</code>를 비워 두면 맞춰볼 방법이 없어 파일 계좌와 별개로 남는다 —
+      나중에 잔고파일을 올릴 계좌라면 번호를 적어 두는 편이 낫다.
+      갈음됐는지는 응답의 <code>accounts</code>에 그 계좌가 있는지로 알 수 있다.
     </div>
 
     <div class="note warn">

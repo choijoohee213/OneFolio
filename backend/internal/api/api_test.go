@@ -226,6 +226,55 @@ func TestPortfolioHoldingsIsEmptyArrayNotNull(t *testing.T) {
 	}
 }
 
+// 계좌번호를 적어 직접 만든 계좌가 있는데 나중에 그 계좌의 잔고파일을 올리면,
+// 파일이 실제 총액과 종목을 갖고 있으니 파일이 이겨야 한다. 수동 계좌가 남으면
+// 같은 계좌가 두 줄이 되어 자산이 두 번 세어진다.
+func TestPortfolioFileSupersedesManualAccountWithSameNumber(t *testing.T) {
+	// 픽스처의 종합 계좌는 222-2222-2222-0 (정규화 222222222220) 이다.
+	rec := httptest.NewRecorder()
+	newServer(t).ServeHTTP(rec, buildFullRequest(t, "", 1,
+		`[{"id":"acc1","name":"내가 적은 종합계좌","totalAsset":9999999,"accountNumber":"222-2222-2222-0"}]`, ""))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	summary := decodeSummary(t, rec.Body)
+
+	for _, account := range summary.Accounts {
+		if account.Type == "내가 적은 종합계좌" {
+			t.Errorf("잔고파일이 같은 계좌를 담고 있으면 수동 계좌는 빠져야 한다: %+v", summary.Accounts)
+		}
+	}
+	if summary.CoveredAsset != 2500000 {
+		t.Errorf("coveredAsset = %v, want 2500000 (수동 계좌 총액이 섞이면 안 된다)", summary.CoveredAsset)
+	}
+}
+
+// 계좌번호가 파일의 어느 계좌와도 안 겹치면 수동 계좌는 그대로 살아 있어야 한다.
+func TestPortfolioKeepsManualAccountWithUnrelatedNumber(t *testing.T) {
+	rec := httptest.NewRecorder()
+	newServer(t).ServeHTTP(rec, buildFullRequest(t, "", 1,
+		`[{"id":"acc1","name":"저축은행","totalAsset":8000000,"accountNumber":"999-9999-9999-9"}]`, ""))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body)
+	}
+	summary := decodeSummary(t, rec.Body)
+
+	var found bool
+	for _, account := range summary.Accounts {
+		if account.Type == "저축은행" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("겹치지 않는 수동 계좌는 남아야 한다: %+v", summary.Accounts)
+	}
+	if want := 2500000.0 + 8000000; summary.CoveredAsset != want {
+		t.Errorf("coveredAsset = %v, want %v", summary.CoveredAsset, want)
+	}
+}
+
 func TestPortfolioRejectsBadRequests(t *testing.T) {
 	server := newServer(t)
 

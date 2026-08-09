@@ -35,6 +35,7 @@ export function ManualAssets({
   onUpdate,
   onRemove,
 }: Props) {
+  const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [category, setCategory] = useState<Category>(CATEGORIES[0])
@@ -55,6 +56,7 @@ export function ManualAssets({
     setCategory(findHolding(target)?.category ?? CATEGORIES[0])
     setAmount(String(target.evalAmount))
     setAccountId(target.accountId ?? NO_ACCOUNT)
+    setOpen(true)
   }
 
   function resetForm() {
@@ -63,6 +65,7 @@ export function ManualAssets({
     setCategory(CATEGORIES[0])
     setAmount('')
     setAccountId(NO_ACCOUNT)
+    setOpen(false)
   }
 
   function submit(event: React.FormEvent) {
@@ -92,9 +95,13 @@ export function ManualAssets({
   return (
     <section className="manual">
       <header className="section-head">
-        <h2>종목 추가</h2>
+        <h2>직접 추가한 종목</h2>
+        {!open && (
+          <button type="button" className="add-toggle" disabled={busy} onClick={() => setOpen(true)}>
+            종목 추가
+          </button>
+        )}
       </header>
-      <p className="manual-hint">잔고파일에 없는 예금·부동산·코인 등을 종목 하나로 더한다.</p>
 
       {manualHoldings.length > 0 && (
         <ul className="manual-list">
@@ -127,12 +134,14 @@ export function ManualAssets({
         </ul>
       )}
 
+      {open && (
       <form className="manual-form" onSubmit={submit}>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="종목명 (예: 정기예금)"
           disabled={busy}
+          autoFocus
           required
         />
         <select
@@ -171,12 +180,11 @@ export function ManualAssets({
         <button type="submit" disabled={busy}>
           {editingId ? '수정 완료' : '추가'}
         </button>
-        {editingId && (
-          <button type="button" className="link" disabled={busy} onClick={resetForm}>
-            취소
-          </button>
-        )}
+        <button type="button" className="link" disabled={busy} onClick={resetForm}>
+          취소
+        </button>
       </form>
+      )}
     </section>
   )
 }

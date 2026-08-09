@@ -16,7 +16,14 @@ export async function fetchPortfolio(
   if (manualAccounts.length > 0) {
     form.append(
       'manualAccounts',
-      JSON.stringify(manualAccounts.map(({ id, name, totalAsset }) => ({ id, name, totalAsset }))),
+      JSON.stringify(
+        manualAccounts.map(({ id, name, totalAsset, accountNumber }) => ({
+          id,
+          name,
+          totalAsset,
+          accountNumber: accountNumber ?? '',
+        })),
+      ),
     )
   }
   if (manualHoldings.length > 0) {

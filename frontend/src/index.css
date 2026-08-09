@@ -237,6 +237,7 @@ main {
   display: flex;
   gap: 0.9rem;
   justify-self: end;
+  white-space: nowrap;
 }
 @media (min-width: 34rem) {
   .manual-list li {
@@ -268,8 +269,30 @@ main {
   flex: 1 1 10rem;
 }
 .manual-form input[placeholder='평가금액'],
-.manual-form input[placeholder='총자산'] {
-  flex: 0 1 8rem;
+.manual-form input[placeholder='총자산'],
+.manual-form input[placeholder='계좌번호 (선택)'] {
+  flex: 0 1 9rem;
+}
+
+/* 평소엔 폼을 접어 두고 버튼으로 연다 */
+.add-toggle {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.add-toggle:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.add-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 .manual-form button[type='submit'] {
   font: inherit;
@@ -318,8 +341,10 @@ main {
   text-align: left;
 }
 @media (min-width: 34rem) {
+  /* 마지막 칸은 "빼기" 하나일 수도, "수정 삭제" 둘일 수도 있다. 고정폭이면
+     두 개일 때 글자가 세로로 쪼개진다. */
   .account-list li {
-    grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(2.4rem, auto);
     gap: 0.6rem;
     padding: 0.4rem 0;
   }

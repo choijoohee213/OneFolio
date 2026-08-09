@@ -1,4 +1,5 @@
 import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import { MANUAL_ACCOUNT_PREFIX } from './types'
 
 // 자산 데이터는 서버에 남기지 않는다. 올린 잔고파일, 직접 추가한 계좌·종목, 마지막
 // 집계 결과, 분류 매핑은 브라우저 안에만 둔다. 파일을 들고 있어야 계좌를 추가할 때
@@ -47,6 +48,16 @@ function storedManualAccounts(manualAccounts: unknown): ManualAccount[] {
     (a: ManualAccount) =>
       typeof a?.id === 'string' && typeof a.name === 'string' && typeof a.totalAsset === 'number',
   )
+}
+
+/** 서버가 파일로 갈음해 버린 수동 계좌. 응답의 계좌 목록에 없으면 대체된 것이다. */
+export function supersededManualAccounts(
+  manualAccounts: ManualAccount[],
+  summary: Summary | null,
+): ManualAccount[] {
+  if (!summary) return []
+  const shown = new Set(summary.accounts.map((account) => account.number))
+  return manualAccounts.filter((account) => !shown.has(MANUAL_ACCOUNT_PREFIX + account.id))
 }
 
 function storedManualHoldings(manualHoldings: unknown): ManualHolding[] {

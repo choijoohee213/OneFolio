@@ -56,6 +56,9 @@ export interface ManualAccount {
   id: string
   name: string
   totalAsset: number
+  /** 선택. 적어 두면 나중에 같은 계좌의 잔고파일을 올렸을 때 서버가 알아보고
+   *  파일 쪽으로 갈음한다 — 안 적으면 같은 계좌가 두 줄로 잡힌다. */
+  accountNumber?: string
 }
 
 /** 잔고파일에 없는, 사용자가 직접 추가한 종목(예금·부동산·코인 등).

@@ -64,7 +64,7 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 
 	manualAccountIDs := make(map[string]bool, len(manualAccounts))
 	for _, account := range manualAccounts {
-		manualAccountIDs[strings.TrimPrefix(account.Number, portfolio.ManualAccountPrefix)] = true
+		manualAccountIDs[account.id] = true
 	}
 
 	manualHoldings, err := parseManualHoldings(r.FormValue(manualHoldingsField), manualAccountIDs)
@@ -100,8 +100,30 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	merged := portfolio.Merge(results...)
-	merged.Accounts = append(merged.Accounts, manualAccounts...)
-	merged.Holdings = append(merged.Holdings, manualHoldings...)
+
+	// 직접 만든 계좌에 계좌번호를 적어 뒀는데 그 계좌의 잔고파일이 올라왔다면,
+	// 파일 쪽이 실제 총액과 종목 상세를 갖고 있으니 파일이 이긴다. 수동 계좌를
+	// 그대로 두면 같은 계좌가 두 줄로 잡혀 자산이 두 번 세어진다.
+	fromFile := make(map[string]bool, len(merged.Accounts))
+	for _, account := range merged.Accounts {
+		fromFile[account.Number] = true
+	}
+	superseded := make(map[string]bool)
+	for _, manual := range manualAccounts {
+		if manual.realNumber != "" && fromFile[manual.realNumber] {
+			superseded[manual.id] = true
+			continue
+		}
+		merged.Accounts = append(merged.Accounts, manual.account)
+	}
+
+	for _, holding := range manualHoldings {
+		// 대체된 계좌에 붙어 있던 종목은 파일의 실제 종목으로 갈음된다.
+		if id, ok := manualAccountIDOf(holding.AccountNumber); ok && superseded[id] {
+			continue
+		}
+		merged.Holdings = append(merged.Holdings, holding)
+	}
 
 	classifier := classify.New(s.listings, overrides)
 	summary := portfolio.Summarize(merged, classifier)
@@ -109,23 +131,41 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, summary)
 }
 
+func manualAccountIDOf(accountNumber string) (string, bool) {
+	if !portfolio.IsManualAccount(accountNumber) {
+		return "", false
+	}
+	return strings.TrimPrefix(accountNumber, portfolio.ManualAccountPrefix), true
+}
+
+// manualAccount 는 직접 만든 계좌 하나다. Account.Number 에는 항상
+// ManualAccountPrefix 를 붙여 파일 계좌와 구분하고, 사용자가 적어 넣은
+// 실제 계좌번호는 RealNumber 에 따로 둔다 — 나중에 같은 계좌의 잔고파일이
+// 올라왔는지 맞춰보는 데에만 쓴다.
+type manualAccount struct {
+	id         string
+	realNumber string
+	account    domain.Account
+}
+
 // parseManualAccounts 는 잔고파일 없이 사용자가 이름과 총액만으로 직접 만든
 // 계좌를 읽는다. 진짜 계좌와 똑같이 취급되므로 상세 종목이 없어도 된다.
-func parseManualAccounts(raw string) ([]domain.Account, error) {
+func parseManualAccounts(raw string) ([]manualAccount, error) {
 	if raw == "" {
 		return nil, nil
 	}
 
 	var inputs []struct {
-		ID         string  `json:"id"`
-		Name       string  `json:"name"`
-		TotalAsset float64 `json:"totalAsset"`
+		ID            string  `json:"id"`
+		Name          string  `json:"name"`
+		TotalAsset    float64 `json:"totalAsset"`
+		AccountNumber string  `json:"accountNumber"`
 	}
 	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
 		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualAccountsField)
 	}
 
-	accounts := make([]domain.Account, 0, len(inputs))
+	accounts := make([]manualAccount, 0, len(inputs))
 	for _, input := range inputs {
 		id := strings.TrimSpace(input.ID)
 		name := strings.TrimSpace(input.Name)
@@ -135,10 +175,15 @@ func parseManualAccounts(raw string) ([]domain.Account, error) {
 		if input.TotalAsset <= 0 {
 			return nil, fmt.Errorf("%s: 총자산은 0보다 커야 합니다", name)
 		}
-		accounts = append(accounts, domain.Account{
-			Number:     portfolio.ManualAccountPrefix + id,
-			Type:       name,
-			TotalAsset: input.TotalAsset,
+		accounts = append(accounts, manualAccount{
+			id:         id,
+			realNumber: domain.NormalizeAccountNumber(input.AccountNumber),
+			account: domain.Account{
+				Number:        portfolio.ManualAccountPrefix + id,
+				DisplayNumber: strings.TrimSpace(input.AccountNumber),
+				Type:          name,
+				TotalAsset:    input.TotalAsset,
+			},
 		})
 	}
 	return accounts, nil
