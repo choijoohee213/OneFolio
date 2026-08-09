@@ -12,6 +12,16 @@ type Portfolio struct {
 	Accounts []domain.Account
 	Holdings []domain.Holding
 	Cash     []domain.Holding
+
+	// OriginalHoldings 는 사용자가 값을 고친 종목의 잔고파일 원본이다. 키는 HoldingKey.
+	// 화면이 "지금 파일 값이 내가 고칠 때와 달라졌는지" 판별해야 해서 원본을 버리지 않는다.
+	OriginalHoldings map[string]domain.Holding
+}
+
+// HoldingKey 는 종목 하나를 가리키는 키다. 같은 종목이 계좌마다 따로 있으므로
+// 이름만으로는 부족하다.
+func HoldingKey(accountNumber, name string) string {
+	return accountNumber + "\x00" + name
 }
 
 // 사용자가 직접 추가하는 자산은 두 층위다.
@@ -93,7 +103,7 @@ func newHoldingSet() *holdingSet {
 
 func (s *holdingSet) addAll(holdings []domain.Holding) {
 	for _, h := range holdings {
-		key := h.AccountNumber + "\x00" + h.Name
+		key := HoldingKey(h.AccountNumber, h.Name)
 		if i, ok := s.index[key]; ok {
 			s.items[i] = h
 			continue

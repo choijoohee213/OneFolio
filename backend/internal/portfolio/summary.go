@@ -44,6 +44,10 @@ type HoldingDetail struct {
 	domain.Holding
 	Category domain.Category `json:"category"`
 	Weight   float64         `json:"weight"`
+
+	// Original 은 사용자가 값을 고친 종목의 잔고파일 원본이다. 고치지 않았으면 비어 있다.
+	// 화면이 "내가 고칠 때 보던 파일 값"과 비교해 파일이 그새 바뀌었는지 가린다.
+	Original *domain.Holding `json:"original,omitempty"`
 }
 
 // Summarize 는 종목 상세가 올라온 계좌들의 자산총액 합을 분모로 비중을 낸다.
@@ -82,11 +86,15 @@ func Summarize(p *Portfolio, classifier *classify.Classifier) Summary {
 		amountByCategory[category] += holding.EvalAmount
 		holdingsTotal += holding.EvalAmount
 
-		summary.Holdings = append(summary.Holdings, HoldingDetail{
+		detail := HoldingDetail{
 			Holding:  holding,
 			Category: category,
 			Weight:   ratio(holding.EvalAmount, summary.CoveredAsset),
-		})
+		}
+		if original, ok := p.OriginalHoldings[HoldingKey(holding.AccountNumber, holding.Name)]; ok {
+			detail.Original = &original
+		}
+		summary.Holdings = append(summary.Holdings, detail)
 	}
 
 	// 계좌 총액을 모르면 잔액을 뺄 기준이 없다. += 여야 한다 — 사용자가 종목을

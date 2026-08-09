@@ -22,6 +22,7 @@ const (
 
 	manualAccountsField = "manualAccounts"
 	manualHoldingsField = "manualHoldings"
+	holdingEditsField   = "holdingEdits"
 )
 
 type Server struct {
@@ -62,19 +63,9 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	manualAccountIDs := make(map[string]bool, len(manualAccounts))
-	for _, account := range manualAccounts {
-		manualAccountIDs[account.id] = true
-	}
-
-	manualHoldings, err := parseManualHoldings(r.FormValue(manualHoldingsField), manualAccountIDs)
+	holdingEdits, err := parseHoldingEdits(r.FormValue(holdingEditsField))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "%v", err)
-		return
-	}
-
-	if len(uploads) == 0 && len(manualAccounts) == 0 && len(manualHoldings) == 0 {
-		writeError(w, http.StatusBadRequest, "%s 필드에 잔고파일이 없습니다", filesField)
 		return
 	}
 
@@ -101,6 +92,27 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 
 	merged := portfolio.Merge(results...)
 
+	// 파일 계좌번호 + 수동 계좌 id 를 모두 유효한 소속 계좌로 본다.
+	// 수동 종목을 파일 계좌에 붙일 수 있어야 하기 때문이다.
+	validAccounts := make(map[string]string, len(merged.Accounts)+len(manualAccounts))
+	for _, account := range merged.Accounts {
+		validAccounts[account.Number] = account.Number
+	}
+	for _, account := range manualAccounts {
+		validAccounts[account.id] = portfolio.ManualAccountPrefix + account.id
+	}
+
+	manualHoldings, err := parseManualHoldings(r.FormValue(manualHoldingsField), validAccounts)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "%v", err)
+		return
+	}
+
+	if len(uploads) == 0 && len(manualAccounts) == 0 && len(manualHoldings) == 0 {
+		writeError(w, http.StatusBadRequest, "%s 필드에 잔고파일이 없습니다", filesField)
+		return
+	}
+
 	// 직접 만든 계좌에 계좌번호를 적어 뒀는데 그 계좌의 잔고파일이 올라왔다면,
 	// 파일 쪽이 실제 총액과 종목 상세를 갖고 있으니 파일이 이긴다. 수동 계좌를
 	// 그대로 두면 같은 계좌가 두 줄로 잡혀 자산이 두 번 세어진다.
@@ -124,6 +136,8 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 		}
 		merged.Holdings = append(merged.Holdings, holding)
 	}
+
+	portfolio.ApplyEdits(merged, holdingEdits)
 
 	classifier := classify.New(s.listings, overrides)
 	summary := portfolio.Summarize(merged, classifier)
@@ -193,7 +207,9 @@ func parseManualAccounts(raw string) ([]manualAccount, error) {
 // 종목명으로 분류하는 overrides 와 달리 이건 종목 자체가 어디에도 없으니
 // 프런트가 준 id 로 구분한다. accountID 를 주면 직접 추가한 계좌에 붙고,
 // 비우면 어느 계좌에도 안 속한 채 자기 몫만 집계에 잡힌다.
-func parseManualHoldings(raw string, manualAccountIDs map[string]bool) ([]domain.Holding, error) {
+// validAccounts: accountId → 실제 accountNumber 매핑.
+// 수동 계좌는 id → "manual-account:id", 파일 계좌는 번호 → 번호.
+func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.Holding, error) {
 	if raw == "" {
 		return nil, nil
 	}
@@ -221,10 +237,11 @@ func parseManualHoldings(raw string, manualAccountIDs map[string]bool) ([]domain
 
 		accountNumber := portfolio.ManualHoldingPrefix + id
 		if accountID := strings.TrimSpace(input.AccountID); accountID != "" {
-			if !manualAccountIDs[accountID] {
+			mapped, ok := validAccounts[accountID]
+			if !ok {
 				return nil, fmt.Errorf("%s: 알 수 없는 계좌입니다", name)
 			}
-			accountNumber = portfolio.ManualAccountPrefix + accountID
+			accountNumber = mapped
 		}
 
 		holdings = append(holdings, domain.Holding{
@@ -234,6 +251,31 @@ func parseManualHoldings(raw string, manualAccountIDs map[string]bool) ([]domain
 		})
 	}
 	return holdings, nil
+}
+
+// parseHoldingEdits 는 잔고파일 종목의 값을 직접 고친 내용을 읽는다.
+// 계좌번호+종목명으로 대상을 찾으므로 어느 계좌 것인지가 반드시 있어야 한다.
+func parseHoldingEdits(raw string) ([]portfolio.HoldingEdit, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	var edits []portfolio.HoldingEdit
+	if err := json.Unmarshal([]byte(raw), &edits); err != nil {
+		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", holdingEditsField)
+	}
+
+	for i := range edits {
+		edits[i].AccountNumber = strings.TrimSpace(edits[i].AccountNumber)
+		edits[i].Name = strings.TrimSpace(edits[i].Name)
+		if edits[i].AccountNumber == "" || edits[i].Name == "" {
+			return nil, fmt.Errorf("%s: 계좌번호와 종목명은 비어 있을 수 없습니다", holdingEditsField)
+		}
+		if edits[i].Quantity != nil && *edits[i].Quantity < 0 {
+			return nil, fmt.Errorf("%s: 보유수량은 0보다 작을 수 없습니다", edits[i].Name)
+		}
+	}
+	return edits, nil
 }
 
 func parseOverrides(raw string) (map[string]domain.Category, error) {

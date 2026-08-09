@@ -393,6 +393,10 @@ Content-Disposition: form-data; name="manualAccounts"
 Content-Disposition: form-data; name="manualHoldings"
 
 [{"id":"임의id","name":"정기예금","evalAmount":5000000,"accountId":"manualAccounts 항목의 id"}]
+------Boundary
+Content-Disposition: form-data; name="holdingEdits"
+
+[{"accountNumber":"111111111110","name":"삼성전자","quantity":200,"evalAmount":14000000}]
 ------Boundary--</code></pre>
 
     <h4>Request Header</h4>
@@ -442,6 +446,13 @@ Content-Disposition: form-data; name="manualHoldings"
           <td>잔고파일에 없는, 직접 추가한 종목. <code>{"id","name","evalAmount","accountId"}</code> 객체 배열</td>
           <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>evalAmount</code> &gt; 0<br><code>accountId</code>는 선택. 주면 같은 요청의 <code>manualAccounts</code> 항목 <code>id</code>여야 함</td>
         </tr>
+        <tr>
+          <td><code>holdingEdits</code></td>
+          <td class="type">string (JSON 배열)</td>
+          <td><span class="opt">선택</span></td>
+          <td>잔고파일 종목의 값을 직접 고친 것. <code>{"accountNumber","name","quantity","avgBuyPrice","evalAmount"}</code> 객체 배열. 계좌번호+종목명으로 대상을 찾아 값을 덮어쓴다</td>
+          <td class="type"><code>accountNumber</code>·<code>name</code> 비어있지 않음<br><code>quantity</code> ≥ 0<br>생략된 필드는 파일 값 유지</td>
+        </tr>
       </tbody>
     </table>
     </div>
@@ -472,6 +483,14 @@ Content-Disposition: form-data; name="manualHoldings"
       매 요청은 그 요청에 담긴 목록 전체로 다시 계산한다). 종목의 분류는 <code>manualHoldings</code>
       자체에 넣지 않고 <code>overrides</code>에 종목명으로 얹는다 — 그러면 다른 종목과 똑같은
       방식으로 분류되어 응답의 <code>holdings</code>에 섞여 나온다.
+    </div>
+
+    <div class="note">
+      <strong><code>holdingEdits</code>로 잔고파일 종목의 수량·평가금액·평단을 고칠 수 있다.</strong>
+      계좌번호와 종목명으로 대상을 찾아 지정한 값만 덮어쓴다. 생략한 필드는 파일 값을 그대로 쓴다.
+      현재가·매입금액·손익·손익률은 고친 값에서 다시 계산된다.
+      고치기 전 파일 원본은 응답의 <code>holdings[].original</code>에 담겨 온다 —
+      클라이언트가 이 값으로 "파일이 바뀌었는데 내 수정을 유지할지" 충돌 판단을 할 수 있다.
     </div>
 
     <div class="note warn">
@@ -613,6 +632,21 @@ Content-Disposition: form-data; name="manualHoldings"
           <td><code>manualHoldings</code> 항목의 <code>accountId</code>가 같은 요청의 <code>manualAccounts</code>에 없을 때</td>
         </tr>
         <tr>
+          <td><code>400</code></td>
+          <td class="type">holdingEdits 는 JSON 배열이어야 합니다</td>
+          <td><code>holdingEdits</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">holdingEdits: 계좌번호와 종목명은 비어 있을 수 없습니다</td>
+          <td><code>holdingEdits</code> 항목의 <code>accountNumber</code> 또는 <code>name</code>이 빈 문자열일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">삼성전자: 보유수량은 0보다 작을 수 없습니다</td>
+          <td><code>holdingEdits</code> 항목의 <code>quantity</code>가 음수일 때</td>
+        </tr>
+        <tr>
           <td><code>422</code></td>
           <td class="type">계좌1.xls 파싱 실패: 전체 계좌현황 테이블이 없음</td>
           <td>업로드한 파일이 잔고파일 형식이 아닐 때</td>
@@ -626,7 +660,8 @@ Content-Disposition: form-data; name="manualHoldings"
   -F "files=@계좌1.xls" \
   -F "files=@계좌2.xls" \
   -F "files=@계좌3.xls" \
-  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}'</code></pre>
+  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}' \
+  -F 'holdingEdits=[{"accountNumber":"111111111110","name":"삼성전자","quantity":200,"evalAmount":14000000}]'</code></pre>
   </div>
 </details>
 
@@ -686,6 +721,7 @@ Content-Disposition: form-data; name="manualHoldings"
     <tr><td><code>profitLoss</code></td><td class="type">number</td><td class="type">예</td><td>평가손익</td></tr>
     <tr><td><code>profitRate</code></td><td class="type">number</td><td class="type">예</td><td>손익률 (%)</td></tr>
     <tr><td><code>weight</code></td><td class="type">number</td><td class="type">아니오</td><td>총자산 대비 비중 (%)</td></tr>
+    <tr><td><code>original</code></td><td class="type"><a href="#model-filevalues">FileValues</a></td><td class="type">예</td><td><code>holdingEdits</code>로 값을 고친 종목에만 붙는다. 고치기 전 잔고파일 원본 값</td></tr>
   </tbody>
 </table>
 </div>
@@ -694,6 +730,19 @@ Content-Disposition: form-data; name="manualHoldings"
   <strong>같은 종목이 여러 행으로 올 수 있다.</strong>
   계좌를 나눠 같은 ETF를 들고 있으면 계좌마다 별도 행이다.
   종목 단위로 합치려면 <code>name</code>으로 묶어야 한다.
+</div>
+
+<h3 id="model-filevalues">FileValues</h3>
+<p><code>holdingEdits</code>로 값을 고친 종목의 잔고파일 원본. 클라이언트가 이 값과 자기가 기억하는 수정 시점 값을 비교해 충돌을 판단한다.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>Nullable</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량</td></tr>
+    <tr><td><code>avgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>평균매입가</td></tr>
+    <tr><td><code>evalAmount</code></td><td class="type">number</td><td class="type">아니오</td><td>평가금액</td></tr>
+  </tbody>
+</table>
 </div>
 
 <h3 id="category-values">카테고리 값</h3>

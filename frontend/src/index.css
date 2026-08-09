@@ -190,127 +190,193 @@ main {
   color: var(--muted);
   text-align: center;
   font-size: 0.9rem;
-}
-
-/* ---------- 직접 추가한 자산 ---------- */
-.manual {
-  margin-top: 1.5rem;
-}
-.manual-hint {
-  margin: 0 0 0.75rem;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-.manual-list {
-  list-style: none;
-  margin: 0 0 0.75rem;
-  padding: 0;
-}
-.manual-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.15rem 0.5rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
+  justify-items: center;
+  gap: 0.85rem;
 }
-.manual-name {
-  font-weight: 500;
-}
-.manual-account-tag {
-  font-weight: 400;
-  color: var(--muted);
-  font-size: 0.8em;
-}
-.manual-category {
-  grid-column: 1;
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-.manual-amount {
-  font-variant-numeric: tabular-nums;
-  justify-self: end;
-}
-.manual-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 0.9rem;
-  justify-self: end;
-  white-space: nowrap;
-}
-@media (min-width: 34rem) {
-  .manual-list li {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
-    gap: 0.6rem;
-  }
-  .manual-category,
-  .manual-actions {
-    grid-column: auto;
-  }
-}
-.manual-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.manual-form input,
-.manual-form select {
-  font: inherit;
-  font-size: 0.86rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
-}
-.manual-form input[placeholder='종목명 (예: 정기예금)'],
-.manual-form input[placeholder='계좌 이름 (예: 저축은행)'] {
-  flex: 1 1 10rem;
-}
-.manual-form input[placeholder='평가금액'],
-.manual-form input[placeholder='총자산'],
-.manual-form input[placeholder='계좌번호 (선택)'] {
-  flex: 0 1 9rem;
+.empty p {
+  margin: 0;
 }
 
-/* 평소엔 폼을 접어 두고 버튼으로 연다 */
-.add-toggle {
+/* 보기 전환과 추가 버튼이 제목 오른쪽에 나란히 선다 */
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- 팝업 폼 ---------- */
+.modal {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0;
+  max-width: min(28rem, calc(100vw - 2rem));
+  width: 100%;
+}
+.modal::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+.modal-body {
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.modal-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.modal-close {
   font: inherit;
-  font-size: 0.8rem;
-  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.modal-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.modal-form {
+  display: grid;
+  gap: 0.85rem;
+}
+.modal-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.modal-form input,
+.modal-form select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--bg);
   color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
+  width: 100%;
 }
-.add-toggle:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.add-toggle:disabled {
-  opacity: 0.5;
+.modal-form input:disabled,
+.modal-form select:disabled {
+  opacity: 0.6;
   cursor: default;
 }
-.manual-form button[type='submit'] {
+.modal-form small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  margin-top: 0.35rem;
+}
+.modal-actions button[type='submit'] {
   font: inherit;
-  font-size: 0.86rem;
-  padding: 0.4rem 0.9rem;
+  font-size: 0.88rem;
+  padding: 0.45rem 1rem;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
-.manual-form button[type='submit']:hover:not(:disabled) {
+.modal-actions button[type='submit']:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
 }
-.manual-form button:disabled {
+.modal-actions button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+.modal-cancel {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.modal-cancel:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+/* 되돌리기·삭제는 왼쪽 끝으로 밀어 확인 버튼과 멀찍이 떨어뜨린다 */
+.modal-actions .danger {
+  margin-right: auto;
+  color: var(--gain);
+}
+
+/* ---------- 수정 표시 · 충돌 ---------- */
+.edited-tag {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--flag);
+  border: 1px solid var(--flag);
+  border-radius: 999px;
+  padding: 0.02rem 0.35rem;
+  white-space: nowrap;
+}
+.conflicts {
+  margin-top: 1.5rem;
+}
+.conflict-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+.conflict-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.conflict-list li:last-child {
+  border-bottom: 0;
+}
+.conflict-name {
+  font-weight: 500;
+}
+.conflict-values {
+  grid-column: 1;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.conflict-mine {
+  color: var(--flag);
+}
+.conflict-file {
+  color: var(--muted);
+}
+.manual-actions {
+  display: flex;
+  gap: 0.9rem;
+  justify-self: end;
+  white-space: nowrap;
 }
 
 /* ---------- 계좌 ---------- */
@@ -335,6 +401,13 @@ main {
 }
 .account-type {
   word-break: keep-all;
+}
+.account-number {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 .account-list li > .account-amount {
   grid-column: 1;
@@ -374,6 +447,11 @@ main {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+.account-amount .gain,
+.account-amount .loss {
+  font-size: 0.78rem;
+  margin-left: 0.25rem;
 }
 /* 아래 모든 비중의 분모라 계좌 목록 끝에서 한 번 더 못박는다 */
 .account-sum {

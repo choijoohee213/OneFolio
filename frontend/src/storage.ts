@@ -1,5 +1,12 @@
-import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
-import { MANUAL_ACCOUNT_PREFIX } from './types'
+import type {
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  Summary,
+  UploadedFile,
+} from './types'
+import { holdingKey, isConflicting, MANUAL_ACCOUNT_PREFIX } from './types'
 
 // 자산 데이터는 서버에 남기지 않는다. 올린 잔고파일, 직접 추가한 계좌·종목, 마지막
 // 집계 결과, 분류 매핑은 브라우저 안에만 둔다. 파일을 들고 있어야 계좌를 추가할 때
@@ -12,6 +19,7 @@ interface SavedState {
   files: UploadedFile[]
   manualAccounts: ManualAccount[]
   manualHoldings: ManualHolding[]
+  holdingEdits: HoldingEdit[]
   summary: Summary | null
   overrides: Overrides
   savedAt: string
@@ -68,6 +76,28 @@ function storedManualHoldings(manualHoldings: unknown): ManualHolding[] {
   )
 }
 
+function storedHoldingEdits(edits: unknown): HoldingEdit[] {
+  if (!Array.isArray(edits)) return []
+  return edits.filter(
+    (e: HoldingEdit) =>
+      typeof e?.accountNumber === 'string' && typeof e.name === 'string' && !!e.basedOn,
+  )
+}
+
+/** 파일 값이 수정 당시와 달라진 종목. 사용자가 어느 쪽을 쓸지 골라야 한다. */
+export function conflictingEdits(edits: HoldingEdit[], summary: Summary | null): HoldingEdit[] {
+  if (!summary) return []
+  const fileValues = new Map(
+    summary.holdings
+      .filter((h) => h.original)
+      .map((h) => [holdingKey(h.accountNumber, h.name), h.original!]),
+  )
+  return edits.filter((edit) => {
+    const current = fileValues.get(holdingKey(edit.accountNumber, edit.name))
+    return current !== undefined && isConflicting(edit, current)
+  })
+}
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, VERSION)
@@ -97,6 +127,7 @@ export async function loadState(): Promise<SavedState | null> {
       files: storedFiles(state.files),
       manualAccounts: storedManualAccounts(state.manualAccounts),
       manualHoldings: storedManualHoldings(state.manualHoldings),
+      holdingEdits: storedHoldingEdits(state.holdingEdits),
       summary: renderable(state.summary) ? state.summary : null,
       overrides: state.overrides ?? {},
     }
@@ -109,6 +140,7 @@ export async function saveState(
   files: UploadedFile[],
   manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
+  holdingEdits: HoldingEdit[],
   summary: Summary | null,
   overrides: Overrides,
 ): Promise<void> {
@@ -116,6 +148,7 @@ export async function saveState(
     files,
     manualAccounts,
     manualHoldings,
+    holdingEdits,
     summary,
     overrides,
     savedAt: new Date().toISOString(),

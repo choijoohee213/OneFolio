@@ -1,5 +1,5 @@
 import { won } from '../format'
-import type { AccountSummary, Category, Holding, Overrides } from '../types'
+import type { AccountSummary, Holding } from '../types'
 import { HoldingRows } from './HoldingRows'
 
 export type GroupMode = 'all' | 'account'
@@ -9,9 +9,9 @@ interface Props {
   accounts: AccountSummary[]
   mode: GroupMode
   onModeChange: (mode: GroupMode) => void
-  overrides: Overrides
   busy: boolean
-  onCategoryChange: (name: string, category: Category | null) => void
+  onAddHolding: () => void
+  onEditHolding: (holding: Holding) => void
 }
 
 export function HoldingsTable({
@@ -19,48 +19,57 @@ export function HoldingsTable({
   accounts,
   mode,
   onModeChange,
-  overrides,
   busy,
-  onCategoryChange,
+  onAddHolding,
+  onEditHolding,
 }: Props) {
-  const rowProps = { overrides, busy, onCategoryChange }
   return (
     <section className="holdings">
       <header className="section-head">
         <h2>보유 종목</h2>
-        <div className="toggle" role="group" aria-label="보기 방식">
-          <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>
-            전체
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === 'account'}
-            onClick={() => onModeChange('account')}
-          >
-            계좌별
+        <div className="head-actions">
+          <div className="toggle" role="group" aria-label="보기 방식">
+            <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>
+              전체
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'account'}
+              onClick={() => onModeChange('account')}
+            >
+              계좌별
+            </button>
+          </div>
+          <button type="button" className="add-toggle" disabled={busy} onClick={onAddHolding}>
+            종목 추가
           </button>
         </div>
       </header>
 
       {mode === 'all' ? (
-        <HoldingRows holdings={mergeByName(holdings)} {...rowProps} />
+        <HoldingRows holdings={mergeByName(holdings)} busy={busy} onEdit={onEditHolding} />
       ) : (
-        <AccountGroups holdings={holdings} accounts={accounts} rowProps={rowProps} />
+        <AccountGroups
+          holdings={holdings}
+          accounts={accounts}
+          busy={busy}
+          onEdit={onEditHolding}
+        />
       )}
     </section>
   )
 }
 
-type RowProps = Pick<Props, 'overrides' | 'busy' | 'onCategoryChange'>
-
 function AccountGroups({
   holdings,
   accounts,
-  rowProps,
+  busy,
+  onEdit,
 }: {
   holdings: Holding[]
   accounts: AccountSummary[]
-  rowProps: RowProps
+  busy: boolean
+  onEdit: (holding: Holding) => void
 }) {
   const groups = accounts
     .map((account) => ({
@@ -83,7 +92,7 @@ function AccountGroups({
             <span className="group-count">{rows.length}종목</span>
             <span className="group-amount">{won(sumEvalAmount(rows))}</span>
           </summary>
-          <HoldingRows holdings={rows} {...rowProps} />
+          <HoldingRows holdings={rows} busy={busy} onEdit={onEdit} />
         </details>
       ))}
     </div>
@@ -113,6 +122,9 @@ function mergeByName(holdings: Holding[]): Holding[] {
     found.weight += holding.weight
     found.buyAmount = addNullable(found.buyAmount, holding.buyAmount)
     found.profitLoss = addNullable(found.profitLoss, holding.profitLoss)
+    // 여러 계좌가 합쳐진 행은 어느 계좌를 고치는 건지 알 수 없다. 수정을 막으려고
+    // 표시해 둔다 — 계좌별 보기에서 계좌를 특정해 고쳐야 한다.
+    found.mergedFromMultipleAccounts = true
   }
 
   for (const holding of merged.values()) {

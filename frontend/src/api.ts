@@ -1,4 +1,11 @@
-import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import type {
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  Summary,
+  UploadedFile,
+} from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
@@ -7,6 +14,7 @@ export async function fetchPortfolio(
   overrides: Overrides,
   manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
+  holdingEdits: HoldingEdit[],
 ): Promise<Summary> {
   const form = new FormData()
   files.forEach((file) => form.append('files', new Blob([file.data]), file.name))
@@ -35,6 +43,21 @@ export async function fetchPortfolio(
           name,
           evalAmount,
           accountId: accountId ?? '',
+        })),
+      ),
+    )
+  }
+
+  if (holdingEdits.length > 0) {
+    form.append(
+      'holdingEdits',
+      JSON.stringify(
+        holdingEdits.map(({ accountNumber, name, quantity, avgBuyPrice, evalAmount }) => ({
+          accountNumber,
+          name,
+          quantity,
+          avgBuyPrice,
+          evalAmount,
         })),
       ),
     )

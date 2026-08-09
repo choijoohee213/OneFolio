@@ -1,5 +1,12 @@
 import { fetchPortfolio } from './api'
-import type { ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import type {
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  Summary,
+  UploadedFile,
+} from './types'
 
 export interface Collection {
   files: UploadedFile[]
@@ -14,12 +21,13 @@ export async function recompute(
   overrides: Overrides,
   manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
+  holdingEdits: HoldingEdit[],
 ): Promise<Collection> {
   if (files.length === 0 && manualAccounts.length === 0 && manualHoldings.length === 0) {
     return { files: [], summary: null }
   }
 
-  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings)
+  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings, holdingEdits)
   if (files.length === 0) {
     return { files: [], summary }
   }
@@ -36,7 +44,10 @@ export async function recompute(
 
   // 같은 계좌를 다시 올린 경우다. 낡은 파일에만 있던 종목(그새 판 종목 등)이
   // 남지 않도록 추려낸 파일로 다시 계산한다.
-  return { files: kept, summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings) }
+  return {
+    files: kept,
+    summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings, holdingEdits),
+  }
 }
 
 export function withoutAccount(files: UploadedFile[], accountNumber: string): UploadedFile[] {

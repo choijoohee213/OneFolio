@@ -1,21 +1,34 @@
 import { useEffect, useState } from 'react'
 import { toUploadedFiles } from './api'
 import { recompute, withoutAccount } from './collection'
+import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
+import { EditConflicts } from './components/EditConflicts'
 import { FileDrop } from './components/FileDrop'
+import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
-import { ManualAssets } from './components/ManualAssets'
 import { ThemeToggle } from './components/ThemeToggle'
 import { won } from './format'
-import { clearState, loadState, saveState, supersededManualAccounts } from './storage'
+import { clearState, conflictingEdits, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
-import type { Category, ManualAccount, ManualHolding, Overrides, Summary, UploadedFile } from './types'
+import type {
+  FileValues,
+  Holding,
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  Summary,
+  UploadedFile,
+} from './types'
+import { holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
 
 export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [manualAccounts, setManualAccounts] = useState<ManualAccount[]>([])
   const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
+  const [holdingEdits, setHoldingEdits] = useState<HoldingEdit[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
@@ -23,6 +36,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [restored, setRestored] = useState(false)
   const [theme, setTheme] = useState<Theme>(loadTheme)
+  const [holdingTarget, setHoldingTarget] = useState<HoldingTarget | null>(null)
+  const [accountTarget, setAccountTarget] = useState<ManualAccount | null | 'new'>(null)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -30,6 +45,7 @@ export default function App() {
         setFiles(state.files)
         setManualAccounts(state.manualAccounts)
         setManualHoldings(state.manualHoldings)
+        setHoldingEdits(state.holdingEdits)
         setSummary(state.summary)
         setOverrides(state.overrides)
       }
@@ -37,22 +53,30 @@ export default function App() {
     })
   }, [])
 
-  async function apply(
-    nextFiles: UploadedFile[] = files,
-    nextOverrides: Overrides = overrides,
-    nextManualAccounts: ManualAccount[] = manualAccounts,
-    nextManualHoldings: ManualHolding[] = manualHoldings,
-  ) {
+  async function apply(next: {
+    files?: UploadedFile[]
+    overrides?: Overrides
+    manualAccounts?: ManualAccount[]
+    manualHoldings?: ManualHolding[]
+    holdingEdits?: HoldingEdit[]
+  }) {
+    const nextFiles = next.files ?? files
+    const nextOverrides = next.overrides ?? overrides
+    const nextAccounts = next.manualAccounts ?? manualAccounts
+    const nextHoldings = next.manualHoldings ?? manualHoldings
+    const nextEdits = next.holdingEdits ?? holdingEdits
+
     setBusy(true)
     setError(null)
     try {
-      const collection = await recompute(nextFiles, nextOverrides, nextManualAccounts, nextManualHoldings)
+      const collection = await recompute(nextFiles, nextOverrides, nextAccounts, nextHoldings, nextEdits)
       setFiles(collection.files)
-      setManualAccounts(nextManualAccounts)
-      setManualHoldings(nextManualHoldings)
+      setManualAccounts(nextAccounts)
+      setManualHoldings(nextHoldings)
+      setHoldingEdits(nextEdits)
       setSummary(collection.summary)
       setOverrides(nextOverrides)
-      await saveState(collection.files, nextManualAccounts, nextManualHoldings, collection.summary, nextOverrides)
+      await saveState(collection.files, nextAccounts, nextHoldings, nextEdits, collection.summary, nextOverrides)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -60,91 +84,147 @@ export default function App() {
     }
   }
 
-  // 분류를 바꾸면 서버가 그 매핑으로 다시 집계한다. 비중과 카테고리 합계가
-  // 함께 움직여야 해서 화면에서 값만 갈아끼울 수는 없다.
-  function changeCategory(name: string, category: Category | null) {
-    const next = { ...overrides }
-    if (category === null) {
-      delete next[name]
-    } else {
-      next[name] = category
-    }
-    return apply(files, next)
-  }
+  // ---------- 계좌 ----------
 
-  function addManualAccount(input: { name: string; totalAsset: number; accountNumber?: string }) {
-    const id = crypto.randomUUID()
-    return apply(files, overrides, [...manualAccounts, { id, ...input }])
-  }
-
-  function updateManualAccount(
-    id: string,
-    input: { name: string; totalAsset: number; accountNumber?: string },
-  ) {
-    const next = manualAccounts.map((a) => (a.id === id ? { ...a, ...input } : a))
-    return apply(files, overrides, next)
+  function submitAccount(input: AccountInput) {
+    const editing = accountTarget !== 'new' ? accountTarget : null
+    const next = editing
+      ? manualAccounts.map((a) => (a.id === editing.id ? { ...a, ...input } : a))
+      : [...manualAccounts, { id: crypto.randomUUID(), ...input }]
+    setAccountTarget(null)
+    return apply({ manualAccounts: next })
   }
 
   // 계좌를 지우면 거기 붙어 있던 종목은 갈 곳이 없어진다. 같이 지우지 않으면
   // 사라진 계좌를 가리킨 채로 남아 집계에서 조용히 빠진다.
-  function removeManualAccount(id: string) {
+  function removeAccount(id: string) {
     const orphaned = manualHoldings.filter((h) => h.accountId === id)
     const nextOverrides = { ...overrides }
     orphaned.forEach((h) => delete nextOverrides[h.name])
 
-    return apply(
-      files,
-      nextOverrides,
-      manualAccounts.filter((a) => a.id !== id),
-      manualHoldings.filter((h) => h.accountId !== id),
+    return apply({
+      overrides: nextOverrides,
+      manualAccounts: manualAccounts.filter((a) => a.id !== id),
+      manualHoldings: manualHoldings.filter((h) => h.accountId !== id),
+    })
+  }
+
+  // ---------- 종목 ----------
+
+  // 표의 행에서 무엇을 편집하는지 가린다. 직접 추가한 종목은 원본 항목까지 찾아야
+  // 이름·소속 계좌를 고칠 수 있다.
+  function openHoldingEditor(holding: Holding) {
+    if (!isManualHolding(holding)) {
+      setHoldingTarget({ kind: 'file', holding })
+      return
+    }
+    const item = manualHoldings.find(
+      (m) =>
+        holding.accountNumber ===
+          (m.accountId ? MANUAL_ACCOUNT_PREFIX + m.accountId : MANUAL_HOLDING_PREFIX + m.id) &&
+        m.name === holding.name,
     )
+    if (item) setHoldingTarget({ kind: 'manual', item, holding })
   }
 
-  function addManualHolding(input: { name: string; category: Category; evalAmount: number; accountId?: string }) {
-    const { category, ...rest } = input
-    const id = crypto.randomUUID()
-    const nextManual = [...manualHoldings, { id, ...rest }]
-    const nextOverrides = { ...overrides, [input.name]: category }
-    return apply(files, nextOverrides, manualAccounts, nextManual)
-  }
-
-  // 이름을 바꾸면 예전 이름에 걸려 있던 분류 매핑은 더 이상 이 종목을 못 찾는다.
-  // 그대로 두면 새 이름은 분류를 잃고 자동 추정으로 떨어지므로, 매핑을 새 이름으로 옮긴다.
-  function updateManualHolding(
-    id: string,
-    input: { name: string; category: Category; evalAmount: number; accountId?: string },
-  ) {
-    const current = manualHoldings.find((item) => item.id === id)
-    if (!current) return
+  function submitManualHolding(input: ManualInput) {
+    const target = holdingTarget
+    setHoldingTarget(null)
+    if (!target || target.kind === 'file') return
 
     const { category, ...rest } = input
-    const nextManual = manualHoldings.map((item) => (item.id === id ? { ...item, ...rest } : item))
     const nextOverrides = { ...overrides }
-    if (current.name !== input.name) delete nextOverrides[current.name]
-    nextOverrides[input.name] = category
 
-    return apply(files, nextOverrides, manualAccounts, nextManual)
+    if (target.kind === 'new') {
+      nextOverrides[input.name] = category
+      return apply({
+        overrides: nextOverrides,
+        manualHoldings: [...manualHoldings, { id: crypto.randomUUID(), ...rest }],
+      })
+    }
+
+    // 이름을 바꾸면 예전 이름에 걸려 있던 분류 매핑은 이 종목을 못 찾는다.
+    if (target.item.name !== input.name) delete nextOverrides[target.item.name]
+    nextOverrides[input.name] = category
+    return apply({
+      overrides: nextOverrides,
+      manualHoldings: manualHoldings.map((m) => (m.id === target.item.id ? { ...m, ...rest } : m)),
+    })
   }
 
-  function removeManualHolding(id: string) {
-    return apply(
-      files,
-      overrides,
-      manualAccounts,
-      manualHoldings.filter((item) => item.id !== id),
-    )
+  function submitFileHolding(holding: Holding, input: FileInput) {
+    setHoldingTarget(null)
+
+    // 이미 고친 종목을 또 고칠 때 basedOn 은 최초 파일 값을 유지해야 한다.
+    // 내가 고친 값을 기준으로 삼으면 파일이 바뀌어도 충돌을 못 잡는다.
+    const basedOn: FileValues = holding.original ?? {
+      quantity: holding.quantity,
+      avgBuyPrice: holding.avgBuyPrice,
+      evalAmount: holding.evalAmount,
+    }
+    const edit: HoldingEdit = {
+      accountNumber: holding.accountNumber,
+      name: holding.name,
+      quantity: input.quantity,
+      avgBuyPrice: input.avgBuyPrice ?? undefined,
+      evalAmount: input.evalAmount,
+      basedOn,
+    }
+
+    return apply({
+      overrides: { ...overrides, [holding.name]: input.category },
+      holdingEdits: [...withoutEdit(holdingEdits, holding), edit],
+    })
+  }
+
+  function resetFileHolding(holding: Holding) {
+    setHoldingTarget(null)
+    return apply({ holdingEdits: withoutEdit(holdingEdits, holding) })
+  }
+
+  function removeManualHolding(item: ManualHolding) {
+    setHoldingTarget(null)
+    const nextOverrides = { ...overrides }
+    delete nextOverrides[item.name]
+    return apply({
+      overrides: nextOverrides,
+      manualHoldings: manualHoldings.filter((m) => m.id !== item.id),
+    })
+  }
+
+  // ---------- 충돌 ----------
+
+  // "내 값 유지" 는 지금 파일 값을 새 기준으로 삼는다는 뜻이다. 그래야 다음에
+  // 파일이 또 바뀌었을 때만 다시 물어본다.
+  function keepMine(edit: HoldingEdit, current: FileValues) {
+    return apply({
+      holdingEdits: holdingEdits.map((e) =>
+        e.accountNumber === edit.accountNumber && e.name === edit.name ? { ...e, basedOn: current } : e,
+      ),
+    })
+  }
+
+  function useFileValue(edit: HoldingEdit) {
+    return apply({
+      holdingEdits: holdingEdits.filter(
+        (e) => !(e.accountNumber === edit.accountNumber && e.name === edit.name),
+      ),
+    })
   }
 
   async function reset() {
     setFiles([])
     setManualAccounts([])
     setManualHoldings([])
+    setHoldingEdits([])
     setSummary(null)
     setError(null)
     await clearState()
   }
 
   const superseded = supersededManualAccounts(manualAccounts, summary)
+  const conflicts = conflictingEdits(holdingEdits, summary)
+  const editingManual = holdingTarget?.kind === 'manual' ? holdingTarget.item : null
 
   return (
     <main>
@@ -170,34 +250,34 @@ export default function App() {
       </header>
 
       <FileDrop
-        onFiles={async (picked) => apply([...files, ...(await toUploadedFiles(picked))])}
+        onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
         busy={busy}
         compact={summary !== null}
       />
 
       {error && <p className="error">{error}</p>}
 
+      {summary && conflicts.length > 0 && (
+        <EditConflicts
+          conflicts={conflicts}
+          summary={summary}
+          busy={busy}
+          onKeepMine={keepMine}
+          onUseFile={useFileValue}
+        />
+      )}
+
       <AccountsPanel
         accounts={summary?.accounts ?? []}
+        holdings={summary?.holdings ?? []}
         manualAccounts={manualAccounts}
         superseded={superseded}
         coveredAsset={summary?.coveredAsset ?? 0}
         busy={busy}
-        onRemove={(number) => apply(withoutAccount(files, number))}
-        onAddAccount={addManualAccount}
-        onUpdateAccount={updateManualAccount}
-        onRemoveAccount={removeManualAccount}
-      />
-
-      <ManualAssets
-        manualHoldings={manualHoldings}
-        // 파일로 갈음된 계좌는 고를 수 없어야 한다. 붙여 봐야 서버가 조용히 버린다.
-        manualAccounts={manualAccounts.filter((account) => !superseded.includes(account))}
-        holdings={summary?.holdings ?? []}
-        busy={busy}
-        onAdd={addManualHolding}
-        onUpdate={updateManualHolding}
-        onRemove={removeManualHolding}
+        onRemove={(number) => apply({ files: withoutAccount(files, number) })}
+        onAddAccount={() => setAccountTarget('new')}
+        onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
+        onRemoveAccount={removeAccount}
       />
 
       {summary && (
@@ -208,14 +288,14 @@ export default function App() {
             accounts={summary.accounts}
             mode={mode}
             onModeChange={setMode}
-            overrides={overrides}
             busy={busy}
-            onCategoryChange={changeCategory}
+            onAddHolding={() => setHoldingTarget({ kind: 'new' })}
+            onEditHolding={openHoldingEditor}
           />
           <footer className="page-foot">
             <p>
-              올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산
-              후 아무것도 남기지 않습니다.
+              올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산 후
+              아무것도 남기지 않습니다.
             </p>
             <button type="button" className="link" onClick={reset}>
               전부 지우기
@@ -224,9 +304,45 @@ export default function App() {
         </>
       )}
 
+      {/* 보유 종목 표가 없으면 그쪽 "종목 추가" 버튼도 없다. 파일도 계좌도 없이
+          종목 하나만 넣으려는 경로를 여기서 열어 준다. */}
       {restored && !summary && !busy && !error && (
-        <p className="empty">잔고파일을 올리거나 계좌·자산을 직접 추가하면 자산 배분과 손익을 보여줍니다.</p>
+        <div className="empty">
+          <p>잔고파일을 올리거나 계좌·종목을 직접 추가하면 자산 배분과 손익을 보여줍니다.</p>
+          <button
+            type="button"
+            className="add-toggle"
+            onClick={() => setHoldingTarget({ kind: 'new' })}
+          >
+            종목 추가
+          </button>
+        </div>
       )}
+
+      <AccountForm
+        open={accountTarget !== null}
+        editing={accountTarget === 'new' ? null : accountTarget}
+        busy={busy}
+        onClose={() => setAccountTarget(null)}
+        onSubmit={submitAccount}
+      />
+
+      <HoldingForm
+        target={holdingTarget}
+        accounts={summary?.accounts ?? []}
+        manualAccounts={manualAccounts.filter((account) => !superseded.includes(account))}
+        busy={busy}
+        onClose={() => setHoldingTarget(null)}
+        onSubmitManual={submitManualHolding}
+        onSubmitFile={submitFileHolding}
+        onResetFile={resetFileHolding}
+        onRemoveManual={editingManual ? () => removeManualHolding(editingManual) : undefined}
+      />
     </main>
   )
+}
+
+function withoutEdit(edits: HoldingEdit[], holding: Holding): HoldingEdit[] {
+  const key = holdingKey(holding.accountNumber, holding.name)
+  return edits.filter((e) => holdingKey(e.accountNumber, e.name) !== key)
 }

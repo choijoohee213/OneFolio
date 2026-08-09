@@ -1,15 +1,14 @@
 import { categoryColor, percent, quantity, signedPercent, signedWon, won } from '../format'
-import type { Category, Holding, Overrides } from '../types'
-import { CATEGORIES, isManualHolding } from '../types'
+import type { Holding } from '../types'
+import { isManualHolding } from '../types'
 
 interface Props {
   holdings: Holding[]
-  overrides: Overrides
   busy: boolean
-  onCategoryChange: (name: string, category: Category | null) => void
+  onEdit: (holding: Holding) => void
 }
 
-export function HoldingRows({ holdings, overrides, busy, onCategoryChange }: Props) {
+export function HoldingRows({ holdings, busy, onEdit }: Props) {
   return (
     <div className="scroll">
       <table>
@@ -22,19 +21,23 @@ export function HoldingRows({ holdings, overrides, busy, onCategoryChange }: Pro
             <th className="num">평가손익</th>
             <th className="num">손익률</th>
             <th className="num">비중</th>
+            <th />
           </tr>
         </thead>
         <tbody>
           {holdings.map((holding) => (
             <tr key={`${holding.accountNumber}-${holding.name}`}>
-              <td className="name">{holding.name}</td>
+              <td className="name">
+                {holding.name}
+                {holding.original && (
+                  <span className="edited-tag" title="잔고파일 값을 직접 고친 종목">
+                    수정됨
+                  </span>
+                )}
+              </td>
               <td>
-                <CategoryPicker
-                  holding={holding}
-                  overridden={holding.name in overrides}
-                  busy={busy}
-                  onChange={onCategoryChange}
-                />
+                <span className="swatch small" style={{ background: categoryColor(holding.category) }} />
+                {holding.category}
               </td>
               <td className="num">{isManualHolding(holding) ? '—' : quantity(holding.quantity)}</td>
               <td className="num">{won(holding.evalAmount)}</td>
@@ -45,50 +48,27 @@ export function HoldingRows({ holdings, overrides, busy, onCategoryChange }: Pro
                 {holding.profitRate === null ? '—' : signedPercent(holding.profitRate)}
               </td>
               <td className="num">{percent(holding.weight)}</td>
+              <td className="num">
+                <button
+                  type="button"
+                  className="link"
+                  disabled={busy || holding.mergedFromMultipleAccounts}
+                  title={
+                    holding.mergedFromMultipleAccounts
+                      ? '여러 계좌에 나뉘어 있습니다. 계좌별 보기에서 고쳐주세요'
+                      : undefined
+                  }
+                  onClick={() => onEdit(holding)}
+                  aria-label={`${holding.name} 수정`}
+                >
+                  수정
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  )
-}
-
-interface PickerProps {
-  holding: Holding
-  overridden: boolean
-  busy: boolean
-  onChange: (name: string, category: Category | null) => void
-}
-
-function CategoryPicker({ holding, overridden, busy, onChange }: PickerProps) {
-  return (
-    <span className={`category ${overridden ? 'overridden' : ''}`}>
-      <span className="swatch small" style={{ background: categoryColor(holding.category) }} />
-      <select
-        value={holding.category}
-        disabled={busy}
-        aria-label={`${holding.name} 분류`}
-        onChange={(event) => onChange(holding.name, event.target.value as Category)}
-      >
-        {CATEGORIES.map((category) => (
-          <option key={category} value={category}>
-            {category}
-          </option>
-        ))}
-      </select>
-      {overridden && (
-        <button
-          type="button"
-          className="revert"
-          disabled={busy}
-          title="자동 분류로 되돌리기"
-          aria-label={`${holding.name} 자동 분류로 되돌리기`}
-          onClick={() => onChange(holding.name, null)}
-        >
-          ↺
-        </button>
-      )}
-    </span>
   )
 }
 
