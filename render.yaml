@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: onefolio-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://onefolio.pages.dev
