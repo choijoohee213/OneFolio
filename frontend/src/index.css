@@ -197,6 +197,21 @@ main {
 .empty p {
   margin: 0;
 }
+.sample-btn {
+  margin-top: 0.25rem;
+  padding: 0.5rem 1.2rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+.sample-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* 보기 전환과 추가 버튼이 제목 오른쪽에 나란히 선다 */
 .head-actions {

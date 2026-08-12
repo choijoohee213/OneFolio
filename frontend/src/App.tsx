@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { toUploadedFiles } from './api'
+import { createSampleFiles } from './sampleData'
 import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
@@ -329,6 +330,13 @@ export default function App() {
             onClick={() => setHoldingTarget({ kind: 'new' })}
           >
             종목 추가
+          </button>
+          <button
+            type="button"
+            className="sample-btn"
+            onClick={async () => apply({ files: await toUploadedFiles(createSampleFiles()) })}
+          >
+            샘플 잔고파일로 체험하기
           </button>
         </div>
       )}
