@@ -9,7 +9,7 @@ import (
 
 func price(v float64) *float64 { return &v }
 
-func loadListings(t *testing.T) master.Table {
+func loadListings(t *testing.T) *master.Table {
 	t.Helper()
 	listings, err := master.Load()
 	if err != nil {
@@ -74,7 +74,7 @@ func TestOverrideBeatsMaster(t *testing.T) {
 
 // 마스터에 없는 종목은 이름 규칙과 현재가 소수점으로 추정한다.
 func TestFallbackForUnlistedName(t *testing.T) {
-	classifier := New(nil, nil)
+	classifier := New(master.Empty(), nil)
 
 	tests := []struct {
 		name         string

@@ -3,11 +3,19 @@ import type {
   ManualAccount,
   ManualHolding,
   Overrides,
+  StockEntry,
+  StockMappings,
   Summary,
   UploadedFile,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
+
+export async function searchStocks(query: string): Promise<StockEntry[]> {
+  const response = await fetch(`${BASE}/api/stocks?q=${encodeURIComponent(query)}`)
+  if (!response.ok) return []
+  return response.json()
+}
 
 export async function fetchPortfolio(
   files: UploadedFile[],
@@ -15,6 +23,7 @@ export async function fetchPortfolio(
   manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
   holdingEdits: HoldingEdit[],
+  stockMappings?: StockMappings,
 ): Promise<Summary> {
   const form = new FormData()
   files.forEach((file) => form.append('files', new Blob([file.data]), file.name))
@@ -61,6 +70,10 @@ export async function fetchPortfolio(
         })),
       ),
     )
+  }
+
+  if (stockMappings && Object.keys(stockMappings).length > 0) {
+    form.append('stockMappings', JSON.stringify(stockMappings))
   }
 
   const response = await fetch(`${BASE}/api/portfolio`, { method: 'POST', body: form })

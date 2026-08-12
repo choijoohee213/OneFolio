@@ -32,8 +32,13 @@ var (
 	overseasFiles = []string{"nasmst.cod.zip", "nysmst.cod.zip", "amsmst.cod.zip"}
 )
 
+type listing struct {
+	code string
+	kind master.Kind
+}
+
 func main() {
-	listings := make(map[string]master.Kind)
+	listings := make(map[string]listing)
 
 	for _, name := range domesticFiles {
 		data, err := download(name)
@@ -88,19 +93,21 @@ func download(name string) ([]byte, error) {
 
 // 국내 마스터는 고정길이다. 단축코드 9 + 표준코드 12 + 한글종목명 40 뒤에 증권그룹구분코드가 온다.
 const (
+	codeEnd    = 9
 	nameStart  = 21
 	nameEnd    = 61
 	groupEnd   = 63
 	minLineLen = groupEnd
 )
 
-func readDomestic(data []byte, listings map[string]master.Kind) {
+func readDomestic(data []byte, listings map[string]listing) {
 	for _, line := range bytes.Split(data, []byte("\n")) {
 		line = bytes.TrimRight(line, "\r")
 		if len(line) < minLineLen {
 			continue
 		}
 
+		code := decode(line[0:codeEnd])
 		name := decode(line[nameStart:nameEnd])
 		if name == "" {
 			continue
@@ -109,41 +116,42 @@ func readDomestic(data []byte, listings map[string]master.Kind) {
 		if group := decode(line[nameEnd:groupEnd]); group == "EF" || group == "EN" {
 			kind = master.DomesticETF
 		}
-		putIfAbsent(listings, name, kind)
+		putIfAbsent(listings, name, listing{code: code, kind: kind})
 	}
 }
 
-// 해외 마스터는 탭 구분이다. 7번째가 한글명, 9번째가 증권종류(2:주식, 3:ETP).
+// 해외 마스터는 탭 구분이다. 5번째가 티커, 7번째가 한글명, 9번째가 증권종류(2:주식, 3:ETP).
 const (
+	overseasCodeColumn = 4
 	overseasNameColumn = 6
 	overseasTypeColumn = 8
 	overseasColumns    = 9
 )
 
-func readOverseas(data []byte, listings map[string]master.Kind) {
+func readOverseas(data []byte, listings map[string]listing) {
 	for _, line := range strings.Split(decode(data), "\n") {
 		columns := strings.Split(line, "\t")
 		if len(columns) < overseasColumns {
 			continue
 		}
 
+		code := strings.TrimSpace(columns[overseasCodeColumn])
 		name := strings.TrimSpace(columns[overseasNameColumn])
 		if name == "" {
 			continue
 		}
 		switch strings.TrimSpace(columns[overseasTypeColumn]) {
 		case "2":
-			putIfAbsent(listings, name, master.ForeignStock)
+			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignStock})
 		case "3":
-			putIfAbsent(listings, name, master.ForeignETF)
+			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignETF})
 		}
 	}
 }
 
-// 국내 마스터를 먼저 읽으므로 이름이 겹치면 국내가 이긴다.
-func putIfAbsent(listings map[string]master.Kind, name string, kind master.Kind) {
+func putIfAbsent(listings map[string]listing, name string, l listing) {
 	if _, exists := listings[name]; !exists {
-		listings[name] = kind
+		listings[name] = l
 	}
 }
 
@@ -155,7 +163,7 @@ func decode(b []byte) string {
 	return strings.TrimSpace(string(decoded))
 }
 
-func write(listings map[string]master.Kind) error {
+func write(listings map[string]listing) error {
 	names := make([]string, 0, len(listings))
 	for name := range listings {
 		names = append(names, name)
@@ -175,7 +183,8 @@ func write(listings map[string]master.Kind) error {
 	defer compressed.Close()
 
 	for _, name := range names {
-		if _, err := fmt.Fprintf(compressed, "%s\t%s\n", name, listings[name]); err != nil {
+		l := listings[name]
+		if _, err := fmt.Fprintf(compressed, "%s\t%s\t%s\n", l.code, name, l.kind); err != nil {
 			return err
 		}
 	}

@@ -20,26 +20,44 @@ const (
 	filesField     = "files"
 	overridesField = "overrides"
 
-	manualAccountsField = "manualAccounts"
-	manualHoldingsField = "manualHoldings"
-	holdingEditsField   = "holdingEdits"
+	manualAccountsField  = "manualAccounts"
+	manualHoldingsField  = "manualHoldings"
+	holdingEditsField    = "holdingEdits"
+	stockMappingsField   = "stockMappings"
+
+	defaultSearchLimit = 20
 )
 
 type Server struct {
-	listings master.Table
+	listings *master.Table
 }
 
-func New(listings master.Table) *Server {
+func New(listings *master.Table) *Server {
 	return &Server{listings: listings}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /api/stocks", s.searchStocks)
 	mux.HandleFunc("POST /api/portfolio", s.portfolio)
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) searchStocks(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		writeJSON(w, http.StatusOK, []master.Entry{})
+		return
+	}
+	limit := defaultSearchLimit
+	results := s.listings.Search(query, limit)
+	if results == nil {
+		results = []master.Entry{}
+	}
+	writeJSON(w, http.StatusOK, results)
 }
 
 func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +82,12 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	holdingEdits, err := parseHoldingEdits(r.FormValue(holdingEditsField))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "%v", err)
+		return
+	}
+
+	stockMappings, err := parseStockMappings(r.FormValue(stockMappingsField))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "%v", err)
 		return
@@ -139,8 +163,23 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 
 	portfolio.ApplyEdits(merged, holdingEdits)
 
+	// stockMappings 로 지정된 종목은 마스터에서 종류를 찾아 분류에 반영한다.
+	if len(stockMappings) > 0 {
+		if overrides == nil {
+			overrides = make(map[string]domain.Category)
+		}
+		for holdingName, code := range stockMappings {
+			if _, ok := overrides[holdingName]; ok {
+				continue
+			}
+			if entry, ok := s.listings.LookupByCode(code); ok {
+				overrides[holdingName] = classify.FromKind(entry.Kind, holdingName)
+			}
+		}
+	}
+
 	classifier := classify.New(s.listings, overrides)
-	summary := portfolio.Summarize(merged, classifier)
+	summary := portfolio.Summarize(merged, classifier, s.listings, stockMappings)
 	summary.Sources = sources
 	writeJSON(w, http.StatusOK, summary)
 }
@@ -276,6 +315,17 @@ func parseHoldingEdits(raw string) ([]portfolio.HoldingEdit, error) {
 		}
 	}
 	return edits, nil
+}
+
+func parseStockMappings(raw string) (map[string]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var mappings map[string]string
+	if err := json.Unmarshal([]byte(raw), &mappings); err != nil {
+		return nil, fmt.Errorf("%s 는 JSON 객체여야 합니다", stockMappingsField)
+	}
+	return mappings, nil
 }
 
 func parseOverrides(raw string) (map[string]domain.Category, error) {

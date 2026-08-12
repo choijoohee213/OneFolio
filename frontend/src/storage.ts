@@ -3,6 +3,7 @@ import type {
   ManualAccount,
   ManualHolding,
   Overrides,
+  StockMappings,
   Summary,
   UploadedFile,
 } from './types'
@@ -22,6 +23,7 @@ interface SavedState {
   holdingEdits: HoldingEdit[]
   summary: Summary | null
   overrides: Overrides
+  stockMappings: StockMappings
   savedAt: string
 }
 
@@ -130,6 +132,7 @@ export async function loadState(): Promise<SavedState | null> {
       holdingEdits: storedHoldingEdits(state.holdingEdits),
       summary: renderable(state.summary) ? state.summary : null,
       overrides: state.overrides ?? {},
+      stockMappings: state.stockMappings ?? {},
     }
   } catch {
     return null
@@ -143,6 +146,7 @@ export async function saveState(
   holdingEdits: HoldingEdit[],
   summary: Summary | null,
   overrides: Overrides,
+  stockMappings: StockMappings,
 ): Promise<void> {
   const state: SavedState = {
     files,
@@ -151,6 +155,7 @@ export async function saveState(
     holdingEdits,
     summary,
     overrides,
+    stockMappings,
     savedAt: new Date().toISOString(),
   }
   try {

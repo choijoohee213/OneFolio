@@ -4,6 +4,7 @@ import type {
   ManualAccount,
   ManualHolding,
   Overrides,
+  StockMappings,
   Summary,
   UploadedFile,
 } from './types'
@@ -22,12 +23,13 @@ export async function recompute(
   manualAccounts: ManualAccount[],
   manualHoldings: ManualHolding[],
   holdingEdits: HoldingEdit[],
+  stockMappings?: StockMappings,
 ): Promise<Collection> {
   if (files.length === 0 && manualAccounts.length === 0 && manualHoldings.length === 0) {
     return { files: [], summary: null }
   }
 
-  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings, holdingEdits)
+  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings, holdingEdits, stockMappings)
   if (files.length === 0) {
     return { files: [], summary }
   }
@@ -46,7 +48,7 @@ export async function recompute(
   // 남지 않도록 추려낸 파일로 다시 계산한다.
   return {
     files: kept,
-    summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings, holdingEdits),
+    summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings, holdingEdits, stockMappings),
   }
 }
 

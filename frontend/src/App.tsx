@@ -9,6 +9,7 @@ import { FileDrop } from './components/FileDrop'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { ThemeToggle } from './components/ThemeToggle'
+import { UnmatchedResolver } from './components/UnmatchedResolver'
 import { won } from './format'
 import { clearState, conflictingEdits, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
@@ -19,6 +20,7 @@ import type {
   ManualAccount,
   ManualHolding,
   Overrides,
+  StockMappings,
   Summary,
   UploadedFile,
 } from './types'
@@ -36,8 +38,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [restored, setRestored] = useState(false)
   const [theme, setTheme] = useState<Theme>(loadTheme)
+  const [stockMappings, setStockMappings] = useState<StockMappings>({})
   const [holdingTarget, setHoldingTarget] = useState<HoldingTarget | null>(null)
   const [accountTarget, setAccountTarget] = useState<ManualAccount | null | 'new'>(null)
+  const [showUnmatched, setShowUnmatched] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -48,6 +52,7 @@ export default function App() {
         setHoldingEdits(state.holdingEdits)
         setSummary(state.summary)
         setOverrides(state.overrides)
+        setStockMappings(state.stockMappings)
       }
       setRestored(true)
     })
@@ -59,24 +64,32 @@ export default function App() {
     manualAccounts?: ManualAccount[]
     manualHoldings?: ManualHolding[]
     holdingEdits?: HoldingEdit[]
+    stockMappings?: StockMappings
   }) {
     const nextFiles = next.files ?? files
     const nextOverrides = next.overrides ?? overrides
     const nextAccounts = next.manualAccounts ?? manualAccounts
     const nextHoldings = next.manualHoldings ?? manualHoldings
     const nextEdits = next.holdingEdits ?? holdingEdits
+    const nextMappings = next.stockMappings ?? stockMappings
 
     setBusy(true)
     setError(null)
     try {
-      const collection = await recompute(nextFiles, nextOverrides, nextAccounts, nextHoldings, nextEdits)
+      const collection = await recompute(nextFiles, nextOverrides, nextAccounts, nextHoldings, nextEdits, nextMappings)
       setFiles(collection.files)
       setManualAccounts(nextAccounts)
       setManualHoldings(nextHoldings)
       setHoldingEdits(nextEdits)
       setSummary(collection.summary)
       setOverrides(nextOverrides)
-      await saveState(collection.files, nextAccounts, nextHoldings, nextEdits, collection.summary, nextOverrides)
+      setStockMappings(nextMappings)
+
+      const unmatched = collection.summary?.unmatched ?? []
+      const hasNew = unmatched.some((n) => !(n in nextMappings))
+      if (hasNew) setShowUnmatched(true)
+
+      await saveState(collection.files, nextAccounts, nextHoldings, nextEdits, collection.summary, nextOverrides, nextMappings)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -217,6 +230,7 @@ export default function App() {
     setManualAccounts([])
     setManualHoldings([])
     setHoldingEdits([])
+    setStockMappings({})
     setSummary(null)
     setError(null)
     await clearState()
@@ -338,6 +352,19 @@ export default function App() {
         onResetFile={resetFileHolding}
         onRemoveManual={editingManual ? () => removeManualHolding(editingManual) : undefined}
       />
+
+      {showUnmatched && summary?.unmatched && summary.unmatched.length > 0 && (
+        <UnmatchedResolver
+          names={summary.unmatched}
+          existing={stockMappings}
+          busy={busy}
+          onResolve={(resolved) => {
+            setShowUnmatched(false)
+            apply({ stockMappings: resolved })
+          }}
+          onClose={() => setShowUnmatched(false)}
+        />
+      )}
     </main>
   )
 }

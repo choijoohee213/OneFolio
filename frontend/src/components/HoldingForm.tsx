@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { commaFormat, commaParse } from '../format'
 import { Modal } from './Modal'
+import { StockSearch } from './StockSearch'
 import type { AccountSummary, Category, Holding, ManualAccount, ManualHolding } from '../types'
 import { CATEGORIES, isManualAccountNumber } from '../types'
 
@@ -123,9 +124,18 @@ export function HoldingForm({
       <form className="modal-form" onSubmit={submit}>
         <label>
           <span>종목명</span>
-          {/* 파일 종목의 이름을 바꾸면 어느 행을 고친 건지 못 찾는다. */}
-          <input value={name} onChange={(e) => setName(e.target.value)} disabled={busy || isFile} required />
-          {isFile && <small>잔고파일에서 온 종목이라 이름은 바꿀 수 없습니다.</small>}
+          {isFile ? (
+            <>
+              <input value={name} disabled required />
+              <small>잔고파일에서 온 종목이라 이름은 바꿀 수 없습니다.</small>
+            </>
+          ) : (
+            <StockSearch
+              value={name}
+              onChange={(n) => setName(n)}
+              disabled={busy}
+            />
+          )}
         </label>
 
         <label>
