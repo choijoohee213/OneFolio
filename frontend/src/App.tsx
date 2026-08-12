@@ -282,18 +282,20 @@ export default function App() {
         />
       )}
 
-      <AccountsPanel
-        accounts={summary?.accounts ?? []}
-        holdings={summary?.holdings ?? []}
-        manualAccounts={manualAccounts}
-        superseded={superseded}
-        coveredAsset={summary?.coveredAsset ?? 0}
-        busy={busy}
-        onRemove={(number) => apply({ files: withoutAccount(files, number) })}
-        onAddAccount={() => setAccountTarget('new')}
-        onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
-        onRemoveAccount={removeAccount}
-      />
+      {summary && (
+        <AccountsPanel
+          accounts={summary.accounts}
+          holdings={summary.holdings}
+          manualAccounts={manualAccounts}
+          superseded={superseded}
+          coveredAsset={summary.coveredAsset}
+          busy={busy}
+          onRemove={(number) => apply({ files: withoutAccount(files, number) })}
+          onAddAccount={() => setAccountTarget('new')}
+          onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
+          onRemoveAccount={removeAccount}
+        />
+      )}
 
       {summary && (
         <>
@@ -322,22 +324,23 @@ export default function App() {
       {/* 보유 종목 표가 없으면 그쪽 "종목 추가" 버튼도 없다. 파일도 계좌도 없이
           종목 하나만 넣으려는 경로를 여기서 열어 준다. */}
       {restored && !summary && !busy && !error && (
-        <div className="empty">
-          <p>잔고파일을 올리거나 계좌·종목을 직접 추가하면 자산 배분과 손익을 보여줍니다.</p>
-          <button
-            type="button"
-            className="add-toggle"
-            onClick={() => setHoldingTarget({ kind: 'new' })}
-          >
-            종목 추가
-          </button>
-          <button
-            type="button"
-            className="sample-btn"
-            onClick={async () => apply({ files: await toUploadedFiles(createSampleFiles()) })}
-          >
-            샘플 잔고파일로 체험하기
-          </button>
+        <div className="onboarding">
+          <p>또는 직접 추가하거나 샘플로 체험해보세요</p>
+          <div className="onboarding-actions">
+            <button type="button" onClick={() => setAccountTarget('new')}>
+              계좌 추가
+            </button>
+            <button type="button" onClick={() => setHoldingTarget({ kind: 'new' })}>
+              종목 추가
+            </button>
+            <button
+              type="button"
+              className="sample-btn"
+              onClick={async () => apply({ files: await toUploadedFiles(createSampleFiles()) })}
+            >
+              샘플 잔고파일로 체험하기
+            </button>
+          </div>
         </div>
       )}
 
