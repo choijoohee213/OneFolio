@@ -42,7 +42,7 @@ func main() {
 		IdleTimeout:  idleTimeout,
 	}
 
-	log.Printf("listening on %s (종목마스터 %d건)", address, len(listings))
+	log.Printf("listening on %s (종목마스터 %d건)", address, listings.Len())
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

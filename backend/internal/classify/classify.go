@@ -11,11 +11,11 @@ import (
 )
 
 type Classifier struct {
-	listings  master.Table
+	listings  *master.Table
 	overrides map[string]domain.Category
 }
 
-func New(listings master.Table, overrides map[string]domain.Category) *Classifier {
+func New(listings *master.Table, overrides map[string]domain.Category) *Classifier {
 	return &Classifier{listings: listings, overrides: overrides}
 }
 
@@ -23,13 +23,13 @@ func (c *Classifier) Classify(h domain.Holding) domain.Category {
 	if category, ok := c.overrides[h.Name]; ok {
 		return category
 	}
-	if kind, ok := c.listings.Lookup(h.Name); ok {
-		return fromKind(kind, h.Name)
+	if listing, ok := c.listings.Lookup(h.Name); ok {
+		return FromKind(listing.Kind, h.Name)
 	}
 	return guess(h)
 }
 
-func fromKind(kind master.Kind, name string) domain.Category {
+func FromKind(kind master.Kind, name string) domain.Category {
 	switch {
 	case kind.IsETF():
 		return etfStyle(name)

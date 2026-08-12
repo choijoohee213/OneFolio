@@ -5,6 +5,7 @@ import (
 
 	"github.com/choijoohee213/OneFolio/backend/internal/classify"
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
+	"github.com/choijoohee213/OneFolio/backend/internal/master"
 )
 
 type Summary struct {
@@ -20,6 +21,8 @@ type Summary struct {
 	// Sources 는 업로드한 파일이 각각 어느 계좌를 담당했는지 알려준다.
 	// 요청에 보낸 파일 순서와 같다.
 	Sources []Source `json:"sources"`
+
+	Unmatched []string `json:"unmatched,omitempty"`
 }
 
 type Source struct {
@@ -44,41 +47,83 @@ type HoldingDetail struct {
 	domain.Holding
 	Category domain.Category `json:"category"`
 	Weight   float64         `json:"weight"`
+	Code     string          `json:"code,omitempty"`
+
+	// Original 은 사용자가 값을 고친 종목의 잔고파일 원본이다. 고치지 않았으면 비어 있다.
+	// 화면이 "내가 고칠 때 보던 파일 값"과 비교해 파일이 그새 바뀌었는지 가린다.
+	Original *domain.Holding `json:"original,omitempty"`
 }
 
 // Summarize 는 종목 상세가 올라온 계좌들의 자산총액 합을 분모로 비중을 낸다.
 // 그 계좌들에서 종목으로 잡히지 않는 잔액(예수금, 외화 등)은 현금성으로 본다.
-func Summarize(p *Portfolio, classifier *classify.Classifier) Summary {
+func Summarize(p *Portfolio, classifier *classify.Classifier, listings *master.Table, stockMappings map[string]string) Summary {
 	covered := coveredAccounts(p)
 
 	summary := Summary{
 		TotalAsset: totalAsset(p.Accounts),
 		Accounts:   accountSummaries(p.Accounts, covered),
+		// 계좌만 추가되고 종목이 하나도 없으면 아래 루프가 한 번도 안 돈다.
+		// nil 슬라이스로 두면 JSON 에서 null 로 나가 프런트의 배열 처리가 깨진다.
+		Holdings:   []HoldingDetail{},
+		Categories: []CategoryTotal{},
 	}
 	for _, account := range summary.Accounts {
 		if account.Covered {
 			summary.CoveredAsset += account.TotalAsset
 		}
 	}
+	// 계좌 없이 던져 넣은 종목은 자기 평가금액만큼 스스로 분모를 늘린다.
+	// 기존 계좌 총액에서 끌어오면 그 계좌의 현금성이 없던 돈을 쓴 것처럼 깎인다.
+	// 직접 추가한 계좌에 붙은 종목은 이미 그 계좌의 TotalAsset 이 분모를
+	// 채우고 있으니 여기서 또 더하지 않는다.
+	for _, holding := range p.Holdings {
+		if IsManualHolding(holding.AccountNumber) {
+			summary.CoveredAsset += holding.EvalAmount
+		}
+	}
 
 	amountByCategory := make(map[domain.Category]float64)
 	var holdingsTotal float64
+
+	unmatchedSet := make(map[string]bool)
 
 	for _, holding := range p.Holdings {
 		category := classifier.Classify(holding)
 		amountByCategory[category] += holding.EvalAmount
 		holdingsTotal += holding.EvalAmount
 
-		summary.Holdings = append(summary.Holdings, HoldingDetail{
+		detail := HoldingDetail{
 			Holding:  holding,
 			Category: category,
 			Weight:   ratio(holding.EvalAmount, summary.CoveredAsset),
-		})
+		}
+
+		if listing, ok := listings.Lookup(holding.Name); ok {
+			detail.Code = listing.Code
+		} else if code, ok := stockMappings[holding.Name]; ok && code != "" {
+			if entry, ok := listings.LookupByCode(code); ok {
+				detail.Code = entry.Code
+			}
+		} else if !IsManualHolding(holding.AccountNumber) {
+			unmatchedSet[holding.Name] = true
+		}
+
+		if original, ok := p.OriginalHoldings[HoldingKey(holding.AccountNumber, holding.Name)]; ok {
+			detail.Original = &original
+		}
+		summary.Holdings = append(summary.Holdings, detail)
 	}
 
-	// 계좌 총액을 모르면 잔액을 뺄 기준이 없다.
+	for name := range unmatchedSet {
+		summary.Unmatched = append(summary.Unmatched, name)
+	}
+	sort.Strings(summary.Unmatched)
+
+	// 계좌 총액을 모르면 잔액을 뺄 기준이 없다. += 여야 한다 — 사용자가 종목을
+	// 직접 "현금성"으로 지정하면 그 종목 몫이 이미 amountByCategory[Cash] 에
+	// 들어있는데, = 로 덮어쓰면 잔액만 남고 그 종목 금액이 사라진다.
 	if cash := summary.CoveredAsset - holdingsTotal; summary.CoveredAsset > 0 && cash != 0 {
-		amountByCategory[domain.Cash] = cash
+		amountByCategory[domain.Cash] += cash
 	}
 
 	for category, amount := range amountByCategory {
@@ -113,7 +158,9 @@ func accountSummaries(accounts []domain.Account, covered map[string]bool) []Acco
 			Number:     account.Number,
 			Type:       account.Type,
 			TotalAsset: account.TotalAsset,
-			Covered:    covered[account.Number],
+			// 직접 추가한 계좌는 상세 종목이 없어도 항상 집계 대상이다. 사용자가
+			// 총액을 직접 써넣은 것이라 "파일을 더 올려야 아는" 상태가 아니다.
+			Covered: covered[account.Number] || IsManualAccount(account.Number),
 		})
 	}
 	return summaries

@@ -2,6 +2,8 @@
 package portfolio
 
 import (
+	"strings"
+
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
 	"github.com/choijoohee213/OneFolio/backend/internal/parser"
 )
@@ -10,6 +12,37 @@ type Portfolio struct {
 	Accounts []domain.Account
 	Holdings []domain.Holding
 	Cash     []domain.Holding
+
+	// OriginalHoldings 는 사용자가 값을 고친 종목의 잔고파일 원본이다. 키는 HoldingKey.
+	// 화면이 "지금 파일 값이 내가 고칠 때와 달라졌는지" 판별해야 해서 원본을 버리지 않는다.
+	OriginalHoldings map[string]domain.Holding
+}
+
+// HoldingKey 는 종목 하나를 가리키는 키다. 같은 종목이 계좌마다 따로 있으므로
+// 이름만으로는 부족하다.
+func HoldingKey(accountNumber, name string) string {
+	return accountNumber + "\x00" + name
+}
+
+// 사용자가 직접 추가하는 자산은 두 층위다.
+//
+//   - 계좌(ManualAccountPrefix) — 잔고파일이 없는 통째 계좌. "저축은행 800만원"처럼
+//     이름과 총액만 있고, 종목을 안 붙이면 전액이 현금성으로 잡힌다. 진짜 계좌와
+//     똑같은 방식으로 계산되므로 Summarize 에 별도 분기가 필요 없다 — 단,
+//     파일 계좌와 달리 상세가 없어도 "집계됨" 이어야 하므로 그 부분만 다르다.
+//   - 종목(ManualHoldingPrefix) — 계좌를 만들지 않고 툭 던져 넣는 개별 자산.
+//     어느 계좌에도 안 속하니 자기 평가금액만큼 스스로 집계 분모를 채운다.
+const (
+	ManualAccountPrefix = "manual-account:"
+	ManualHoldingPrefix = "manual-item:"
+)
+
+func IsManualAccount(accountNumber string) bool {
+	return strings.HasPrefix(accountNumber, ManualAccountPrefix)
+}
+
+func IsManualHolding(accountNumber string) bool {
+	return strings.HasPrefix(accountNumber, ManualHoldingPrefix)
 }
 
 // CoveredAccounts 는 이 파일이 종목 상세를 담고 있는 계좌 번호를 돌려준다.
@@ -70,7 +103,7 @@ func newHoldingSet() *holdingSet {
 
 func (s *holdingSet) addAll(holdings []domain.Holding) {
 	for _, h := range holdings {
-		key := h.AccountNumber + "\x00" + h.Name
+		key := HoldingKey(h.AccountNumber, h.Name)
 		if i, ok := s.index[key]; ok {
 			s.items[i] = h
 			continue

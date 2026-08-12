@@ -78,7 +78,7 @@ func (r row) toAccount() (domain.Account, error) {
 	}
 
 	return domain.Account{
-		Number:        normalizeAccountNo(r[accNumber]),
+		Number:        domain.NormalizeAccountNumber(r[accNumber]),
 		DisplayNumber: r[accNumber],
 		Type:          r[accType],
 		TotalAsset:    total,

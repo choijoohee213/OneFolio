@@ -190,6 +190,193 @@ main {
   color: var(--muted);
   text-align: center;
   font-size: 0.9rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+}
+.empty p {
+  margin: 0;
+}
+
+/* 보기 전환과 추가 버튼이 제목 오른쪽에 나란히 선다 */
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ---------- 팝업 폼 ---------- */
+.modal {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0;
+  max-width: min(28rem, calc(100vw - 2rem));
+  width: 100%;
+}
+.modal::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+.modal-body {
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.modal-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.modal-close {
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.modal-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.modal-form {
+  display: grid;
+  gap: 0.85rem;
+}
+.modal-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.modal-form input,
+.modal-form select {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+}
+.modal-form input:disabled,
+.modal-form select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.modal-form small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  margin-top: 0.35rem;
+}
+.modal-actions button[type='submit'] {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.modal-actions button[type='submit']:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.modal-cancel {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.modal-cancel:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+/* 되돌리기·삭제는 왼쪽 끝으로 밀어 확인 버튼과 멀찍이 떨어뜨린다 */
+.modal-actions .danger {
+  margin-right: auto;
+  color: var(--gain);
+}
+
+/* ---------- 수정 표시 · 충돌 ---------- */
+.edited-tag {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--flag);
+  border: 1px solid var(--flag);
+  border-radius: 999px;
+  padding: 0.02rem 0.35rem;
+  white-space: nowrap;
+}
+.conflicts {
+  margin-top: 1.5rem;
+}
+.conflict-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+.conflict-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.conflict-list li:last-child {
+  border-bottom: 0;
+}
+.conflict-name {
+  font-weight: 500;
+}
+.conflict-values {
+  grid-column: 1;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.conflict-mine {
+  color: var(--flag);
+}
+.conflict-file {
+  color: var(--muted);
+}
+.manual-actions {
+  display: flex;
+  gap: 0.9rem;
+  justify-self: end;
+  white-space: nowrap;
 }
 
 /* ---------- 계좌 ---------- */
@@ -215,13 +402,22 @@ main {
 .account-type {
   word-break: keep-all;
 }
+.account-number {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
 .account-list li > .account-amount {
   grid-column: 1;
   text-align: left;
 }
 @media (min-width: 34rem) {
+  /* 마지막 칸은 "빼기" 하나일 수도, "수정 삭제" 둘일 수도 있다. 고정폭이면
+     두 개일 때 글자가 세로로 쪼개진다. */
   .account-list li {
-    grid-template-columns: minmax(0, 1fr) auto auto 2.4rem;
+    grid-template-columns: minmax(0, 1fr) auto auto minmax(2.4rem, auto);
     gap: 0.6rem;
     padding: 0.4rem 0;
   }
@@ -251,6 +447,11 @@ main {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+.account-amount .gain,
+.account-amount .loss {
+  font-size: 0.78rem;
+  margin-left: 0.25rem;
 }
 /* 아래 모든 비중의 분모라 계좌 목록 끝에서 한 번 더 못박는다 */
 .account-sum {
@@ -430,6 +631,59 @@ main {
   margin-right: 0.4rem;
 }
 
+/* ---------- 분류 직접 지정 ---------- */
+.category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.category select {
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.1rem 0.2rem;
+  cursor: pointer;
+  max-width: 11rem;
+}
+.category select:hover:not(:disabled) {
+  border-color: var(--border);
+}
+.category select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.category select:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+/* 직접 바꾼 종목은 자동 분류와 구분되게 표시한다 */
+.category.overridden select {
+  color: var(--flag);
+  font-weight: 600;
+}
+.revert {
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.15rem 0.3rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.revert:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface);
+}
+.revert:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ---------- 종목 표 ---------- */
 .holdings {
   margin-top: 2.75rem;
@@ -590,6 +844,98 @@ button.link {
   cursor: pointer;
   padding: 0;
 }
-button.link:hover {
+button.link:hover:not(:disabled) {
   color: var(--text);
+}
+button.link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------- StockSearch ---------- */
+.stock-search {
+  position: relative;
+}
+.stock-search input {
+  width: 100%;
+}
+.stock-search-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.stock-search-dropdown.static {
+  position: static;
+  margin-top: 8px;
+}
+.stock-search-dropdown li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.stock-search-dropdown li:hover,
+.stock-search-dropdown li.highlighted {
+  background: var(--accent);
+  color: #fff;
+}
+.stock-search-dropdown li.highlighted .stock-meta {
+  color: rgba(255, 255, 255, 0.8);
+}
+.stock-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stock-meta {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.stock-direct {
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- UnmatchedResolver ---------- */
+.unmatched-resolver {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.unmatched-name {
+  margin: 0;
+  font-size: 1rem;
+}
+.unmatched-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.unmatched-search {
+  width: 100%;
+}
+.unmatched-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 12px 0;
 }

@@ -1,12 +1,79 @@
-import type { Overrides, Summary, UploadedFile } from './types'
+import type {
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  StockEntry,
+  StockMappings,
+  Summary,
+  UploadedFile,
+} from './types'
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
-export async function fetchPortfolio(files: UploadedFile[], overrides: Overrides): Promise<Summary> {
+export async function searchStocks(query: string): Promise<StockEntry[]> {
+  const response = await fetch(`${BASE}/api/stocks?q=${encodeURIComponent(query)}`)
+  if (!response.ok) return []
+  return response.json()
+}
+
+export async function fetchPortfolio(
+  files: UploadedFile[],
+  overrides: Overrides,
+  manualAccounts: ManualAccount[],
+  manualHoldings: ManualHolding[],
+  holdingEdits: HoldingEdit[],
+  stockMappings?: StockMappings,
+): Promise<Summary> {
   const form = new FormData()
   files.forEach((file) => form.append('files', new Blob([file.data]), file.name))
   if (Object.keys(overrides).length > 0) {
     form.append('overrides', JSON.stringify(overrides))
+  }
+  if (manualAccounts.length > 0) {
+    form.append(
+      'manualAccounts',
+      JSON.stringify(
+        manualAccounts.map(({ id, name, totalAsset, accountNumber }) => ({
+          id,
+          name,
+          totalAsset,
+          accountNumber: accountNumber ?? '',
+        })),
+      ),
+    )
+  }
+  if (manualHoldings.length > 0) {
+    form.append(
+      'manualHoldings',
+      JSON.stringify(
+        manualHoldings.map(({ id, name, evalAmount, accountId }) => ({
+          id,
+          name,
+          evalAmount,
+          accountId: accountId ?? '',
+        })),
+      ),
+    )
+  }
+
+  if (holdingEdits.length > 0) {
+    form.append(
+      'holdingEdits',
+      JSON.stringify(
+        holdingEdits.map(({ accountNumber, name, quantity, avgBuyPrice, evalAmount }) => ({
+          accountNumber,
+          name,
+          quantity,
+          avgBuyPrice,
+          evalAmount,
+        })),
+      ),
+    )
+  }
+
+  if (stockMappings && Object.keys(stockMappings).length > 0) {
+    form.append('stockMappings', JSON.stringify(stockMappings))
   }
 
   const response = await fetch(`${BASE}/api/portfolio`, { method: 'POST', body: form })

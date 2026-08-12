@@ -308,6 +308,13 @@
       <td class="type">불필요</td>
       <td>서버 상태 확인</td>
     </tr>
+    <tr data-op="op-stocks">
+      <td>종목 검색</td>
+      <td><span class="badge get">GET</span></td>
+      <td class="path">/api/stocks</td>
+      <td class="type">불필요</td>
+      <td>KIS 종목마스터에서 이름·코드로 검색</td>
+    </tr>
     <tr data-op="op-portfolio">
       <td>자산배분 집계</td>
       <td><span class="badge post">POST</span></td>
@@ -358,6 +365,61 @@ Host: localhost:8080</code></pre>
   </div>
 </details>
 
+<!-- ---- GET /api/stocks ---- -->
+<details class="op get" id="op-stocks">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge get">GET</span>
+    <span class="path">/api/stocks</span>
+    <span class="summary-text">종목 검색</span>
+  </summary>
+  <div class="op-body">
+    <p>KIS 종목마스터(국내 KOSPI/KOSDAQ + 해외 NAS/NYS/AMS)에서 종목명 또는 종목코드로 검색한다.</p>
+
+    <h4>Request Syntax</h4>
+<pre><code>GET /api/stocks?q=삼성 HTTP/1.1
+Host: localhost:8080</code></pre>
+
+    <h4>Query Parameters</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>q</code></td>
+          <td class="type">string</td>
+          <td><span class="req">필수</span></td>
+          <td>검색어. 종목명(부분 매칭) 또는 종목코드(접두사 매칭). 비우면 빈 배열을 반환한다</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Response Element</h4>
+    <p>배열. 이름 접두사 매칭이 우선하고 부분 매칭이 뒤따른다. 최대 20건.</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(예: <code>005930</code>). 해외: 티커(예: <code>AAPL</code>)</td></tr>
+        <tr><td><code>name</code></td><td class="type">string</td><td>종목명 (한글)</td></tr>
+        <tr><td><code>kind</code></td><td class="type">string</td><td><code>DS</code>(국내주식), <code>DE</code>(국내ETF), <code>FS</code>(해외주식), <code>FE</code>(해외ETF)</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>Response 200</h4>
+<pre><code>[
+  { "code": "005930", "name": "삼성전자", "kind": "DS" },
+  { "code": "005935", "name": "삼성전자우", "kind": "DS" },
+  { "code": "006400", "name": "삼성SDI", "kind": "DS" }
+]</code></pre>
+
+    <h4>호출 예시</h4>
+<pre><code>curl "http://localhost:8080/api/stocks?q=삼성"</code></pre>
+  </div>
+</details>
+
 <!-- ---- POST /api/portfolio ---- -->
 <details class="op post" id="op-portfolio">
   <summary>
@@ -385,6 +447,18 @@ Content-Type: application/vnd.ms-excel
 Content-Disposition: form-data; name="overrides"
 
 {"종목명":"카테고리"}
+------Boundary
+Content-Disposition: form-data; name="manualAccounts"
+
+[{"id":"임의id","name":"저축은행","totalAsset":8000000,"accountNumber":"111-1111-1111-0"}]
+------Boundary
+Content-Disposition: form-data; name="manualHoldings"
+
+[{"id":"임의id","name":"정기예금","evalAmount":5000000,"accountId":"manualAccounts 항목의 id"}]
+------Boundary
+Content-Disposition: form-data; name="holdingEdits"
+
+[{"accountNumber":"111111111110","name":"삼성전자","quantity":200,"evalAmount":14000000}]
 ------Boundary--</code></pre>
 
     <h4>Request Header</h4>
@@ -409,9 +483,9 @@ Content-Disposition: form-data; name="overrides"
         <tr>
           <td><code>files</code></td>
           <td class="type">file (반복)</td>
-          <td><span class="req">필수</span></td>
+          <td><span class="opt">선택</span></td>
           <td>잔고파일. 같은 필드명으로 여러 개를 보낸다. 계좌 수만큼 올린다</td>
-          <td class="type">전체 32MB 이하<br>최소 1개</td>
+          <td class="type">전체 32MB 이하<br><code>manualAccounts</code>·<code>manualHoldings</code>가 있으면 0개도 가능</td>
         </tr>
         <tr>
           <td><code>overrides</code></td>
@@ -419,6 +493,34 @@ Content-Disposition: form-data; name="overrides"
           <td><span class="opt">선택</span></td>
           <td>자동 분류를 덮어쓸 <code>{"종목명": "카테고리"}</code> 매핑</td>
           <td class="type">값은 <a href="#category-values">카테고리 5종</a> 중 하나</td>
+        </tr>
+        <tr>
+          <td><code>manualAccounts</code></td>
+          <td class="type">string (JSON 배열)</td>
+          <td><span class="opt">선택</span></td>
+          <td>잔고파일 없이 이름·총액만으로 만든 계좌. <code>{"id","name","totalAsset","accountNumber"}</code> 객체 배열</td>
+          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>totalAsset</code> &gt; 0<br><code>accountNumber</code>는 선택</td>
+        </tr>
+        <tr>
+          <td><code>manualHoldings</code></td>
+          <td class="type">string (JSON 배열)</td>
+          <td><span class="opt">선택</span></td>
+          <td>잔고파일에 없는, 직접 추가한 종목. <code>{"id","name","evalAmount","accountId"}</code> 객체 배열</td>
+          <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>evalAmount</code> &gt; 0<br><code>accountId</code>는 선택. 주면 같은 요청의 <code>manualAccounts</code> 항목 <code>id</code>여야 함</td>
+        </tr>
+        <tr>
+          <td><code>holdingEdits</code></td>
+          <td class="type">string (JSON 배열)</td>
+          <td><span class="opt">선택</span></td>
+          <td>잔고파일 종목의 값을 직접 고친 것. <code>{"accountNumber","name","quantity","avgBuyPrice","evalAmount"}</code> 객체 배열. 계좌번호+종목명으로 대상을 찾아 값을 덮어쓴다</td>
+          <td class="type"><code>accountNumber</code>·<code>name</code> 비어있지 않음<br><code>quantity</code> ≥ 0<br>생략된 필드는 파일 값 유지</td>
+        </tr>
+        <tr>
+          <td><code>stockMappings</code></td>
+          <td class="type">string (JSON)</td>
+          <td><span class="opt">선택</span></td>
+          <td>마스터에서 이름으로 찾지 못한 종목을 코드로 매핑. <code>{"종목명": "종목코드"}</code>. 코드가 빈 문자열이면 기타(시세 조회 불가) 처리</td>
+          <td class="type">코드는 <code>GET /api/stocks</code>로 검색한 값</td>
         </tr>
       </tbody>
     </table>
@@ -428,6 +530,49 @@ Content-Disposition: form-data; name="overrides"
       확장자는 <code>.xls</code>지만 실제 내용은 HTML 문서다. 서버가 알아서 처리하므로 변환할 필요 없다.
       같은 파일을 두 번 올려도 종목이 중복되지 않는다. 계좌는 계좌번호로,
       종목은 <em>계좌 + 종목명</em>으로 중복을 제거하며 겹치면 나중 파일 값이 이긴다.
+    </div>
+
+    <div class="note">
+      <code>files</code>·<code>manualAccounts</code>·<code>manualHoldings</code> 중
+      <strong>적어도 하나는 있어야 한다.</strong> 직접 추가한 계좌나 종목만으로도(잔고파일 없이)
+      호출할 수 있다.
+    </div>
+
+    <div class="note">
+      직접 추가하는 자산은 두 층위다.
+      <ul>
+        <li><strong>계좌</strong>(<code>manualAccounts</code>) — 잔고파일이 없는 통째 계좌.
+          "저축은행 800만원"처럼 이름과 총액만 있다. 종목을 안 붙이면 전액이 현금성으로 잡힌다.</li>
+        <li><strong>종목</strong>(<code>manualHoldings</code>) — 개별 자산 하나. <code>accountId</code>를
+          주면 위 계좌에 붙어 그 계좌 총액에서 자기 몫을 떼어 가고, 비우면 계좌 없이 혼자
+          자기 평가금액만큼 스스로 집계에 잡힌다.</li>
+      </ul>
+      둘 다 <code>id</code>는 호출하는 쪽이 정한다 — 같은 <code>id</code>로 다시 보내면 그 항목을
+      수정한 것으로, 목록에서 빼고 보내면 삭제한 것으로 취급된다(서버가 상태를 기억하지 않으므로
+      매 요청은 그 요청에 담긴 목록 전체로 다시 계산한다). 종목의 분류는 <code>manualHoldings</code>
+      자체에 넣지 않고 <code>overrides</code>에 종목명으로 얹는다 — 그러면 다른 종목과 똑같은
+      방식으로 분류되어 응답의 <code>holdings</code>에 섞여 나온다.
+    </div>
+
+    <div class="note">
+      <strong><code>holdingEdits</code>로 잔고파일 종목의 수량·평가금액·평단을 고칠 수 있다.</strong>
+      계좌번호와 종목명으로 대상을 찾아 지정한 값만 덮어쓴다. 생략한 필드는 파일 값을 그대로 쓴다.
+      현재가·매입금액·손익·손익률은 고친 값에서 다시 계산된다.
+      고치기 전 파일 원본은 응답의 <code>holdings[].original</code>에 담겨 온다 —
+      클라이언트가 이 값으로 "파일이 바뀌었는데 내 수정을 유지할지" 충돌 판단을 할 수 있다.
+    </div>
+
+    <div class="note warn">
+      <strong>같은 계좌를 직접 추가해 두고 나중에 그 계좌의 잔고파일을 올리면 파일이 이긴다.</strong>
+      <code>manualAccounts</code>에 <code>accountNumber</code>를 적어 두면, 같은 요청의
+      잔고파일에 그 계좌가 들어 있는지 하이픈을 뗀 숫자로 맞춰본다. 겹치면 파일 쪽이
+      실제 총액과 종목 상세를 갖고 있으므로 <strong>수동 계좌와 거기 붙어 있던
+      <code>manualHoldings</code>는 응답에서 빠진다.</strong> 안 그러면 같은 계좌가 두 줄로
+      잡혀 자산이 두 번 세어진다.
+      <br><br>
+      <code>accountNumber</code>를 비워 두면 맞춰볼 방법이 없어 파일 계좌와 별개로 남는다 —
+      나중에 잔고파일을 올릴 계좌라면 번호를 적어 두는 편이 낫다.
+      갈음됐는지는 응답의 <code>accounts</code>에 그 계좌가 있는지로 알 수 있다.
     </div>
 
     <div class="note warn">
@@ -449,6 +594,7 @@ Content-Disposition: form-data; name="overrides"
         <tr><td><code>categories</code></td><td class="type"><a href="#model-category">Category</a>[]</td><td>카테고리별 집계. 금액 내림차순</td></tr>
         <tr><td><code>holdings</code></td><td class="type"><a href="#model-holding">Holding</a>[]</td><td>종목별 상세. 평가금액 내림차순</td></tr>
         <tr><td><code>sources</code></td><td class="type"><a href="#model-source">Source</a>[]</td><td>보낸 파일이 각각 어느 계좌를 담당했는지. <strong>요청의 파일 순서와 같다</strong></td></tr>
+        <tr><td><code>unmatched</code></td><td class="type">string[]</td><td>KIS 종목마스터에서 이름으로 찾지 못한 종목명 목록. 없으면 생략. 사용자에게 <code>stockMappings</code>으로 매핑하도록 안내한다</td></tr>
       </tbody>
     </table>
     </div>
@@ -459,6 +605,11 @@ Content-Disposition: form-data; name="overrides"
       <code>totalAsset</code>에는 올리지 않은 계좌까지 들어간다. 그 차액을 현금성으로 잡으면
       보유하지도 않은 현금이 생기므로, 집계는 종목이 실제로 올라온 계좌로만 한다.
       어느 계좌가 빠졌는지는 <code>accounts[].covered</code>로 알 수 있다.
+      <code>manualAccounts</code>는 상세 종목이 없어도 항상 <code>covered: true</code>다 — 사용자가
+      총액을 직접 써넣은 것이라 "파일을 더 올려야 아는" 상태가 아니기 때문이다.
+      계좌 없이 던진 <code>manualHoldings</code>(<code>accountId</code> 생략)는 계좌가 없으니 이
+      계산에서 아예 빠진다 — 대신 자기 <code>evalAmount</code>만큼 <code>coveredAsset</code>을
+      스스로 늘려서, 기존 계좌의 현금성을 깎아 먹지 않고 자기 몫의 비중만 새로 차지한다.
     </div>
 
     <h4>Response 200</h4>
@@ -467,7 +618,8 @@ Content-Disposition: form-data; name="overrides"
   "totalAsset": 24000000,
   "accounts": [
     { "number": "111111111110", "type": "ISA(중개형)", "totalAsset": 10000000, "covered": true },
-    { "number": "222222222220", "type": "종합",        "totalAsset": 14000000, "covered": false }
+    { "number": "222222222220", "type": "종합",        "totalAsset": 14000000, "covered": false },
+    { "number": "manual-account:임의id", "type": "저축은행", "totalAsset": 8000000, "covered": true }
   ],
   "categories": [
     { "category": "지수 ETF",    "amount": 5000000, "weight": 50 },
@@ -502,7 +654,7 @@ Content-Disposition: form-data; name="overrides"
         <tr>
           <td><code>400</code></td>
           <td class="type">files 필드에 잔고파일이 없습니다</td>
-          <td><code>files</code>를 하나도 보내지 않았을 때</td>
+          <td><code>files</code>·<code>manualAccounts</code>·<code>manualHoldings</code>가 다 없을 때</td>
         </tr>
         <tr>
           <td><code>400</code></td>
@@ -513,6 +665,56 @@ Content-Disposition: form-data; name="overrides"
           <td><code>400</code></td>
           <td class="type">삼성전자: 알 수 없는 카테고리 "…"</td>
           <td><code>overrides</code> 값이 정의된 카테고리가 아닐 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualHoldings 는 JSON 배열이어야 합니다</td>
+          <td><code>manualHoldings</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualHoldings: id 와 종목명은 비어 있을 수 없습니다</td>
+          <td><code>manualHoldings</code> 항목의 <code>id</code> 또는 <code>name</code>이 빈 문자열일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">정기예금: 평가금액은 0보다 커야 합니다</td>
+          <td><code>manualHoldings</code> 항목의 <code>evalAmount</code>가 0 이하일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualAccounts 는 JSON 배열이어야 합니다</td>
+          <td><code>manualAccounts</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">manualAccounts: id 와 이름은 비어 있을 수 없습니다</td>
+          <td><code>manualAccounts</code> 항목의 <code>id</code> 또는 <code>name</code>이 빈 문자열일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">저축은행: 총자산은 0보다 커야 합니다</td>
+          <td><code>manualAccounts</code> 항목의 <code>totalAsset</code>이 0 이하일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">정기예금: 알 수 없는 계좌입니다</td>
+          <td><code>manualHoldings</code> 항목의 <code>accountId</code>가 같은 요청의 <code>manualAccounts</code>에 없을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">holdingEdits 는 JSON 배열이어야 합니다</td>
+          <td><code>holdingEdits</code>가 JSON으로 파싱되지 않을 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">holdingEdits: 계좌번호와 종목명은 비어 있을 수 없습니다</td>
+          <td><code>holdingEdits</code> 항목의 <code>accountNumber</code> 또는 <code>name</code>이 빈 문자열일 때</td>
+        </tr>
+        <tr>
+          <td><code>400</code></td>
+          <td class="type">삼성전자: 보유수량은 0보다 작을 수 없습니다</td>
+          <td><code>holdingEdits</code> 항목의 <code>quantity</code>가 음수일 때</td>
         </tr>
         <tr>
           <td><code>422</code></td>
@@ -528,7 +730,8 @@ Content-Disposition: form-data; name="overrides"
   -F "files=@계좌1.xls" \
   -F "files=@계좌2.xls" \
   -F "files=@계좌3.xls" \
-  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}'</code></pre>
+  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}' \
+  -F 'holdingEdits=[{"accountNumber":"111111111110","name":"삼성전자","quantity":200,"evalAmount":14000000}]'</code></pre>
   </div>
 </details>
 
@@ -552,10 +755,10 @@ Content-Disposition: form-data; name="overrides"
 <table>
   <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
   <tbody>
-    <tr><td><code>number</code></td><td class="type">string</td><td>계좌번호 (하이픈 제거)</td></tr>
-    <tr><td><code>type</code></td><td class="type">string</td><td>계좌유형. 예: <code>ISA(중개형)</code></td></tr>
+    <tr><td><code>number</code></td><td class="type">string</td><td>계좌번호 (하이픈 제거). <code>manual-account:</code>로 시작하면 <code>manualAccounts</code>로 직접 추가한 계좌다</td></tr>
+    <tr><td><code>type</code></td><td class="type">string</td><td>계좌유형. 예: <code>ISA(중개형)</code>. 직접 추가한 계좌는 입력한 이름 그대로</td></tr>
     <tr><td><code>totalAsset</code></td><td class="type">number</td><td>이 계좌의 자산총액</td></tr>
-    <tr><td><code>covered</code></td><td class="type">boolean</td><td>이 계좌의 종목 상세가 업로드에 포함됐는지. <code>false</code>면 집계에서 빠진다</td></tr>
+    <tr><td><code>covered</code></td><td class="type">boolean</td><td>이 계좌의 종목 상세가 업로드에 포함됐는지. <code>false</code>면 집계에서 빠진다. 직접 추가한 계좌는 항상 <code>true</code></td></tr>
   </tbody>
 </table>
 </div>
@@ -578,8 +781,9 @@ Content-Disposition: form-data; name="overrides"
   <thead><tr><th>필드</th><th>타입</th><th>Nullable</th><th>설명</th></tr></thead>
   <tbody>
     <tr><td><code>name</code></td><td class="type">string</td><td class="type">아니오</td><td>상품명</td></tr>
+    <tr><td><code>code</code></td><td class="type">string</td><td class="type">예</td><td>종목코드. 마스터에서 매칭됐거나 <code>stockMappings</code>로 지정한 경우에만 채워진다. 미래 시세 조회 키로 쓴다</td></tr>
     <tr><td><code>category</code></td><td class="type">string</td><td class="type">아니오</td><td>분류 결과</td></tr>
-    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거)</td></tr>
+    <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거). <code>manual-account:</code>로 시작하면 직접 추가한 계좌(뒤는 그 계좌의 <code>id</code>), <code>manual-item:</code>으로 시작하면 계좌 없이 직접 추가한 종목(뒤는 그 종목의 <code>id</code>)이다</td></tr>
     <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
     <tr><td><code>currentPrice</code></td><td class="type">number</td><td class="type">예</td><td>현재가</td></tr>
     <tr><td><code>avgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>평균매입가</td></tr>
@@ -588,6 +792,7 @@ Content-Disposition: form-data; name="overrides"
     <tr><td><code>profitLoss</code></td><td class="type">number</td><td class="type">예</td><td>평가손익</td></tr>
     <tr><td><code>profitRate</code></td><td class="type">number</td><td class="type">예</td><td>손익률 (%)</td></tr>
     <tr><td><code>weight</code></td><td class="type">number</td><td class="type">아니오</td><td>총자산 대비 비중 (%)</td></tr>
+    <tr><td><code>original</code></td><td class="type"><a href="#model-filevalues">FileValues</a></td><td class="type">예</td><td><code>holdingEdits</code>로 값을 고친 종목에만 붙는다. 고치기 전 잔고파일 원본 값</td></tr>
   </tbody>
 </table>
 </div>
@@ -596,6 +801,19 @@ Content-Disposition: form-data; name="overrides"
   <strong>같은 종목이 여러 행으로 올 수 있다.</strong>
   계좌를 나눠 같은 ETF를 들고 있으면 계좌마다 별도 행이다.
   종목 단위로 합치려면 <code>name</code>으로 묶어야 한다.
+</div>
+
+<h3 id="model-filevalues">FileValues</h3>
+<p><code>holdingEdits</code>로 값을 고친 종목의 잔고파일 원본. 클라이언트가 이 값과 자기가 기억하는 수정 시점 값을 비교해 충돌을 판단한다.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>필드</th><th>타입</th><th>Nullable</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량</td></tr>
+    <tr><td><code>avgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>평균매입가</td></tr>
+    <tr><td><code>evalAmount</code></td><td class="type">number</td><td class="type">아니오</td><td>평가금액</td></tr>
+  </tbody>
+</table>
 </div>
 
 <h3 id="category-values">카테고리 값</h3>

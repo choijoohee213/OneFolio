@@ -1,5 +1,13 @@
 import { fetchPortfolio } from './api'
-import type { Overrides, Summary, UploadedFile } from './types'
+import type {
+  HoldingEdit,
+  ManualAccount,
+  ManualHolding,
+  Overrides,
+  StockMappings,
+  Summary,
+  UploadedFile,
+} from './types'
 
 export interface Collection {
   files: UploadedFile[]
@@ -7,13 +15,25 @@ export interface Collection {
 }
 
 // 서버는 상태를 갖지 않으므로 계좌를 하나 더 올린다고 이전 결과에 더해지지 않는다.
-// 올린 파일을 브라우저에 쌓아두고 매번 전부 다시 보내야 누적이 된다.
-export async function recompute(files: UploadedFile[], overrides: Overrides): Promise<Collection> {
-  if (files.length === 0) {
+// 올린 파일과 직접 추가한 계좌·종목을 브라우저에 쌓아두고 매번 전부 다시 보내야
+// 누적이 된다.
+export async function recompute(
+  files: UploadedFile[],
+  overrides: Overrides,
+  manualAccounts: ManualAccount[],
+  manualHoldings: ManualHolding[],
+  holdingEdits: HoldingEdit[],
+  stockMappings?: StockMappings,
+): Promise<Collection> {
+  if (files.length === 0 && manualAccounts.length === 0 && manualHoldings.length === 0) {
     return { files: [], summary: null }
   }
 
-  const summary = await fetchPortfolio(files, overrides)
+  const summary = await fetchPortfolio(files, overrides, manualAccounts, manualHoldings, holdingEdits, stockMappings)
+  if (files.length === 0) {
+    return { files: [], summary }
+  }
+
   const labelled = files.map((file, index) => ({
     ...file,
     accounts: summary.sources[index]?.accountNumbers ?? [],
@@ -26,7 +46,10 @@ export async function recompute(files: UploadedFile[], overrides: Overrides): Pr
 
   // 같은 계좌를 다시 올린 경우다. 낡은 파일에만 있던 종목(그새 판 종목 등)이
   // 남지 않도록 추려낸 파일로 다시 계산한다.
-  return { files: kept, summary: await fetchPortfolio(kept, overrides) }
+  return {
+    files: kept,
+    summary: await fetchPortfolio(kept, overrides, manualAccounts, manualHoldings, holdingEdits, stockMappings),
+  }
 }
 
 export function withoutAccount(files: UploadedFile[], accountNumber: string): UploadedFile[] {
