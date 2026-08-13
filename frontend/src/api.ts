@@ -1,4 +1,6 @@
 import type {
+  ExtractedHolding,
+  OcrResult,
   HoldingEdit,
   ManualAccount,
   ManualHolding,
@@ -47,11 +49,15 @@ export async function fetchPortfolio(
     form.append(
       'manualHoldings',
       JSON.stringify(
-        manualHoldings.map(({ id, name, evalAmount, accountId }) => ({
-          id,
-          name,
-          evalAmount,
-          accountId: accountId ?? '',
+        manualHoldings.map((h) => ({
+          id: h.id,
+          name: h.name,
+          evalAmount: h.evalAmount,
+          accountId: h.accountId ?? '',
+          quantity: h.quantity ?? null,
+          avgBuyPrice: h.avgBuyPrice ?? null,
+          profitLoss: h.profitLoss ?? null,
+          profitRate: h.profitRate ?? null,
         })),
       ),
     )
@@ -87,6 +93,16 @@ export async function toUploadedFiles(files: File[]): Promise<UploadedFile[]> {
   return Promise.all(
     files.map(async (file) => ({ name: file.name, data: await file.arrayBuffer(), accounts: [] })),
   )
+}
+
+export async function extractFromScreenshot(image: File): Promise<OcrResult> {
+  const form = new FormData()
+  form.append('image', image)
+  const response = await fetch(`${BASE}/api/ocr`, { method: 'POST', body: form })
+  if (!response.ok) {
+    throw new Error(await readError(response))
+  }
+  return await response.json()
 }
 
 // 400·422 는 {"error"} JSON 이지만 404·405 는 라우터 기본 응답이라 평문이다.

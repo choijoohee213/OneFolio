@@ -11,6 +11,7 @@ interface Props {
   onModeChange: (mode: GroupMode) => void
   busy: boolean
   onAddHolding: () => void
+  onScreenshot: () => void
   onEditHolding: (holding: Holding) => void
 }
 
@@ -21,6 +22,7 @@ export function HoldingsTable({
   onModeChange,
   busy,
   onAddHolding,
+  onScreenshot,
   onEditHolding,
 }: Props) {
   return (
@@ -42,6 +44,9 @@ export function HoldingsTable({
           </div>
           <button type="button" className="add-toggle" disabled={busy} onClick={onAddHolding}>
             종목 추가
+          </button>
+          <button type="button" className="add-toggle" disabled={busy} onClick={onScreenshot}>
+            스크린샷
           </button>
         </div>
       </header>
@@ -128,6 +133,7 @@ function mergeByName(holdings: Holding[]): Holding[] {
   }
 
   for (const holding of merged.values()) {
+    if (!holding.mergedFromMultipleAccounts) continue
     holding.avgBuyPrice = holding.buyAmount === null ? null : holding.buyAmount / holding.quantity
     holding.profitRate =
       holding.buyAmount === null || holding.buyAmount === 0 || holding.profitLoss === null

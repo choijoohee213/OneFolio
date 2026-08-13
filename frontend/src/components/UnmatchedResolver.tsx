@@ -3,11 +3,13 @@ import { searchStocks } from '../api'
 import { Modal } from './Modal'
 import type { StockEntry, StockMappings } from '../types'
 
+export type NameUpdates = Record<string, string>
+
 interface Props {
   names: string[]
   existing: StockMappings
   busy: boolean
-  onResolve: (mappings: StockMappings) => void
+  onResolve: (mappings: StockMappings, nameUpdates: NameUpdates) => void
   onClose: () => void
 }
 
@@ -24,13 +26,16 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<StockEntry[]>([])
   const [searching, setSearching] = useState(false)
+  const [selected, setSelected] = useState<StockEntry | null>(null)
   const [draft, setDraft] = useState<StockMappings>({})
+  const [namesUpdates, setNamesUpdates] = useState<NameUpdates>({})
 
   const name = unresolved[current]
   if (!name) return null
 
   async function doSearch(q: string) {
     setQuery(q)
+    setSelected(null)
     if (q.trim().length < 1) {
       setResults([])
       return
@@ -41,23 +46,27 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
     setSearching(false)
   }
 
-  function pick(code: string) {
-    const next = { ...draft, [name]: code }
-    setDraft(next)
-    advance(next)
+  function confirm() {
+    if (!selected) return
+    const nextDraft = { ...draft, [name]: selected.code }
+    const nextNames = { ...namesUpdates, [name]: selected.name }
+    setDraft(nextDraft)
+    setNamesUpdates(nextNames)
+    advance(nextDraft, nextNames)
   }
 
   function skip() {
-    const next = { ...draft, [name]: '' }
-    setDraft(next)
-    advance(next)
+    const nextDraft = { ...draft, [name]: '' }
+    setDraft(nextDraft)
+    advance(nextDraft, namesUpdates)
   }
 
-  function advance(nextDraft: StockMappings) {
+  function advance(nextDraft: StockMappings, nextNames: NameUpdates) {
     setQuery('')
     setResults([])
+    setSelected(null)
     if (current + 1 >= unresolved.length) {
-      onResolve({ ...existing, ...nextDraft })
+      onResolve({ ...existing, ...nextDraft }, nextNames)
     } else {
       setCurrent(current + 1)
     }
@@ -87,7 +96,11 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
         {results.length > 0 && (
           <ul className="stock-search-dropdown static">
             {results.map((entry) => (
-              <li key={entry.code + entry.name} onMouseDown={() => pick(entry.code)}>
+              <li
+                key={entry.code + entry.name}
+                className={selected?.code === entry.code ? 'selected' : ''}
+                onMouseDown={() => setSelected(entry)}
+              >
                 <span className="stock-name">{entry.name}</span>
                 <span className="stock-meta">
                   {entry.code} &middot; {KIND_LABEL[entry.kind] ?? entry.kind}
@@ -97,6 +110,12 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
           </ul>
         )}
 
+        {selected && (
+          <p className="unmatched-selected">
+            <strong>{selected.name}</strong> ({selected.code}) 선택됨
+          </p>
+        )}
+
         {query && !searching && results.length === 0 && (
           <p className="unmatched-empty">검색 결과가 없습니다.</p>
         )}
@@ -104,6 +123,14 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
         <footer className="modal-actions">
           <button type="button" className="modal-cancel" disabled={busy} onClick={skip}>
             기타 (시세 조회 불가)
+          </button>
+          <button
+            type="button"
+            className="modal-confirm"
+            disabled={busy || !selected}
+            onClick={confirm}
+          >
+            확인
           </button>
         </footer>
       </div>

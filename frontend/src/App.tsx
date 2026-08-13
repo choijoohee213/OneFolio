@@ -8,6 +8,7 @@ import { AllocationPie } from './components/AllocationPie'
 import { EditConflicts } from './components/EditConflicts'
 import { FileDrop } from './components/FileDrop'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
+import { ScreenshotImport } from './components/ScreenshotImport'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
@@ -15,6 +16,7 @@ import { won } from './format'
 import { clearState, conflictingEdits, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import type {
+  ExtractedHolding,
   FileValues,
   Holding,
   HoldingEdit,
@@ -43,6 +45,7 @@ export default function App() {
   const [holdingTarget, setHoldingTarget] = useState<HoldingTarget | null>(null)
   const [accountTarget, setAccountTarget] = useState<ManualAccount | null | 'new'>(null)
   const [showUnmatched, setShowUnmatched] = useState(false)
+  const [showScreenshot, setShowScreenshot] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -226,6 +229,47 @@ export default function App() {
     })
   }
 
+  function addFromScreenshot(extracted: ExtractedHolding[], accountNumber?: string) {
+    let nextAccounts = manualAccounts
+    let accountId: string | undefined
+
+    if (accountNumber) {
+      const existing = manualAccounts.find((a) => a.accountNumber === accountNumber)
+      if (existing) {
+        accountId = existing.id
+      } else {
+        accountId = crypto.randomUUID()
+        nextAccounts = [
+          ...manualAccounts,
+          { id: accountId, name: accountNumber, totalAsset: 0, accountNumber },
+        ]
+      }
+    }
+
+    const newHoldings: ManualHolding[] = extracted.map((h) => ({
+      id: crypto.randomUUID(),
+      name: h.name,
+      evalAmount: h.evalAmount ?? 0,
+      accountId,
+      quantity: h.quantity ?? undefined,
+      avgBuyPrice: h.avgBuyPrice ?? undefined,
+      profitLoss: h.profitLoss ?? undefined,
+      profitRate: h.profitRate ?? undefined,
+    }))
+
+    const totalFromOcr = newHoldings.reduce((s, h) => s + h.evalAmount, 0)
+    if (accountId) {
+      nextAccounts = nextAccounts.map((a) =>
+        a.id === accountId ? { ...a, totalAsset: Math.max(a.totalAsset, totalFromOcr) } : a,
+      )
+    }
+
+    return apply({
+      manualAccounts: nextAccounts,
+      manualHoldings: [...manualHoldings, ...newHoldings],
+    })
+  }
+
   async function reset() {
     setFiles([])
     setManualAccounts([])
@@ -307,6 +351,7 @@ export default function App() {
             onModeChange={setMode}
             busy={busy}
             onAddHolding={() => setHoldingTarget({ kind: 'new' })}
+            onScreenshot={() => setShowScreenshot(true)}
             onEditHolding={openHoldingEditor}
           />
           <footer className="page-foot">
@@ -332,6 +377,9 @@ export default function App() {
             </button>
             <button type="button" onClick={() => setHoldingTarget({ kind: 'new' })}>
               종목 추가
+            </button>
+            <button type="button" onClick={() => setShowScreenshot(true)}>
+              스크린샷으로 추가
             </button>
             <button
               type="button"
@@ -364,14 +412,29 @@ export default function App() {
         onRemoveManual={editingManual ? () => removeManualHolding(editingManual) : undefined}
       />
 
+      <ScreenshotImport
+        open={showScreenshot}
+        busy={busy}
+        onClose={() => setShowScreenshot(false)}
+        onConfirm={addFromScreenshot}
+      />
+
       {showUnmatched && summary?.unmatched && summary.unmatched.length > 0 && (
         <UnmatchedResolver
           names={summary.unmatched}
           existing={stockMappings}
           busy={busy}
-          onResolve={(resolved) => {
+          onResolve={(resolved, nameUpdates) => {
             setShowUnmatched(false)
-            apply({ stockMappings: resolved })
+            const renamedHoldings = manualHoldings.map((h) => {
+              const newName = nameUpdates[h.name]
+              return newName ? { ...h, name: newName } : h
+            })
+            const cleanedMappings = { ...resolved }
+            for (const oldName of Object.keys(nameUpdates)) {
+              delete cleanedMappings[oldName]
+            }
+            apply({ stockMappings: cleanedMappings, manualHoldings: renamedHoldings })
           }}
           onClose={() => setShowUnmatched(false)}
         />

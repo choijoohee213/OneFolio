@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"strings"
 
+	"io"
+
 	"github.com/choijoohee213/OneFolio/backend/internal/classify"
 	"github.com/choijoohee213/OneFolio/backend/internal/domain"
 	"github.com/choijoohee213/OneFolio/backend/internal/master"
+	"github.com/choijoohee213/OneFolio/backend/internal/ocr"
 	"github.com/choijoohee213/OneFolio/backend/internal/parser"
 	"github.com/choijoohee213/OneFolio/backend/internal/portfolio"
 )
@@ -29,17 +32,21 @@ const (
 )
 
 type Server struct {
-	listings *master.Table
+	listings  *master.Table
+	ocrClient *ocr.Client
 }
 
-func New(listings *master.Table) *Server {
-	return &Server{listings: listings}
+func New(listings *master.Table, ocrClient *ocr.Client) *Server {
+	return &Server{listings: listings, ocrClient: ocrClient}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", s.health)
 	mux.HandleFunc("GET /api/stocks", s.searchStocks)
 	mux.HandleFunc("POST /api/portfolio", s.portfolio)
+	if s.ocrClient != nil {
+		mux.HandleFunc("POST /api/ocr", s.extractFromScreenshot)
+	}
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
@@ -184,6 +191,46 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, summary)
 }
 
+var allowedImageTypes = map[string]bool{
+	"image/png":  true,
+	"image/jpeg": true,
+	"image/webp": true,
+}
+
+func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		writeError(w, http.StatusBadRequest, "업로드를 읽지 못했습니다: %v", err)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "image 필드가 필요합니다")
+		return
+	}
+	defer file.Close()
+
+	mimeType := header.Header.Get("Content-Type")
+	if !allowedImageTypes[mimeType] {
+		writeError(w, http.StatusBadRequest, "지원하지 않는 이미지 형식입니다 (PNG, JPEG, WebP만 가능)")
+		return
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "이미지를 읽지 못했습니다")
+		return
+	}
+
+	result, err := s.ocrClient.Extract(r.Context(), data, mimeType)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "종목 추출 실패: %v", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
 func manualAccountIDOf(accountNumber string) (string, bool) {
 	if !portfolio.IsManualAccount(accountNumber) {
 		return "", false
@@ -254,10 +301,14 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 	}
 
 	var inputs []struct {
-		ID         string  `json:"id"`
-		Name       string  `json:"name"`
-		EvalAmount float64 `json:"evalAmount"`
-		AccountID  string  `json:"accountId"`
+		ID          string   `json:"id"`
+		Name        string   `json:"name"`
+		EvalAmount  float64  `json:"evalAmount"`
+		AccountID   string   `json:"accountId"`
+		Quantity    *float64 `json:"quantity"`
+		AvgBuyPrice *float64 `json:"avgBuyPrice"`
+		ProfitLoss  *float64 `json:"profitLoss"`
+		ProfitRate  *float64 `json:"profitRate"`
 	}
 	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
 		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualHoldingsField)
@@ -283,10 +334,26 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 			accountNumber = mapped
 		}
 
+		var quantity float64
+		if input.Quantity != nil {
+			quantity = *input.Quantity
+		}
+
+		var buyAmount *float64
+		if input.AvgBuyPrice != nil && quantity > 0 {
+			v := *input.AvgBuyPrice * quantity
+			buyAmount = &v
+		}
+
 		holdings = append(holdings, domain.Holding{
 			AccountNumber: accountNumber,
 			Name:          name,
+			Quantity:      quantity,
+			AvgBuyPrice:   input.AvgBuyPrice,
+			BuyAmount:     buyAmount,
 			EvalAmount:    input.EvalAmount,
+			ProfitLoss:    input.ProfitLoss,
+			ProfitRate:    input.ProfitRate,
 		})
 	}
 	return holdings, nil

@@ -287,6 +287,7 @@
   <li><code>POST /api/portfolio</code> — 준비한 잔고파일을 <strong>한 번에 모두</strong> 올린다.</li>
   <li>응답의 <code>holdings[].category</code>를 확인한다. 잘못 분류된 종목이 있으면 사용자가 태깅한다.</li>
   <li>태깅 결과를 <code>overrides</code>에 담아 <code>POST /api/portfolio</code>를 다시 호출한다.</li>
+  <li><code>POST /api/ocr</code> — 증권 앱 스크린샷에서 보유 종목을 추출한다. (선택, <code>GEMINI_API_KEY</code> 필요)</li>
 </ol>
 <p>
   서버는 상태를 갖지 않으므로 <code>overrides</code>는 매 요청에 함께 보내야 한다.
@@ -417,6 +418,53 @@ Host: localhost:8080</code></pre>
 
     <h4>호출 예시</h4>
 <pre><code>curl "http://localhost:8080/api/stocks?q=삼성"</code></pre>
+  </div>
+</details>
+
+<!-- ---- POST /api/ocr ---- -->
+<details class="op post" id="op-ocr">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge post">POST</span>
+    <span class="path">/api/ocr</span>
+    <span class="summary-text">증권 앱 스크린샷에서 종목 추출 (Gemini Vision)</span>
+  </summary>
+  <div class="op-body">
+    <p>
+      증권 앱 캡처 이미지를 받아 Gemini 2.5 Flash Vision으로 보유 종목 정보를 추출한다.
+      <code>GEMINI_API_KEY</code> 환경변수가 없으면 이 엔드포인트는 등록되지 않는다.
+    </p>
+
+    <h4>요청</h4>
+    <p><code>Content-Type: multipart/form-data</code></p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>필드</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+      <tbody>
+        <tr><td><code>image</code></td><td>file</td><td>필수</td><td>PNG, JPEG, WebP 이미지</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>응답 200</h4>
+<pre><code>{
+  "holdings": [
+    {
+      "name": "삼성전자",
+      "quantity": 50,
+      "currentPrice": 72000,
+      "avgBuyPrice": 65000,
+      "evalAmount": 3600000,
+      "profitLoss": 350000,
+      "profitRate": 10.77
+    }
+  ]
+}</code></pre>
+    <p>보이지 않는 필드는 <code>null</code>로 반환된다.</p>
+
+    <h4>curl 예시</h4>
+<pre><code>curl -X POST http://localhost:8080/api/ocr \
+  -F "image=@screenshot.png"</code></pre>
   </div>
 </details>
 
@@ -877,6 +925,7 @@ Content-Disposition: form-data; name="holdingEdits"
   <tbody>
     <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
     <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
+    <tr><td><code>GEMINI_API_KEY</code></td><td class="type">(비어있음)</td><td>Gemini API 키. 설정하면 <code>POST /api/ocr</code> 활성화</td></tr>
   </tbody>
 </table>
 </div>
