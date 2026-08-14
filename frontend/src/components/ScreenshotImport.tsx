@@ -6,7 +6,16 @@ interface Props {
   open: boolean
   busy: boolean
   onClose: () => void
-  onConfirm: (holdings: ExtractedHolding[], accountNumber?: string) => void
+  onConfirm: (holdings: ExtractedHolding[]) => void
+}
+
+function dedup(holdings: ExtractedHolding[]): ExtractedHolding[] {
+  const seen = new Map<string, ExtractedHolding>()
+  for (const h of holdings) {
+    const key = `${h.accountNumber ?? ''}::${h.name}`
+    if (!seen.has(key)) seen.set(key, h)
+  }
+  return [...seen.values()]
 }
 
 type Step = 'upload' | 'preview' | 'extracting' | 'review'
@@ -16,16 +25,36 @@ function formatKRW(v: number | null): string {
   return Math.round(v).toLocaleString('ko-KR')
 }
 
+function formatSignedKRW(v: number | null): string {
+  if (v == null) return ''
+  const s = Math.round(v).toLocaleString('ko-KR')
+  return v > 0 ? `+${s}` : s
+}
+
 function formatRate(v: number | null): string {
   if (v == null) return ''
-  return v.toFixed(2)
+  const s = v.toFixed(2)
+  return v > 0 ? `+${s}` : s
 }
 
 function parseKRW(s: string): number | null {
-  const raw = s.replace(/,/g, '')
+  const raw = s.replace(/[,+]/g, '')
   if (raw === '') return null
   const n = Number(raw)
   return isNaN(n) ? null : n
+}
+
+async function pooledMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: number): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  async function worker() {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()))
+  return results
 }
 
 const MAX_DIMENSION = 1024
@@ -56,7 +85,7 @@ function resizeImage(file: File): Promise<File> {
   })
 }
 
-function useProgress(active: boolean) {
+function useProgress(active: boolean, tick: number) {
   const [pct, setPct] = useState(0)
   useEffect(() => {
     if (!active) { setPct(0); return }
@@ -68,34 +97,40 @@ function useProgress(active: boolean) {
     const t5 = setTimeout(() => setPct(85), 8000)
     const t6 = setTimeout(() => setPct(92), 12000)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); clearTimeout(t6) }
-  }, [active])
+  }, [active, tick])
   return pct
 }
 
 export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
   const input = useRef<HTMLInputElement>(null)
+  const addFromReview = useRef(false)
   const [step, setStep] = useState<Step>('upload')
   const [holdings, setHoldings] = useState<ExtractedHolding[]>([])
-  const [accountNumber, setAccountNumber] = useState<string>('')
-  const [accountType, setAccountType] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [showFullImage, setShowFullImage] = useState(false)
-  const progress = useProgress(step === 'extracting')
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [fullImageIndex, setFullImageIndex] = useState<number | null>(null)
+  const [processingIndex, setProcessingIndex] = useState(0)
+  const [processingTotal, setProcessingTotal] = useState(1)
+  const [activeTab, setActiveTab] = useState<string | null>(null)
+
+  const withinPct = useProgress(step === 'extracting', processingIndex)
+  const overallProgress = processingTotal > 0
+    ? Math.round(((processingIndex + withinPct / 100) / processingTotal) * 100)
+    : 0
 
   function reset() {
     setStep('upload')
     setHoldings([])
-    setAccountNumber('')
-    setAccountType('')
     setError(null)
-    setShowFullImage(false)
-    setImageFile(null)
-    if (preview) {
-      URL.revokeObjectURL(preview)
-      setPreview(null)
-    }
+    setFullImageIndex(null)
+    setActiveTab(null)
+    setProcessingIndex(0)
+    setProcessingTotal(1)
+    previews.forEach(URL.revokeObjectURL)
+    setPreviews([])
+    setImageFiles([])
+    addFromReview.current = false
   }
 
   function handleClose() {
@@ -103,36 +138,75 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     onClose()
   }
 
-  function handleFile(file: File) {
-    if (!file.type.startsWith('image/')) {
+  function handleInputFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return
+    const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'))
+    if (files.length === 0) {
       setError('이미지 파일만 가능합니다')
       return
     }
+
+    const newPreviews = files.map((f) => URL.createObjectURL(f))
+    setImageFiles((prev) => [...prev, ...files])
+    setPreviews((prev) => [...prev, ...newPreviews])
     setError(null)
-    setPreview(URL.createObjectURL(file))
-    setImageFile(file)
-    setStep('preview')
+
+    if (addFromReview.current) {
+      addFromReview.current = false
+      doExtract(files)
+    } else {
+      setStep('preview')
+    }
   }
 
-  async function startExtract() {
-    if (!imageFile) return
+  function removeImage(index: number) {
+    URL.revokeObjectURL(previews[index])
+    const nextFiles = imageFiles.filter((_, i) => i !== index)
+    const nextPreviews = previews.filter((_, i) => i !== index)
+    setImageFiles(nextFiles)
+    setPreviews(nextPreviews)
+    if (nextFiles.length === 0) setStep('upload')
+  }
+
+  async function doExtract(files: File[]) {
+    if (files.length === 0) return
     setStep('extracting')
+    setProcessingIndex(0)
+    setProcessingTotal(files.length)
+
     try {
-      const resized = await resizeImage(imageFile)
-      const result = await extractFromScreenshot(resized)
-      if (!result.holdings || result.holdings.length === 0) {
+      let completed = 0
+      const results = await pooledMap(files, async (file) => {
+        const resized = await resizeImage(file)
+        const result = await extractFromScreenshot(resized)
+        completed++
+        setProcessingIndex(completed)
+        return result
+      }, 2)
+
+      const newHoldings: ExtractedHolding[] = []
+      for (const result of results) {
+        if (result.holdings) newHoldings.push(...result.holdings)
+      }
+
+      if (newHoldings.length === 0 && holdings.length === 0) {
         setError('종목을 찾지 못했습니다. 다른 캡처를 시도해보세요.')
         setStep('preview')
         return
       }
-      setHoldings(result.holdings)
-      setAccountNumber(result.accountNumber ?? '')
-      setAccountType(result.accountType ?? '')
+
+      setHoldings((prev) => dedup([...prev, ...newHoldings]))
       setStep('review')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-      setStep('preview')
+      const msg = cause instanceof Error ? cause.message : String(cause)
+      setError(msg.includes('429') || msg.includes('quota') ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' : msg)
+      setStep(holdings.length > 0 ? 'review' : 'preview')
     }
+  }
+
+  function handleAddMore() {
+    addFromReview.current = true
+    input.current?.click()
   }
 
   function updateHolding(index: number, field: keyof ExtractedHolding, value: string) {
@@ -153,11 +227,27 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
 
   if (!open) return null
 
-  const accountLabel = [accountNumber, accountType].filter(Boolean).join(' ')
+  const accountKeys = [...new Set(holdings.map((h) => h.accountNumber).filter(Boolean))] as string[]
+  const hasMultipleAccounts = accountKeys.length > 1
+  const visibleHoldings = activeTab
+    ? holdings.filter((h) => h.accountNumber === activeTab)
+    : holdings
 
   return (
-    <dialog className="modal" open>
+    <dialog className={`modal${step === 'review' ? ' modal-wide' : ''}`} open>
       <div className="modal-body">
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            handleInputFiles(e.target.files)
+            e.target.value = ''
+          }}
+        />
+
         <header className="modal-head">
           <h3>
             {step === 'review'
@@ -171,18 +261,6 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
           </button>
         </header>
 
-          <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) handleFile(file)
-            e.target.value = ''
-          }}
-        />
-
         {step === 'upload' && (
           <div className="screenshot-upload">
             <div
@@ -190,8 +268,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault()
-                const file = e.dataTransfer.files[0]
-                if (file) handleFile(file)
+                handleInputFiles(e.dataTransfer.files)
               }}
             >
               <p>증권 앱 캡처를 여기에 끌어다 놓거나</p>
@@ -205,31 +282,53 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
 
         {step === 'preview' && (
           <div className="screenshot-preview-step">
-            {preview && (
-              <img
-                src={preview}
-                alt="캡처"
-                className="screenshot-preview clickable"
-                onClick={() => setShowFullImage(true)}
-              />
-            )}
+            <div className="screenshot-thumbnails">
+              {previews.map((url, i) => (
+                <div key={i} className="screenshot-thumb">
+                  <img
+                    src={url}
+                    alt={`캡처 ${i + 1}`}
+                    onClick={() => setFullImageIndex(i)}
+                  />
+                  <button
+                    type="button"
+                    className="thumb-remove"
+                    onClick={() => removeImage(i)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="thumb-add"
+                onClick={() => input.current?.click()}
+              >
+                +
+              </button>
+            </div>
             {error && <p className="screenshot-error">{error}</p>}
             <footer className="modal-actions">
               <button
                 type="button"
                 className="modal-cancel"
                 onClick={() => {
-                  setImageFile(null)
-                  if (preview) URL.revokeObjectURL(preview)
-                  setPreview(null)
+                  previews.forEach(URL.revokeObjectURL)
+                  setImageFiles([])
+                  setPreviews([])
                   setError(null)
                   input.current?.click()
                 }}
               >
                 재선택
               </button>
-              <button type="button" className="modal-confirm" onClick={startExtract}>
-                종목 추출
+              <button
+                type="button"
+                className="modal-confirm"
+                disabled={imageFiles.length === 0}
+                onClick={() => doExtract(imageFiles)}
+              >
+                종목 추출{imageFiles.length > 1 ? ` (${imageFiles.length}장)` : ''}
               </button>
             </footer>
           </div>
@@ -237,32 +336,100 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
 
         {step === 'extracting' && (
           <div className="screenshot-extracting">
-            {preview && <img src={preview} alt="캡처" className="screenshot-preview" />}
+            {previews.length > 1 && (
+              <div className="screenshot-thumbnails extracting">
+                {previews.map((url, i) => (
+                  <div
+                    key={i}
+                    className={`screenshot-thumb ${i < processingIndex ? 'done' : 'processing'}`}
+                  >
+                    <img src={url} alt={`캡처 ${i + 1}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {previews.length === 1 && (
+              <img src={previews[0]} alt="캡처" className="screenshot-preview" />
+            )}
             <div className="extracting-loader">
               <div className="extracting-progress-wrap">
-                <div className="extracting-progress-bar" style={{ width: `${progress}%` }} />
+                <div
+                  className="extracting-progress-bar"
+                  style={{ width: `${overallProgress}%` }}
+                />
               </div>
-              <p className="extracting-text">{progress}% · 종목을 읽고 있습니다...</p>
+              <p className="extracting-text">
+                {overallProgress}%
+                {processingTotal > 1
+                  ? ` · ${processingIndex}/${processingTotal}개 완료`
+                  : ''}
+                {' · 종목을 읽고 있습니다...'}
+              </p>
             </div>
           </div>
         )}
 
         {step === 'review' && (
           <div className="screenshot-review">
-            {preview && (
-              <img
-                src={preview}
-                alt="캡처"
-                className="screenshot-preview clickable"
-                onClick={() => setShowFullImage(true)}
-              />
+            <div className="screenshot-thumbnails review">
+              {previews.map((url, i) => (
+                <div key={i} className="screenshot-thumb">
+                  <img
+                    src={url}
+                    alt={`캡처 ${i + 1}`}
+                    onClick={() => setFullImageIndex(i)}
+                  />
+                </div>
+              ))}
+              <button type="button" className="thumb-add" onClick={handleAddMore}>
+                +
+              </button>
+            </div>
+            {hasMultipleAccounts && (
+              <div className="review-tabs" role="tablist">
+                <button
+                  type="button"
+                  aria-pressed={activeTab === null}
+                  onClick={() => setActiveTab(null)}
+                >
+                  전체 ({holdings.length})
+                </button>
+                {accountKeys.map((key) => {
+                  const acct = holdings.find((h) => h.accountNumber === key)
+                  const label = [key, acct?.accountType].filter(Boolean).join(' ')
+                  const count = holdings.filter((h) => h.accountNumber === key).length
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={activeTab === key}
+                      onClick={() => setActiveTab(key)}
+                    >
+                      {label} ({count})
+                    </button>
+                  )
+                })}
+              </div>
             )}
-            {accountLabel && <p className="review-account">{accountLabel}</p>}
+            {!hasMultipleAccounts && accountKeys.length === 1 && (
+              <p className="review-account">
+                {[accountKeys[0], holdings[0]?.accountType].filter(Boolean).join(' ')}
+              </p>
+            )}
             <p className="review-hint">
               추출된 {holdings.length}개 종목을 확인하세요. 틀린 값은 직접 수정할 수 있습니다.
             </p>
             <div className="review-table-wrap">
               <table className="review-table">
+                <colgroup>
+                  <col className="col-name" />
+                  <col className="col-qty" />
+                  <col className="col-eval" />
+                  <col className="col-avg" />
+                  <col className="col-pl" />
+                  <col className="col-rate" />
+                  <col className="col-act" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>종목명</th>
@@ -275,71 +442,73 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                   </tr>
                 </thead>
                 <tbody>
-                  {holdings.map((h, i) => (
-                    <tr key={i}>
-                      <td>
-                        <input
-                          value={h.name}
-                          onChange={(e) => updateHolding(i, 'name', e.target.value)}
-                        />
-                        {h.ticker && <span className="review-ticker">{h.ticker}</span>}
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={h.quantity ?? ''}
-                          onChange={(e) => updateHolding(i, 'quantity', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={formatKRW(h.evalAmount)}
-                          onChange={(e) => updateHolding(i, 'evalAmount', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={formatKRW(h.avgBuyPrice)}
-                          onChange={(e) => updateHolding(i, 'avgBuyPrice', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            h.profitLoss != null
-                              ? h.profitLoss >= 0
-                                ? 'profit'
-                                : 'loss'
-                              : undefined
-                          }
-                          value={formatKRW(h.profitLoss)}
-                          onChange={(e) => updateHolding(i, 'profitLoss', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            h.profitRate != null
-                              ? h.profitRate >= 0
-                                ? 'profit'
-                                : 'loss'
-                              : undefined
-                          }
-                          value={formatRate(h.profitRate)}
-                          onChange={(e) => updateHolding(i, 'profitRate', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="link danger"
-                          onClick={() => removeHolding(i)}
-                        >
-                          삭제
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleHoldings.map((h) => {
+                    const idx = holdings.indexOf(h)
+                    return (
+                      <tr key={idx}>
+                        <td>
+                          <input
+                            value={h.name}
+                            onChange={(e) => updateHolding(idx, 'name', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            value={h.quantity ?? ''}
+                            onChange={(e) => updateHolding(idx, 'quantity', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            value={formatKRW(h.evalAmount)}
+                            onChange={(e) => updateHolding(idx, 'evalAmount', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            value={formatKRW(h.avgBuyPrice)}
+                            onChange={(e) => updateHolding(idx, 'avgBuyPrice', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={
+                              h.profitLoss != null
+                                ? h.profitLoss >= 0
+                                  ? 'profit'
+                                  : 'loss'
+                                : undefined
+                            }
+                            value={formatSignedKRW(h.profitLoss)}
+                            onChange={(e) => updateHolding(idx, 'profitLoss', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={
+                              h.profitRate != null
+                                ? h.profitRate >= 0
+                                  ? 'profit'
+                                  : 'loss'
+                                : undefined
+                            }
+                            value={formatRate(h.profitRate)}
+                            onChange={(e) => updateHolding(idx, 'profitRate', e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="link danger"
+                            onClick={() => removeHolding(idx)}
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -353,7 +522,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                 className="modal-confirm"
                 disabled={busy || holdings.length === 0}
                 onClick={() => {
-                  onConfirm(holdings, accountNumber || undefined)
+                  onConfirm(holdings)
                   handleClose()
                 }}
               >
@@ -364,9 +533,9 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
         )}
       </div>
 
-      {showFullImage && preview && (
-        <div className="lightbox" onClick={() => setShowFullImage(false)}>
-          <img src={preview} alt="캡처 원본" />
+      {fullImageIndex !== null && previews[fullImageIndex] && (
+        <div className="lightbox" onClick={() => setFullImageIndex(null)}>
+          <img src={previews[fullImageIndex]} alt="캡처 원본" />
         </div>
       )}
     </dialog>

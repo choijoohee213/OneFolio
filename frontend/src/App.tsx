@@ -229,20 +229,19 @@ export default function App() {
     })
   }
 
-  function addFromScreenshot(extracted: ExtractedHolding[], accountNumber?: string) {
-    let nextAccounts = manualAccounts
-    let accountId: string | undefined
+  function addFromScreenshot(extracted: ExtractedHolding[]) {
+    let nextAccounts = [...manualAccounts]
+    const accountIds = new Map<string, string>()
 
-    if (accountNumber) {
-      const existing = manualAccounts.find((a) => a.accountNumber === accountNumber)
+    for (const h of extracted) {
+      if (!h.accountNumber || accountIds.has(h.accountNumber)) continue
+      const existing = nextAccounts.find((a) => a.accountNumber === h.accountNumber)
       if (existing) {
-        accountId = existing.id
+        accountIds.set(h.accountNumber, existing.id)
       } else {
-        accountId = crypto.randomUUID()
-        nextAccounts = [
-          ...manualAccounts,
-          { id: accountId, name: accountNumber, totalAsset: 0, accountNumber },
-        ]
+        const id = crypto.randomUUID()
+        accountIds.set(h.accountNumber, id)
+        nextAccounts.push({ id, name: h.accountNumber, totalAsset: 0, accountNumber: h.accountNumber })
       }
     }
 
@@ -250,17 +249,17 @@ export default function App() {
       id: crypto.randomUUID(),
       name: h.name,
       evalAmount: h.evalAmount ?? 0,
-      accountId,
+      accountId: h.accountNumber ? accountIds.get(h.accountNumber) : undefined,
       quantity: h.quantity ?? undefined,
       avgBuyPrice: h.avgBuyPrice ?? undefined,
       profitLoss: h.profitLoss ?? undefined,
       profitRate: h.profitRate ?? undefined,
     }))
 
-    const totalFromOcr = newHoldings.reduce((s, h) => s + h.evalAmount, 0)
-    if (accountId) {
+    for (const [acctNum, acctId] of accountIds) {
+      const total = newHoldings.filter((h) => h.accountId === acctId).reduce((s, h) => s + h.evalAmount, 0)
       nextAccounts = nextAccounts.map((a) =>
-        a.id === accountId ? { ...a, totalAsset: Math.max(a.totalAsset, totalFromOcr) } : a,
+        a.id === acctId ? { ...a, totalAsset: Math.max(a.totalAsset, total) } : a,
       )
     }
 
