@@ -32,13 +32,13 @@ func main() {
 	}
 
 	var ocrClient *ocr.Client
-	if key := os.Getenv("GEMINI_API_KEY"); key != "" {
-		c, err := ocr.NewClient(key)
+	if keys := os.Getenv("GEMINI_API_KEY"); keys != "" {
+		c, err := ocr.NewClient(keys)
 		if err != nil {
 			log.Fatalf("OCR 클라이언트 초기화 실패: %v", err)
 		}
 		ocrClient = c
-		log.Println("OCR 활성화 (Gemini)")
+		log.Printf("OCR 활성화 (Gemini, 키 %d개)", c.KeyCount())
 	}
 
 	mux := http.NewServeMux()
