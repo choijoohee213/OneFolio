@@ -256,7 +256,7 @@ export default function App() {
       profitRate: h.profitRate ?? undefined,
     }))
 
-    for (const [acctNum, acctId] of accountIds) {
+    for (const [, acctId] of accountIds) {
       const total = newHoldings.filter((h) => h.accountId === acctId).reduce((s, h) => s + h.evalAmount, 0)
       nextAccounts = nextAccounts.map((a) =>
         a.id === acctId ? { ...a, totalAsset: Math.max(a.totalAsset, total) } : a,

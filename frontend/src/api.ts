@@ -1,5 +1,4 @@
 import type {
-  ExtractedHolding,
   OcrResult,
   HoldingEdit,
   ManualAccount,
