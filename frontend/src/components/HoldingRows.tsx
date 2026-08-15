@@ -39,7 +39,7 @@ export function HoldingRows({ holdings, busy, onEdit }: Props) {
                 <span className="swatch small" style={{ background: categoryColor(holding.category) }} />
                 {holding.category}
               </td>
-              <td className="num">{isManualHolding(holding) ? '—' : quantity(holding.quantity)}</td>
+              <td className="num">{isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}</td>
               <td className="num">{won(holding.evalAmount)}</td>
               <td className={`num ${sign(holding.profitLoss)}`}>
                 {holding.profitLoss === null ? '—' : signedWon(holding.profitLoss)}

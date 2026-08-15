@@ -15,6 +15,7 @@ import (
 
 	"github.com/choijoohee213/OneFolio/backend/internal/api"
 	"github.com/choijoohee213/OneFolio/backend/internal/master"
+	"github.com/choijoohee213/OneFolio/backend/internal/ocr"
 )
 
 const (
@@ -30,8 +31,18 @@ func main() {
 		log.Fatalf("종목마스터 로드 실패: %v", err)
 	}
 
+	var ocrClient *ocr.Client
+	if keys := os.Getenv("GEMINI_API_KEY"); keys != "" {
+		c, err := ocr.NewClient(keys)
+		if err != nil {
+			log.Fatalf("OCR 클라이언트 초기화 실패: %v", err)
+		}
+		ocrClient = c
+		log.Printf("OCR 활성화 (Gemini, 키 %d개)", c.KeyCount())
+	}
+
 	mux := http.NewServeMux()
-	api.New(listings).Register(mux)
+	api.New(listings, ocrClient).Register(mux)
 
 	address := ":" + env("PORT", defaultPort)
 	server := &http.Server{

@@ -6,6 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# backend/.env 가 있으면 환경변수로 불러온다 (GEMINI_API_KEY 등)
+[ -f "$ROOT/backend/.env" ] && set -a && . "$ROOT/backend/.env" && set +a
 LOGS="$ROOT/.dev"
 BACKEND_PORT="${BACKEND_PORT:-8080}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
