@@ -43,7 +43,7 @@ type geminiResponse struct {
 const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 종목을 추출하라.
 
 규칙:
-- 계좌번호(예: 616-8228-7204-0)와 계좌유형(예: 종합_주식)이 보이면 추출한다. 안 보이면 빈 문자열로 둔다.
+- 계좌번호(예: 111-1111-1111-0)와 계좌유형(예: 종합_주식)이 보이면 추출한다. 안 보이면 빈 문자열로 둔다.
 - 여러 계좌가 보이면 accounts 배열에 계좌별로 나눠 넣는다. 계좌 구분이 안 되면 하나의 항목에 모두 넣는다.
 - 종목명, 티커(종목코드), 수량, 현재가, 평균매입가, 평가금액, 평가손익, 손익률을 읽는다.
 - 종목명이 잘려 있으면(예: "PROSHARES ...") 옆에 보이는 티커(예: TQQQ)를 참고해 정식 명칭을 유추하라. 예: TQQQ → PROSHARES ULTRA PRO QQQ.
@@ -57,7 +57,7 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 - 반드시 아래 JSON 형식만 출력하고 다른 텍스트는 쓰지 마라.
 
 출력 형식:
-{"accounts":[{"accountNumber":"616-8228-7204-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":50000,"avgBuyPrice":45000,"evalAmount":500000,"profitLoss":50000,"profitRate":11.11}]}]}`
+{"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":50000,"avgBuyPrice":45000,"evalAmount":500000,"profitLoss":50000,"profitRate":11.11}]}]}`
 
 type Client struct {
 	clients []*genai.Client
