@@ -17,6 +17,7 @@ export function HoldingRows({ holdings, busy, onEdit }: Props) {
             <th>종목</th>
             <th>분류</th>
             <th className="num">수량</th>
+            <th className="num">평단가</th>
             <th className="num">평가금액</th>
             <th className="num">평가손익</th>
             <th className="num">손익률</th>
@@ -40,6 +41,7 @@ export function HoldingRows({ holdings, busy, onEdit }: Props) {
                 {holding.category}
               </td>
               <td className="num">{isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}</td>
+              <td className="num">{holding.avgBuyPrice === null ? '—' : won(holding.avgBuyPrice)}</td>
               <td className="num">{won(holding.evalAmount)}</td>
               <td className={`num ${sign(holding.profitLoss)}`}>
                 {holding.profitLoss === null ? '—' : signedWon(holding.profitLoss)}
