@@ -332,6 +332,12 @@ main {
 .modal-dropzone p {
   margin: 0;
 }
+.modal-file-upload {
+  max-width: min(46rem, calc(100vw - 2rem));
+}
+.modal-file-upload .modal-dropzone {
+  padding: 3.5rem 1.25rem;
+}
 .modal-form label {
   display: grid;
   gap: 0.3rem;

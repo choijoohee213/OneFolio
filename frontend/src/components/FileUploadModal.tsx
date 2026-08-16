@@ -19,7 +19,7 @@ export function FileUploadModal({ open, busy, onClose, onFiles }: Props) {
   }
 
   return (
-    <Modal open={open} title="잔고파일 추가" wide onClose={onClose}>
+    <Modal open={open} title="잔고파일 추가" className="modal-file-upload" onClose={onClose}>
       <p className="modal-desc">
         미래에셋증권 계좌를 이용 중이라면, PC 사이트에서 계좌별 잔고 파일(엑셀)을 내려받아 아래에
         올려주세요.
