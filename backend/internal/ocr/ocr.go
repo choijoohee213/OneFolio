@@ -122,6 +122,9 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		SystemInstruction: genai.NewContentFromText(systemPrompt, genai.RoleUser),
 		Temperature:       genai.Ptr(float32(0.1)),
 		ResponseMIMEType:  "application/json",
+		// 단순 추출 작업이라 확장 추론(thinking)이 필요 없다. 켜져 있으면
+		// 응답 시간이 몇 초~30초+ 로 들쭉날쭉해져서 꺼서 속도를 안정시킨다.
+		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(0))},
 	}
 
 	var resp *genai.GenerateContentResponse
