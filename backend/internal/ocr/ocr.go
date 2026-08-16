@@ -3,7 +3,6 @@ package ocr
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -90,7 +89,7 @@ func NewClient(apiKeys string) (*Client, error) {
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("유효한 API 키가 없습니다")
 	}
-	return &Client{clients: clients, model: "gemini-3.6-flash"}, nil
+	return &Client{clients: clients, model: "gemini-flash-latest"}, nil
 }
 
 func (c *Client) pickClient() *genai.Client {
@@ -102,11 +101,13 @@ func (c *Client) KeyCount() int {
 	return len(c.clients)
 }
 
-// retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)나
-// 타임아웃(응답이 멈춘 키)은 다른 키로 재시도할 가치가 있지만, 그 외
-// 에러(잘못된 이미지 등)는 키를 바꿔도 똑같이 실패하므로 바로 반환한다.
+// retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)는
+// 키마다 다르게 나는 문제라 재시도할 가치가 있다. 반면 타임아웃은 보통
+// 네트워크 경로 자체의 문제라 다른 키로 바꿔도 똑같이 멈춘다 — 재시도하면
+// 대기 시간만 키 개수만큼 늘어나 배포 플랫폼의 게이트웨이 타임아웃(502)에
+// 걸리기 쉬우므로 즉시 실패시킨다.
 func retryable(err error) bool {
-	return strings.Contains(err.Error(), "429") || errors.Is(err, context.DeadlineExceeded)
+	return strings.Contains(err.Error(), "429")
 }
 
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
