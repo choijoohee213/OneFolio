@@ -228,6 +228,16 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "종목 추출 실패: %v", err)
 		return
 	}
+	for i, h := range result.Holdings {
+		if _, ok := s.listings.Lookup(h.Name); ok {
+			continue
+		}
+		if h.Ticker != "" {
+			if entry, ok := s.listings.LookupByCode(h.Ticker); ok {
+				result.Holdings[i].Name = entry.Name
+			}
+		}
+	}
 	writeJSON(w, http.StatusOK, result)
 }
 
