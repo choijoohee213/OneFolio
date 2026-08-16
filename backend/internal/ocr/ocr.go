@@ -7,9 +7,12 @@ import (
 	"math"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/genai"
 )
+
+const requestTimeout = 30 * time.Second
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
@@ -86,7 +89,7 @@ func NewClient(apiKeys string) (*Client, error) {
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("유효한 API 키가 없습니다")
 	}
-	return &Client{clients: clients, model: "gemini-3.6-flash"}, nil
+	return &Client{clients: clients, model: "gemini-flash-latest"}, nil
 }
 
 func (c *Client) pickClient() *genai.Client {
@@ -96,6 +99,15 @@ func (c *Client) pickClient() *genai.Client {
 
 func (c *Client) KeyCount() int {
 	return len(c.clients)
+}
+
+// retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)는
+// 키마다 다르게 나는 문제라 재시도할 가치가 있다. 반면 타임아웃은 보통
+// 네트워크 경로 자체의 문제라 다른 키로 바꿔도 똑같이 멈춘다 — 재시도하면
+// 대기 시간만 키 개수만큼 늘어나 배포 플랫폼의 게이트웨이 타임아웃(502)에
+// 걸리기 쉬우므로 즉시 실패시킨다.
+func retryable(err error) bool {
+	return strings.Contains(err.Error(), "429")
 }
 
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
@@ -117,17 +129,19 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 	tried := 0
 	for tried < len(c.clients) {
 		client := c.pickClient()
-		resp, err = client.Models.GenerateContent(ctx, c.model, contents, config)
+		attemptCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		resp, err = client.Models.GenerateContent(attemptCtx, c.model, contents, config)
+		cancel()
 		if err == nil {
 			break
 		}
-		if !strings.Contains(err.Error(), "429") {
+		if !retryable(err) {
 			return nil, fmt.Errorf("gemini 호출 실패: %w", err)
 		}
 		tried++
 	}
 	if err != nil {
-		return nil, fmt.Errorf("gemini 호출 실패 (모든 키 한도 초과): %w", err)
+		return nil, fmt.Errorf("gemini 호출 실패 (모든 키 재시도 소진): %w", err)
 	}
 
 	text := resp.Text()

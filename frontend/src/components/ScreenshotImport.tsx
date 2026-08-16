@@ -102,6 +102,7 @@ function useProgress(active: boolean, tick: number) {
 }
 
 export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
+  const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const addFromReview = useRef(false)
   const [step, setStep] = useState<Step>('upload')
@@ -113,6 +114,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
   const [processingIndex, setProcessingIndex] = useState(0)
   const [processingTotal, setProcessingTotal] = useState(1)
   const [activeTab, setActiveTab] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
 
   const withinPct = useProgress(step === 'extracting', processingIndex)
   const overallProgress = processingTotal > 0
@@ -137,6 +139,13 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     reset()
     onClose()
   }
+
+  useEffect(() => {
+    const el = dialog.current
+    if (!el) return
+    if (open && !el.open) el.showModal()
+    if (!open && el.open) el.close()
+  }, [open])
 
   function handleInputFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return
@@ -199,7 +208,12 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
       setStep('review')
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : String(cause)
-      setError(msg.includes('429') || msg.includes('quota') ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' : msg)
+      const friendly = msg.includes('429') || msg.includes('quota')
+        ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
+        : msg.includes('deadline exceeded') || msg.includes('재시도 소진')
+          ? '분석 응답이 너무 늦어 실패했습니다. 다시 시도해주세요.'
+          : msg
+      setError(friendly)
       setStep(holdings.length > 0 ? 'review' : 'preview')
     }
   }
@@ -225,8 +239,6 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     setHoldings((prev) => prev.filter((_, i) => i !== index))
   }
 
-  if (!open) return null
-
   const accountKeys = [...new Set(holdings.map((h) => h.accountNumber).filter(Boolean))] as string[]
   const hasMultipleAccounts = accountKeys.length > 1
   const visibleHoldings = activeTab
@@ -234,7 +246,15 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     : holdings
 
   return (
-    <dialog className={`modal${step === 'review' ? ' modal-wide' : ''}`} open>
+    <dialog
+      ref={dialog}
+      className={`modal${step === 'review' ? ' modal-wide' : ''}`}
+      onClose={handleClose}
+      onClick={(event) => {
+        if (step === 'extracting') return
+        if (event.target === dialog.current) handleClose()
+      }}
+    >
       <div className="modal-body">
         <input
           ref={input}
@@ -256,25 +276,36 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                 ? '이미지 확인'
                 : '스크린샷으로 종목 추가'}
           </h3>
-          <button type="button" className="modal-close" onClick={handleClose}>
-            닫기
+          <button type="button" className="modal-close" onClick={handleClose} aria-label="닫기">
+            ✕
           </button>
         </header>
 
         {step === 'upload' && (
           <div className="screenshot-upload">
             <div
-              className="screenshot-drop"
-              onDragOver={(e) => e.preventDefault()}
+              className={`modal-dropzone ${dragging ? 'dragging' : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
               onDrop={(e) => {
                 e.preventDefault()
+                setDragging(false)
                 handleInputFiles(e.dataTransfer.files)
               }}
+              onClick={() => input.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  input.current?.click()
+                }
+              }}
             >
-              <p>증권 앱 캡처를 여기에 끌어다 놓거나</p>
-              <button type="button" onClick={() => input.current?.click()}>
-                이미지 선택
-              </button>
+              <p>증권 앱 캡처를 여기에 끌어다 놓거나 클릭해서 선택</p>
             </div>
             {error && <p className="screenshot-error">{error}</p>}
           </div>

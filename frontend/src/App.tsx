@@ -7,6 +7,7 @@ import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { EditConflicts } from './components/EditConflicts'
 import { FileDrop } from './components/FileDrop'
+import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
@@ -46,6 +47,7 @@ export default function App() {
   const [accountTarget, setAccountTarget] = useState<ManualAccount | null | 'new'>(null)
   const [showUnmatched, setShowUnmatched] = useState(false)
   const [showScreenshot, setShowScreenshot] = useState(false)
+  const [showFileUpload, setShowFileUpload] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -320,11 +322,12 @@ export default function App() {
         )}
       </header>
 
-      <FileDrop
-        onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
-        busy={busy}
-        compact={summary !== null}
-      />
+      {summary && (
+        <FileDrop
+          onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
+          busy={busy}
+        />
+      )}
 
       {error && <p className="error">{error}</p>}
 
@@ -378,29 +381,41 @@ export default function App() {
         </>
       )}
 
+      {restored && !summary && busy && <p className="home-busy">계산하는 중…</p>}
+
       {/* 보유 종목 표가 없으면 그쪽 "종목 추가" 버튼도 없다. 파일도 계좌도 없이
           종목 하나만 넣으려는 경로를 여기서 열어 준다. */}
       {restored && !summary && !busy && !error && (
-        <div className="onboarding">
-          <p>또는 직접 추가하거나 샘플로 체험해보세요</p>
-          <div className="onboarding-actions">
-            <button type="button" onClick={() => setAccountTarget('new')}>
-              계좌 추가
+        <div className="home">
+          <div className="home-grid">
+            <button type="button" className="home-card" onClick={() => setShowFileUpload(true)}>
+              <span className="home-card-title">잔고파일 추가</span>
+              <span className="home-card-desc">미래에셋증권 계좌별 잔고 엑셀 업로드</span>
             </button>
-            <button type="button" onClick={() => setHoldingTarget({ kind: 'new' })}>
-              종목 추가
+            <button type="button" className="home-card" onClick={() => setShowScreenshot(true)}>
+              <span className="home-card-title">스크린샷으로 추가</span>
+              <span className="home-card-desc">증권 앱 캡처에서 자동으로 인식</span>
             </button>
-            <button type="button" onClick={() => setShowScreenshot(true)}>
-              스크린샷으로 추가
+            <button type="button" className="home-card" onClick={() => setAccountTarget('new')}>
+              <span className="home-card-title">계좌 추가</span>
+              <span className="home-card-desc">총액만 적어 계좌로 등록</span>
             </button>
-            <button
-              type="button"
-              className="sample-btn"
-              onClick={async () => apply({ files: await toUploadedFiles(createSampleFiles()) })}
-            >
-              샘플 잔고파일로 체험하기
+            <button type="button" className="home-card" onClick={() => setHoldingTarget({ kind: 'new' })}>
+              <span className="home-card-title">종목 추가</span>
+              <span className="home-card-desc">보유 종목을 하나씩 직접 입력</span>
             </button>
           </div>
+
+          <div className="home-divider">
+            <span>또는</span>
+          </div>
+          <button
+            type="button"
+            className="home-sample-btn"
+            onClick={async () => apply({ files: await toUploadedFiles(createSampleFiles()) })}
+          >
+            실제 데이터 없이 샘플로 둘러보기
+          </button>
         </div>
       )}
 
@@ -429,6 +444,13 @@ export default function App() {
         busy={busy}
         onClose={() => setShowScreenshot(false)}
         onConfirm={addFromScreenshot}
+      />
+
+      <FileUploadModal
+        open={showFileUpload}
+        busy={busy}
+        onClose={() => setShowFileUpload(false)}
+        onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
       />
 
       {showUnmatched && summary?.unmatched && summary.unmatched.length > 0 && (

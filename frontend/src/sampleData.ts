@@ -28,7 +28,7 @@ const JONGHAP_HOLDINGS = `<table><tr><td colspan="7">[222-22-2222220] 상품보�
 <tr><td>SK하이닉스</td><td>15.00</td><td>220,000</td><td>180,000</td><td>2,700,000</td><td>3,300,000</td><td>600,000</td><td>22.22%</td></tr>
 <tr><td>KODEX 200</td><td>100.00</td><td>35,000</td><td>32,000</td><td>3,200,000</td><td>3,500,000</td><td>300,000</td><td>9.38%</td></tr>
 <tr><td>애플</td><td>10.00</td><td>310,000</td><td>280,000</td><td>2,800,000</td><td>3,100,000</td><td>300,000</td><td>10.71%</td></tr>
-<tr><td>PROSHARES ULTRAPRO QQQ ETF</td><td>30.00</td><td>120,000</td><td>95,000</td><td>2,850,000</td><td>3,600,000</td><td>750,000</td><td>26.32%</td></tr>
+<tr><td>PROSHARES QQQ 3X</td><td>30.00</td><td>120,000</td><td>95,000</td><td>2,850,000</td><td>3,600,000</td><td>750,000</td><td>26.32%</td></tr>
 <tr><td>미국달러</td><td>500.00</td><td>1,380</td><td>-</td><td>690,000</td><td>690,000</td><td>-</td><td>-</td></tr>`
 
 const PENSION_HOLDINGS = `<table><tr><td colspan="7">[333-33-3333330] 상품보유현황</td></tr></table>
@@ -36,7 +36,7 @@ const PENSION_HOLDINGS = `<table><tr><td colspan="7">[333-33-3333330] 상품보�
 <tr><th>상품명</th><th>보유수량</th><th>현재가</th><th>평균매입가</th><th>매입금액</th><th>평가금액</th><th>평가손익</th><th>손익률</th></tr>
 <tr><td>TIGER 미국S&amp;P500</td><td>150.00</td><td>18,500</td><td>17,000</td><td>2,550,000</td><td>2,775,000</td><td>225,000</td><td>8.82%</td></tr>
 <tr><td>ACE 미국30년국채액티브(H)</td><td>300.00</td><td>10,500</td><td>11,000</td><td>3,300,000</td><td>3,150,000</td><td>-150,000</td><td>-4.55%</td></tr>
-<tr><td>KODEX 미국S&amp;P500TR</td><td>120.00</td><td>15,800</td><td>14,500</td><td>1,740,000</td><td>1,896,000</td><td>156,000</td><td>8.97%</td></tr>`
+<tr><td>KODEX 미국S&amp;P500</td><td>120.00</td><td>15,800</td><td>14,500</td><td>1,740,000</td><td>1,896,000</td><td>156,000</td><td>8.97%</td></tr>`
 
 function buildFile(name: string, holdings: string): File {
   const html = ACCOUNT_HEADER + holdings + HOLDINGS_FOOTER
