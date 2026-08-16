@@ -256,16 +256,29 @@ export default function App() {
       profitRate: h.profitRate ?? undefined,
     }))
 
+    const newKeys = new Set(newHoldings.map((h) => `${h.accountId ?? ''}::${h.name}`))
+    const allHoldings = [
+      ...manualHoldings.filter((h) => !newKeys.has(`${h.accountId ?? ''}::${h.name}`)),
+      ...newHoldings,
+    ]
     for (const [, acctId] of accountIds) {
-      const total = newHoldings.filter((h) => h.accountId === acctId).reduce((s, h) => s + h.evalAmount, 0)
+      const total = allHoldings.filter((h) => h.accountId === acctId).reduce((s, h) => s + h.evalAmount, 0)
       nextAccounts = nextAccounts.map((a) =>
         a.id === acctId ? { ...a, totalAsset: Math.max(a.totalAsset, total) } : a,
       )
     }
 
+    const nextMappings = { ...stockMappings }
+    for (const h of extracted) {
+      if (h.ticker && !nextMappings[h.name]) {
+        nextMappings[h.name] = h.ticker
+      }
+    }
+
     return apply({
       manualAccounts: nextAccounts,
-      manualHoldings: [...manualHoldings, ...newHoldings],
+      manualHoldings: allHoldings,
+      stockMappings: nextMappings,
     })
   }
 
