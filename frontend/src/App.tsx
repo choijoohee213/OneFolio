@@ -392,6 +392,10 @@ export default function App() {
               busy={busy}
               variant="card"
             />
+            <button type="button" className="home-card" onClick={() => setShowScreenshot(true)}>
+              <span className="home-card-title">스크린샷으로 추가</span>
+              <span className="home-card-desc">증권 앱 캡처에서 자동으로 인식</span>
+            </button>
             <button type="button" className="home-card" onClick={() => setAccountTarget('new')}>
               <span className="home-card-title">계좌 추가</span>
               <span className="home-card-desc">총액만 적어 계좌로 등록</span>
@@ -399,10 +403,6 @@ export default function App() {
             <button type="button" className="home-card" onClick={() => setHoldingTarget({ kind: 'new' })}>
               <span className="home-card-title">종목 추가</span>
               <span className="home-card-desc">보유 종목을 하나씩 직접 입력</span>
-            </button>
-            <button type="button" className="home-card" onClick={() => setShowScreenshot(true)}>
-              <span className="home-card-title">스크린샷으로 추가</span>
-              <span className="home-card-desc">증권 앱 캡처에서 자동으로 인식</span>
             </button>
           </div>
 
