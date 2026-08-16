@@ -218,13 +218,6 @@ main {
   font-size: 0.76rem;
   color: var(--muted);
 }
-.drop-card {
-  border-style: dashed;
-}
-.drop-card.dragging {
-  border-color: var(--accent);
-  border-style: solid;
-}
 .home-divider {
   display: flex;
   align-items: center;
@@ -311,6 +304,33 @@ main {
 .modal-form {
   display: grid;
   gap: 0.85rem;
+}
+.modal-desc {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.modal-desc-muted {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.modal-dropzone {
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  padding: 2rem 1.25rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.modal-dropzone.dragging {
+  border-color: var(--accent);
+  border-style: solid;
+}
+.modal-dropzone p {
+  margin: 0;
 }
 .modal-form label {
   display: grid;

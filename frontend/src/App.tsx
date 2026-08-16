@@ -7,6 +7,7 @@ import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { EditConflicts } from './components/EditConflicts'
 import { FileDrop } from './components/FileDrop'
+import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
@@ -46,6 +47,7 @@ export default function App() {
   const [accountTarget, setAccountTarget] = useState<ManualAccount | null | 'new'>(null)
   const [showUnmatched, setShowUnmatched] = useState(false)
   const [showScreenshot, setShowScreenshot] = useState(false)
+  const [showFileUpload, setShowFileUpload] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -324,7 +326,6 @@ export default function App() {
         <FileDrop
           onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
           busy={busy}
-          variant="compact"
         />
       )}
 
@@ -387,11 +388,10 @@ export default function App() {
       {restored && !summary && !busy && !error && (
         <div className="home">
           <div className="home-grid">
-            <FileDrop
-              onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
-              busy={busy}
-              variant="card"
-            />
+            <button type="button" className="home-card" onClick={() => setShowFileUpload(true)}>
+              <span className="home-card-title">잔고파일 추가</span>
+              <span className="home-card-desc">미래에셋증권 계좌별 잔고 엑셀 업로드</span>
+            </button>
             <button type="button" className="home-card" onClick={() => setShowScreenshot(true)}>
               <span className="home-card-title">스크린샷으로 추가</span>
               <span className="home-card-desc">증권 앱 캡처에서 자동으로 인식</span>
@@ -444,6 +444,13 @@ export default function App() {
         busy={busy}
         onClose={() => setShowScreenshot(false)}
         onConfirm={addFromScreenshot}
+      />
+
+      <FileUploadModal
+        open={showFileUpload}
+        busy={busy}
+        onClose={() => setShowFileUpload(false)}
+        onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
       />
 
       {showUnmatched && summary?.unmatched && summary.unmatched.length > 0 && (

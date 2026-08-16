@@ -3,10 +3,9 @@ import { useRef, useState } from 'react'
 interface Props {
   onFiles: (files: File[]) => void
   busy: boolean
-  variant: 'compact' | 'card'
 }
 
-export function FileDrop({ onFiles, busy, variant }: Props) {
+export function FileDrop({ onFiles, busy }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -17,32 +16,15 @@ export function FileDrop({ onFiles, busy, variant }: Props) {
     if (files.length > 0) onFiles(files)
   }
 
-  function openPicker() {
-    if (!busy) input.current?.click()
-  }
-
   return (
     <div
-      className={`drop drop-${variant} ${variant === 'card' ? 'home-card' : ''} ${dragging ? 'dragging' : ''}`}
+      className={`drop-compact ${dragging ? 'dragging' : ''}`}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
-      onClick={variant === 'card' ? openPicker : undefined}
-      onKeyDown={
-        variant === 'card'
-          ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                openPicker()
-              }
-            }
-          : undefined
-      }
-      role={variant === 'card' ? 'button' : undefined}
-      tabIndex={variant === 'card' ? 0 : undefined}
     >
       <input
         ref={input}
@@ -56,22 +38,10 @@ export function FileDrop({ onFiles, busy, variant }: Props) {
           event.target.value = ''
         }}
       />
-
-      {variant === 'compact' && (
-        <>
-          <p className="drop-title">{busy ? '계산하는 중…' : '잔고파일을 여기에 끌어다 놓으세요'}</p>
-          <button type="button" onClick={openPicker} disabled={busy}>
-            파일 선택
-          </button>
-        </>
-      )}
-
-      {variant === 'card' && (
-        <>
-          <span className="home-card-title">{busy ? '계산하는 중…' : '잔고파일 추가'}</span>
-          <span className="home-card-desc">끌어다 놓거나 클릭해서 선택</span>
-        </>
-      )}
+      <p className="drop-title">{busy ? '계산하는 중…' : '잔고파일을 여기에 끌어다 놓으세요'}</p>
+      <button type="button" onClick={() => input.current?.click()} disabled={busy}>
+        파일 선택
+      </button>
     </div>
   )
 }
