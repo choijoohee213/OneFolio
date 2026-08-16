@@ -908,36 +908,6 @@ td.name {
   display: grid;
   gap: 0.75rem;
 }
-.screenshot-drop {
-  border: 1.5px dashed var(--border);
-  border-radius: 10px;
-  padding: 2rem 1.25rem;
-  text-align: center;
-  background: var(--surface);
-  transition: border-color 0.15s;
-}
-.screenshot-drop:hover {
-  border-color: var(--accent);
-}
-.screenshot-drop p {
-  margin: 0 0 0.75rem;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-.screenshot-drop button {
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-}
-.screenshot-drop button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 .screenshot-error {
   margin: 0;
   color: var(--gain);
