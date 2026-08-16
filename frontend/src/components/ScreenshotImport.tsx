@@ -244,9 +244,6 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
       ref={dialog}
       className={`modal${step === 'review' ? ' modal-wide' : ''}`}
       onClose={handleClose}
-      onCancel={(event) => {
-        if (step === 'extracting') event.preventDefault()
-      }}
       onClick={(event) => {
         if (step === 'extracting') return
         if (event.target === dialog.current) handleClose()
@@ -273,12 +270,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                 ? '이미지 확인'
                 : '스크린샷으로 종목 추가'}
           </h3>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={handleClose}
-            disabled={step === 'extracting'}
-          >
+          <button type="button" className="modal-close" onClick={handleClose}>
             닫기
           </button>
         </header>

@@ -300,13 +300,6 @@ main {
   background: var(--surface);
   color: var(--text);
 }
-.modal-close:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.modal-close:disabled:hover {
-  background: none;
-}
 
 .modal-form {
   display: grid;
