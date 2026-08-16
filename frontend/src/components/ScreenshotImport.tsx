@@ -207,7 +207,12 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
       setStep('review')
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : String(cause)
-      setError(msg.includes('429') || msg.includes('quota') ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.' : msg)
+      const friendly = msg.includes('429') || msg.includes('quota')
+        ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
+        : msg.includes('deadline exceeded') || msg.includes('재시도 소진')
+          ? '분석 응답이 너무 늦어 실패했습니다. 다시 시도해주세요.'
+          : msg
+      setError(friendly)
       setStep(holdings.length > 0 ? 'review' : 'preview')
     }
   }

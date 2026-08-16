@@ -3,13 +3,17 @@ package ocr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"google.golang.org/genai"
 )
+
+const requestTimeout = 30 * time.Second
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
@@ -98,6 +102,13 @@ func (c *Client) KeyCount() int {
 	return len(c.clients)
 }
 
+// retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)나
+// 타임아웃(응답이 멈춘 키)은 다른 키로 재시도할 가치가 있지만, 그 외
+// 에러(잘못된 이미지 등)는 키를 바꿔도 똑같이 실패하므로 바로 반환한다.
+func retryable(err error) bool {
+	return strings.Contains(err.Error(), "429") || errors.Is(err, context.DeadlineExceeded)
+}
+
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
 	contents := []*genai.Content{
 		genai.NewContentFromParts([]*genai.Part{
@@ -117,17 +128,19 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 	tried := 0
 	for tried < len(c.clients) {
 		client := c.pickClient()
-		resp, err = client.Models.GenerateContent(ctx, c.model, contents, config)
+		attemptCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		resp, err = client.Models.GenerateContent(attemptCtx, c.model, contents, config)
+		cancel()
 		if err == nil {
 			break
 		}
-		if !strings.Contains(err.Error(), "429") {
+		if !retryable(err) {
 			return nil, fmt.Errorf("gemini 호출 실패: %w", err)
 		}
 		tried++
 	}
 	if err != nil {
-		return nil, fmt.Errorf("gemini 호출 실패 (모든 키 한도 초과): %w", err)
+		return nil, fmt.Errorf("gemini 호출 실패 (모든 키 재시도 소진): %w", err)
 	}
 
 	text := resp.Text()
