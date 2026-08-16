@@ -19,13 +19,13 @@ export function FileUploadModal({ open, busy, onClose, onFiles }: Props) {
   }
 
   return (
-    <Modal open={open} title="잔고파일 추가" onClose={onClose}>
+    <Modal open={open} title="잔고파일 추가" wide onClose={onClose}>
       <p className="modal-desc">
-        해당 잔고파일 추가 기능은 미래에셋증권 사용자에게만 해당되며, 미래에셋증권(PC)에서 계좌별 잔고
-        파일 엑셀을 다운받아 파일을 넣어주세요.
+        미래에셋증권 계좌를 이용 중이라면, PC 사이트에서 계좌별 잔고 파일(엑셀)을 내려받아 아래에
+        올려주세요.
       </p>
       <p className="modal-desc modal-desc-muted">
-        계좌마다 따로 받은 파일을 한 번에 모두 선택해야 전체 자산이 나옵니다.
+        계좌마다 따로 받은 파일을 한 번에 모두 선택해야 전체 자산이 정확히 계산됩니다.
       </p>
       <div
         className={`modal-dropzone ${dragging ? 'dragging' : ''}`}

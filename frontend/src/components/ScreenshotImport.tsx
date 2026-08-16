@@ -102,6 +102,7 @@ function useProgress(active: boolean, tick: number) {
 }
 
 export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
+  const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const addFromReview = useRef(false)
   const [step, setStep] = useState<Step>('upload')
@@ -137,6 +138,13 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     reset()
     onClose()
   }
+
+  useEffect(() => {
+    const el = dialog.current
+    if (!el) return
+    if (open && !el.open) el.showModal()
+    if (!open && el.open) el.close()
+  }, [open])
 
   function handleInputFiles(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return
@@ -225,8 +233,6 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     setHoldings((prev) => prev.filter((_, i) => i !== index))
   }
 
-  if (!open) return null
-
   const accountKeys = [...new Set(holdings.map((h) => h.accountNumber).filter(Boolean))] as string[]
   const hasMultipleAccounts = accountKeys.length > 1
   const visibleHoldings = activeTab
@@ -234,7 +240,14 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     : holdings
 
   return (
-    <dialog className={`modal${step === 'review' ? ' modal-wide' : ''}`} open>
+    <dialog
+      ref={dialog}
+      className={`modal${step === 'review' ? ' modal-wide' : ''}`}
+      onClose={handleClose}
+      onClick={(event) => {
+        if (event.target === dialog.current) handleClose()
+      }}
+    >
       <div className="modal-body">
         <input
           ref={input}

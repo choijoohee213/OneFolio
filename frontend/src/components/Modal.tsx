@@ -3,12 +3,13 @@ import { useEffect, useRef } from 'react'
 interface Props {
   open: boolean
   title: string
+  wide?: boolean
   onClose: () => void
   children: React.ReactNode
 }
 
 // 네이티브 <dialog> 를 쓴다. ESC 닫기, 배경 딤, 포커스 가둠을 브라우저가 해 준다.
-export function Modal({ open, title, onClose, children }: Props) {
+export function Modal({ open, title, wide, onClose, children }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export function Modal({ open, title, onClose, children }: Props) {
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className={`modal${wide ? ' modal-wide' : ''}`}
       // ESC 나 배경 클릭으로 닫혀도 바깥 상태를 맞춰 둬야 다시 열린다.
       onClose={onClose}
       onClick={(event) => {
