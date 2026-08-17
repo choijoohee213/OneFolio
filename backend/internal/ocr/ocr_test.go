@@ -4,6 +4,38 @@ import "testing"
 
 func f(v float64) *float64 { return &v }
 
+// RecomputeKRW 는 Gemini 가 이미 evalAmount·profitLoss 를 (잘못된 통화로)
+// 채워 놨어도 currentPrice·avgBuyPrice 기준으로 무조건 다시 계산해야 한다.
+// 실사용 스크린샷에서 Gemini 가 종목마다 currency 를 빠뜨려 원 단위 계산이
+// 안 먹히는 경우가 있었는데, 이건 마스터로 해외 종목임을 확정한 뒤 호출하는
+// 별도 경로라 Gemini 의 currency 판단과 무관하게 항상 정확해야 한다.
+func TestRecomputeKRWOverridesWrongGeminiValues(t *testing.T) {
+	h := ExtractedHolding{
+		Quantity:     f(3),
+		CurrentPrice: f(347.2327),
+		AvgBuyPrice:  f(347.08),
+		// Gemini 가 통화를 혼동해 원 단위인 것처럼 잘못 채워 놓은 값
+		EvalAmount: f(1041.70),
+		ProfitLoss: f(0.45),
+		ProfitRate: f(0.04),
+	}
+	RecomputeKRW(&h, 1446.0)
+
+	wantEval := round2(347.2327 * 1446 * 3)
+	if *h.EvalAmount != wantEval {
+		t.Errorf("evalAmount = %v, want %v", *h.EvalAmount, wantEval)
+	}
+	wantBuy := 347.08 * 1446 * 3
+	wantProfit := round2(wantEval - wantBuy)
+	if *h.ProfitLoss != wantProfit {
+		t.Errorf("profitLoss = %v, want %v", *h.ProfitLoss, wantProfit)
+	}
+	// 실제 주가는 평단가보다 살짝 높은 수준이라 손익률이 크게 나면 안 된다.
+	if *h.ProfitRate > 1 || *h.ProfitRate < -1 {
+		t.Errorf("profitRate = %v, want 작은 값 (평단가와 현재가가 비슷함)", *h.ProfitRate)
+	}
+}
+
 // 평단가·현재가가 달러로 찍힌 종목은 환율로 원화 환산한 뒤에 평가손익을 내야 한다.
 // 그렇지 않으면 "70원"과 "$70"을 혼동해 손익률이 터무니없이 커진다.
 func TestFillCalculatedFieldsConvertsUSD(t *testing.T) {

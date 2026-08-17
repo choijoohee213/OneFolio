@@ -206,6 +206,27 @@ func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *f
 	return &rate
 }
 
+// RecomputeKRW 는 currentPrice·avgBuyPrice 를 usdKrw 로 원화 환산해서 evalAmount·
+// profitLoss·profitRate 를 무조건 다시 낸다 — 이미 값이 있어도 덮어쓴다.
+// 종목마스터로 해외 종목임을 확정했을 때만 불러야 한다: Gemini 가 화면에서
+// 직접 읽은 evalAmount·profitLoss 는 통화를 혼동했을 수 있어 currentPrice·
+// avgBuyPrice(숫자만 베끼면 되는 값)에서 다시 계산한 값을 더 신뢰할 수 있다.
+func RecomputeKRW(h *ExtractedHolding, usdKrw float64) {
+	if h.CurrentPrice != nil && h.Quantity != nil {
+		h.EvalAmount = ptr(round2(*h.CurrentPrice * usdKrw * *h.Quantity))
+	}
+	if h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil {
+		buyAmount := *h.AvgBuyPrice * usdKrw * *h.Quantity
+		profit := *h.EvalAmount - buyAmount
+		h.ProfitLoss = ptr(round2(profit))
+		if buyAmount != 0 {
+			h.ProfitRate = ptr(round2(profit / buyAmount * 100))
+		} else {
+			h.ProfitRate = nil
+		}
+	}
+}
+
 func ptr(v float64) *float64 { return &v }
 
 func round2(v float64) float64 {
