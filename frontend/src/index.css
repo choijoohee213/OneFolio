@@ -80,17 +80,23 @@ body {
 main {
   max-width: 900px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
+  padding: 1.5rem 1.25rem 4rem;
 }
 
-/* ---------- 헤더 ---------- */
+/* ---------- 헤더 (스크롤해도 위에 붙어있음) ---------- */
 .page-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1.5rem;
+  margin: 0 -1.25rem 1.5rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 .page-head h1 {
   font-size: 1.35rem;
@@ -106,6 +112,68 @@ main {
   padding: 0.22rem 0.5rem;
 }
 
+.add-menu {
+  position: relative;
+}
+.add-menu-trigger {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add-menu-trigger:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.add-menu-trigger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.add-menu-trigger[aria-expanded='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.add-menu-list {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  min-width: 10rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  z-index: 30;
+}
+.add-menu-list li + li {
+  margin-top: 0.15rem;
+}
+.add-menu-list button {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.add-menu-list button:hover {
+  background: var(--surface);
+}
+
 .total {
   display: flex;
   align-items: baseline;
@@ -119,58 +187,6 @@ main {
   font-size: 1.6rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
-}
-
-/* ---------- 자산 추가 (계좌 추가 후, 상단 한 줄) ---------- */
-.quick-add {
-  display: flex;
-  align-items: stretch;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-.quick-add > .add-toggle {
-  flex-shrink: 0;
-}
-.drop-compact {
-  flex: 1 1 260px;
-  border: 1.5px dashed var(--border);
-  border-radius: 12px;
-  padding: 0.85rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  background: var(--surface);
-  transition: border-color 0.15s;
-}
-.drop-compact.dragging {
-  border-color: var(--accent);
-  border-style: solid;
-}
-.drop-compact .drop-title {
-  margin: 0;
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-.drop-compact button {
-  font: inherit;
-  font-size: 0.875rem;
-  padding: 0.45rem 1rem;
-  border-radius: 7px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.drop-compact button:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.drop-compact button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .error {

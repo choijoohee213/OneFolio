@@ -10,7 +10,6 @@ interface Props {
   coveredAsset: number
   busy: boolean
   onRemove: (accountNumber: string) => void
-  onAddAccount: () => void
   onEditAccount: (id: string) => void
   onRemoveAccount: (id: string) => void
 }
@@ -23,7 +22,6 @@ export function AccountsPanel({
   coveredAsset,
   busy,
   onRemove,
-  onAddAccount,
   onEditAccount,
   onRemoveAccount,
 }: Props) {
@@ -38,9 +36,6 @@ export function AccountsPanel({
     <section className="accounts">
       <header className="section-head">
         <h2>계좌</h2>
-        <button type="button" className="add-toggle" disabled={busy} onClick={onAddAccount}>
-          계좌 추가
-        </button>
       </header>
 
       {superseded.length > 0 && (

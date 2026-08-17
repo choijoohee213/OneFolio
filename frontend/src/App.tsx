@@ -6,7 +6,7 @@ import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { EditConflicts } from './components/EditConflicts'
-import { FileDrop } from './components/FileDrop'
+import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
@@ -360,22 +360,16 @@ export default function App() {
             </strong>
           </div>
         )}
-      </header>
-
-      {summary && (
-        <div className="quick-add">
-          <FileDrop
-            onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
+        {summary && (
+          <AddMenu
             busy={busy}
+            onFileUpload={() => setShowFileUpload(true)}
+            onScreenshot={() => setShowScreenshot(true)}
+            onAddAccount={() => setAccountTarget('new')}
+            onAddHolding={() => setHoldingTarget({ kind: 'new' })}
           />
-          <button type="button" className="add-toggle" disabled={busy} onClick={() => setShowScreenshot(true)}>
-            스크린샷으로 추가
-          </button>
-          <button type="button" className="add-toggle" disabled={busy} onClick={() => setHoldingTarget({ kind: 'new' })}>
-            종목 추가
-          </button>
-        </div>
-      )}
+        )}
+      </header>
 
       {error && <p className="error">{error}</p>}
 
@@ -398,7 +392,6 @@ export default function App() {
           coveredAsset={displaySummary.coveredAsset}
           busy={busy}
           onRemove={(number) => apply({ files: withoutAccount(files, number) })}
-          onAddAccount={() => setAccountTarget('new')}
           onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
           onRemoveAccount={removeAccount}
         />
