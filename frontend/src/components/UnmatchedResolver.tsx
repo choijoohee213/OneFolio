@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { searchStocks } from '../api'
 import { Modal } from './Modal'
 import type { StockEntry, StockMappings } from '../types'
@@ -29,9 +29,31 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
   const [selected, setSelected] = useState<StockEntry | null>(null)
   const [draft, setDraft] = useState<StockMappings>({})
   const [namesUpdates, setNamesUpdates] = useState<NameUpdates>({})
+  const [suggestion, setSuggestion] = useState<StockEntry | null>(null)
 
   const name = unresolved[current]
+
+  useEffect(() => {
+    let cancelled = false
+    setSuggestion(null)
+    if (!name) return
+    searchStocks(name).then((entries) => {
+      if (!cancelled) setSuggestion(entries[0] ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [name])
+
   if (!name) return null
+
+  function chooseEntry(entry: StockEntry) {
+    const nextDraft = { ...draft, [name]: entry.code }
+    const nextNames = { ...namesUpdates, [name]: entry.name }
+    setDraft(nextDraft)
+    setNamesUpdates(nextNames)
+    advance(nextDraft, nextNames)
+  }
 
   async function doSearch(q: string) {
     setQuery(q)
@@ -48,11 +70,7 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
 
   function confirm() {
     if (!selected) return
-    const nextDraft = { ...draft, [name]: selected.code }
-    const nextNames = { ...namesUpdates, [name]: selected.name }
-    setDraft(nextDraft)
-    setNamesUpdates(nextNames)
-    advance(nextDraft, nextNames)
+    chooseEntry(selected)
   }
 
   function skip() {
@@ -83,6 +101,26 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
           <strong>{name}</strong>을 종목 목록에서 찾지 못했습니다.
         </p>
         <p className="unmatched-hint">검색해서 맞는 종목을 고르거나, 기타로 처리하세요.</p>
+
+        {suggestion && (
+          <div className="unmatched-suggestion">
+            <p className="unmatched-suggestion-label">혹시 이 종목인가요?</p>
+            <div className="unmatched-suggestion-card">
+              <span className="stock-name">{suggestion.name}</span>
+              <span className="stock-meta">
+                {suggestion.code} &middot; {KIND_LABEL[suggestion.kind] ?? suggestion.kind}
+              </span>
+              <button
+                type="button"
+                className="modal-confirm"
+                disabled={busy}
+                onClick={() => chooseEntry(suggestion)}
+              >
+                맞아요
+              </button>
+            </div>
+          </div>
+        )}
 
         <input
           className="unmatched-search"

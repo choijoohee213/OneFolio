@@ -1359,6 +1359,26 @@ button.link:disabled {
   font-size: 0.85rem;
   color: var(--muted);
 }
+.unmatched-suggestion-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.unmatched-suggestion-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+.unmatched-suggestion-card .stock-name {
+  font-weight: 600;
+}
+.unmatched-suggestion-card .modal-confirm {
+  flex-shrink: 0;
+  margin-left: auto;
+}
 .unmatched-search {
   width: 100%;
 }
