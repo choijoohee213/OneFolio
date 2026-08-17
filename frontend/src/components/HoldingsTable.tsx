@@ -1,5 +1,6 @@
 import { won } from '../format'
 import type { AccountSummary, Holding } from '../types'
+import type { Quote } from '../liveQuotes'
 import { HoldingRows } from './HoldingRows'
 
 export type GroupMode = 'all' | 'account'
@@ -10,9 +11,13 @@ interface Props {
   mode: GroupMode
   onModeChange: (mode: GroupMode) => void
   busy: boolean
-  onAddHolding: () => void
-  onScreenshot: () => void
   onEditHolding: (holding: Holding) => void
+  showLive?: boolean
+  onToggleLive?: () => void
+  showUSD?: boolean
+  onToggleUSD?: () => void
+  quotes?: Record<string, Quote> | null
+  usdKrw?: number | null
 }
 
 export function HoldingsTable({
@@ -21,14 +26,35 @@ export function HoldingsTable({
   mode,
   onModeChange,
   busy,
-  onAddHolding,
-  onScreenshot,
   onEditHolding,
+  showLive,
+  onToggleLive,
+  showUSD,
+  onToggleUSD,
+  quotes,
+  usdKrw,
 }: Props) {
   return (
     <section className="holdings">
       <header className="section-head">
-        <h2>보유 종목</h2>
+        <div className="section-head-title">
+          <h2>보유 종목</h2>
+          {onToggleLive && (
+            <button
+              type="button"
+              className="switch"
+              role="switch"
+              aria-checked={!!showLive}
+              disabled={busy}
+              onClick={onToggleLive}
+            >
+              <span className="switch-track">
+                <span className="switch-knob" />
+              </span>
+              실시간 시세
+            </button>
+          )}
+        </div>
         <div className="head-actions">
           <div className="toggle" role="group" aria-label="보기 방식">
             <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>
@@ -42,23 +68,35 @@ export function HoldingsTable({
               계좌별
             </button>
           </div>
-          <button type="button" className="add-toggle" disabled={busy} onClick={onAddHolding}>
-            종목 추가
-          </button>
-          <button type="button" className="add-toggle" disabled={busy} onClick={onScreenshot}>
-            스크린샷
-          </button>
+          <div className="toggle" role="group" aria-label="표시 통화">
+            <button type="button" aria-pressed={!showUSD} onClick={() => showUSD && onToggleUSD?.()}>
+              원화
+            </button>
+            <button type="button" aria-pressed={!!showUSD} onClick={() => !showUSD && onToggleUSD?.()}>
+              달러
+            </button>
+          </div>
         </div>
       </header>
 
       {mode === 'all' ? (
-        <HoldingRows holdings={mergeByName(holdings)} busy={busy} onEdit={onEditHolding} />
+        <HoldingRows
+          holdings={mergeByName(holdings)}
+          busy={busy}
+          onEdit={onEditHolding}
+          showUSD={showUSD}
+          quotes={quotes}
+          usdKrw={usdKrw}
+        />
       ) : (
         <AccountGroups
           holdings={holdings}
           accounts={accounts}
           busy={busy}
           onEdit={onEditHolding}
+          showUSD={showUSD}
+          quotes={quotes}
+          usdKrw={usdKrw}
         />
       )}
     </section>
@@ -70,11 +108,17 @@ function AccountGroups({
   accounts,
   busy,
   onEdit,
+  showUSD,
+  quotes,
+  usdKrw,
 }: {
   holdings: Holding[]
   accounts: AccountSummary[]
   busy: boolean
   onEdit: (holding: Holding) => void
+  showUSD?: boolean
+  quotes?: Record<string, Quote> | null
+  usdKrw?: number | null
 }) {
   const groups = accounts
     .map((account) => ({
@@ -97,7 +141,14 @@ function AccountGroups({
             <span className="group-count">{rows.length}종목</span>
             <span className="group-amount">{won(sumEvalAmount(rows))}</span>
           </summary>
-          <HoldingRows holdings={rows} busy={busy} onEdit={onEdit} />
+          <HoldingRows
+            holdings={rows}
+            busy={busy}
+            onEdit={onEdit}
+            showUSD={showUSD}
+            quotes={quotes}
+            usdKrw={usdKrw}
+          />
         </details>
       ))}
     </div>

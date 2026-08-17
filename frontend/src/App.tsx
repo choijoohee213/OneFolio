@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { toUploadedFiles } from './api'
+import { fetchQuotes, toUploadedFiles } from './api'
 import { createSampleFiles } from './sampleData'
 import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
 import { EditConflicts } from './components/EditConflicts'
-import { FileDrop } from './components/FileDrop'
+import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
@@ -14,6 +14,7 @@ import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
 import { won } from './format'
+import { applyLiveQuotes, type Quote } from './liveQuotes'
 import { clearState, conflictingEdits, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import type {
@@ -48,6 +49,10 @@ export default function App() {
   const [showUnmatched, setShowUnmatched] = useState(false)
   const [showScreenshot, setShowScreenshot] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, Quote> | null>(null)
+  const [usdKrw, setUsdKrw] = useState<number | null>(null)
+  const [showLive, setShowLive] = useState(false)
+  const [showUSD, setShowUSD] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -201,6 +206,65 @@ export default function App() {
     return apply({ holdingEdits: withoutEdit(holdingEdits, holding) })
   }
 
+  // 종목코드를 아는 것만 새로고침할 수 있다. 받은 시세는 저장하지 않고
+  // 화면에만 겹쳐 보여준다 — 토글을 끄면 바로 원래(파일·수동입력) 값으로
+  // 돌아간다. 평단가가 원화가 아니라 달러로 들어간 종목은 손익이 잘못
+  // 나올 수 있어(입력 시점 통화를 저장하지 않음), 되돌릴 수 있는 게 중요하다.
+  async function fetchLiveQuotes(): Promise<boolean> {
+    if (!summary) return false
+    const withCode = summary.holdings.filter((h) => h.code)
+    if (withCode.length === 0) return false
+
+    try {
+      const codes = [...new Set(withCode.map((h) => h.code!))]
+      const result = await fetchQuotes(codes)
+      setLiveQuotes(result.quotes)
+      setUsdKrw(result.usdKrw ?? null)
+      return true
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+      return false
+    }
+  }
+
+  // "실시간 시세"와 "달러로 보기" 둘 다 이 시세 데이터가 있어야 동작한다.
+  // 어느 쪽을 먼저 켜도 없으면 그때 한 번 받아 온다. 이미 있으면 그대로 쓴다 —
+  // 켜져 있는 동안의 주기적 갱신은 아래 useEffect 가 따로 맡는다.
+  async function ensureQuotesLoaded(): Promise<boolean> {
+    if (liveQuotes !== null) return true
+    setBusy(true)
+    setError(null)
+    try {
+      return await fetchLiveQuotes()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function toggleLiveQuotes() {
+    if (showLive) {
+      setShowLive(false)
+      return
+    }
+    if (await ensureQuotesLoaded()) setShowLive(true)
+  }
+
+  async function toggleUSD() {
+    if (showUSD) {
+      setShowUSD(false)
+      return
+    }
+    if (await ensureQuotesLoaded()) setShowUSD(true)
+  }
+
+  // 실시간 시세가 켜져 있는 동안엔 30초마다 조용히(busy 표시 없이) 다시 받아
+  // 화면 값을 갱신한다. 꺼지거나 언마운트되면 멈춘다.
+  useEffect(() => {
+    if (!showLive) return
+    const id = setInterval(fetchLiveQuotes, 30_000)
+    return () => clearInterval(id)
+  }, [showLive, summary])
+
   function removeManualHolding(item: ManualHolding) {
     setHoldingTarget(null)
     const nextOverrides = { ...overrides }
@@ -253,7 +317,11 @@ export default function App() {
       evalAmount: h.evalAmount ?? 0,
       accountId: h.accountNumber ? accountIds.get(h.accountNumber) : undefined,
       quantity: h.quantity ?? undefined,
-      avgBuyPrice: h.avgBuyPrice ?? undefined,
+      // 평단가가 달러로 찍혀 있으면(currency==='USD') 그 숫자를 그대로 저장하면
+      // 본 화면에서 원화인 척 표시돼 이상해 보인다. evalAmount·profitLoss 는
+      // 이미 정확한 원화값이라 여기서 역산하면 새로 환율을 몰라도 원화 평단가가
+      // 나온다: 매입금액(원) = evalAmount - profitLoss, 평단가(원) = 매입금액 / 수량.
+      avgBuyPrice: krwAvgBuyPrice(h),
       profitLoss: h.profitLoss ?? undefined,
       profitRate: h.profitRate ?? undefined,
     }))
@@ -298,6 +366,7 @@ export default function App() {
   const superseded = supersededManualAccounts(manualAccounts, summary)
   const conflicts = conflictingEdits(holdingEdits, summary)
   const editingManual = holdingTarget?.kind === 'manual' ? holdingTarget.item : null
+  const displaySummary = showLive && summary && liveQuotes ? applyLiveQuotes(summary, liveQuotes, usdKrw) : summary
 
   return (
     <main>
@@ -310,24 +379,28 @@ export default function App() {
             applyTheme(next)
           }}
         />
-        {summary && (
+        {displaySummary && (
           <div className="total">
             {/* 계좌가 하나도 없으면(계좌 없이 종목만 있을 때) 계좌 총합은 0원이라
                 아무것도 없는 것처럼 보인다. 그럴 땐 실제로 집계된 금액을 보여준다. */}
             <span className="total-label">
-              {summary.accounts.length > 0 ? '계좌 총합' : '직접 추가한 자산'}
+              {displaySummary.accounts.length > 0 ? '계좌 총합' : '직접 추가한 자산'}
             </span>
-            <strong>{won(summary.accounts.length > 0 ? summary.totalAsset : summary.coveredAsset)}</strong>
+            <strong>
+              {won(displaySummary.accounts.length > 0 ? displaySummary.totalAsset : displaySummary.coveredAsset)}
+            </strong>
           </div>
         )}
+        {summary && (
+          <AddMenu
+            busy={busy}
+            onFileUpload={() => setShowFileUpload(true)}
+            onScreenshot={() => setShowScreenshot(true)}
+            onAddAccount={() => setAccountTarget('new')}
+            onAddHolding={() => setHoldingTarget({ kind: 'new' })}
+          />
+        )}
       </header>
-
-      {summary && (
-        <FileDrop
-          onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
-          busy={busy}
-        />
-      )}
 
       {error && <p className="error">{error}</p>}
 
@@ -341,33 +414,36 @@ export default function App() {
         />
       )}
 
-      {summary && (
+      {displaySummary && (
         <AccountsPanel
-          accounts={summary.accounts}
-          holdings={summary.holdings}
+          accounts={displaySummary.accounts}
+          holdings={displaySummary.holdings}
           manualAccounts={manualAccounts}
           superseded={superseded}
-          coveredAsset={summary.coveredAsset}
+          coveredAsset={displaySummary.coveredAsset}
           busy={busy}
           onRemove={(number) => apply({ files: withoutAccount(files, number) })}
-          onAddAccount={() => setAccountTarget('new')}
           onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
           onRemoveAccount={removeAccount}
         />
       )}
 
-      {summary && (
+      {displaySummary && (
         <>
-          <AllocationPie categories={summary.categories} coveredAsset={summary.coveredAsset} />
+          <AllocationPie categories={displaySummary.categories} coveredAsset={displaySummary.coveredAsset} />
           <HoldingsTable
-            holdings={summary.holdings}
-            accounts={summary.accounts}
+            holdings={displaySummary.holdings}
+            accounts={displaySummary.accounts}
             mode={mode}
             onModeChange={setMode}
             busy={busy}
-            onAddHolding={() => setHoldingTarget({ kind: 'new' })}
-            onScreenshot={() => setShowScreenshot(true)}
             onEditHolding={openHoldingEditor}
+            showLive={showLive}
+            onToggleLive={toggleLiveQuotes}
+            showUSD={showUSD}
+            onToggleUSD={toggleUSD}
+            quotes={liveQuotes}
+            usdKrw={usdKrw}
           />
           <footer className="page-foot">
             <p>
@@ -480,4 +556,14 @@ export default function App() {
 function withoutEdit(edits: HoldingEdit[], holding: Holding): HoldingEdit[] {
   const key = holdingKey(holding.accountNumber, holding.name)
   return edits.filter((e) => holdingKey(e.accountNumber, e.name) !== key)
+}
+
+// 평단가가 달러로 찍힌 종목은 evalAmount·profitLoss(이미 정확한 원화값)에서
+// 매입금액을 역산해 원화 평단가를 낸다. 새로 환율을 몰라도 되고, 백엔드가
+// 계산한 값과 항상 일치한다.
+function krwAvgBuyPrice(h: ExtractedHolding): number | undefined {
+  if (h.currency === 'USD' && h.evalAmount != null && h.profitLoss != null && h.quantity) {
+    return (h.evalAmount - h.profitLoss) / h.quantity
+  }
+  return h.avgBuyPrice ?? undefined
 }

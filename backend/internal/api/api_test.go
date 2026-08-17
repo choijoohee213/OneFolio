@@ -23,7 +23,7 @@ func newServer(t *testing.T) http.Handler {
 		t.Fatalf("종목마스터 로드 실패: %v", err)
 	}
 	mux := http.NewServeMux()
-	New(listings).Register(mux)
+	New(listings, nil, nil).Register(mux)
 	return mux
 }
 

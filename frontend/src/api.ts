@@ -104,6 +104,23 @@ export async function extractFromScreenshot(image: File): Promise<OcrResult> {
   return await response.json()
 }
 
+export interface QuotesResult {
+  quotes: Record<string, { price: number; currency: string }>
+  usdKrw?: number
+}
+
+export async function fetchQuotes(codes: string[]): Promise<QuotesResult> {
+  const response = await fetch(`${BASE}/api/quotes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codes }),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response))
+  }
+  return await response.json()
+}
+
 // 400·422 는 {"error"} JSON 이지만 404·405 는 라우터 기본 응답이라 평문이다.
 async function readError(response: Response): Promise<string> {
   const body = await response.text()

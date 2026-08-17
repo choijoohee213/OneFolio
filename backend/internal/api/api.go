@@ -16,6 +16,7 @@ import (
 	"github.com/choijoohee213/OneFolio/backend/internal/ocr"
 	"github.com/choijoohee213/OneFolio/backend/internal/parser"
 	"github.com/choijoohee213/OneFolio/backend/internal/portfolio"
+	"github.com/choijoohee213/OneFolio/backend/internal/quote"
 )
 
 const (
@@ -32,12 +33,13 @@ const (
 )
 
 type Server struct {
-	listings  *master.Table
-	ocrClient *ocr.Client
+	listings    *master.Table
+	ocrClient   *ocr.Client
+	quoteClient *quote.Client
 }
 
-func New(listings *master.Table, ocrClient *ocr.Client) *Server {
-	return &Server{listings: listings, ocrClient: ocrClient}
+func New(listings *master.Table, ocrClient *ocr.Client, quoteClient *quote.Client) *Server {
+	return &Server{listings: listings, ocrClient: ocrClient, quoteClient: quoteClient}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
@@ -46,6 +48,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/portfolio", s.portfolio)
 	if s.ocrClient != nil {
 		mux.HandleFunc("POST /api/ocr", s.extractFromScreenshot)
+	}
+	if s.quoteClient != nil {
+		mux.HandleFunc("POST /api/quotes", s.quotes)
 	}
 }
 
@@ -228,17 +233,98 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "종목 추출 실패: %v", err)
 		return
 	}
+
+	// 종목마다 currentPrice·avgBuyPrice 의 통화를 확정한다. Gemini 가 스스로
+	// 판단한 currency 필드는 종목마다 빠뜨리기 쉬워서 믿을 수 없다 — 종목마스터로
+	// 해외/국내가 확정되면 그걸 우선한다. 마스터에 없는 종목만 Gemini 판단을 쓴다.
+	needsFx := false
 	for i, h := range result.Holdings {
-		if _, ok := s.listings.Lookup(h.Name); ok {
-			continue
-		}
-		if h.Ticker != "" {
-			if entry, ok := s.listings.LookupByCode(h.Ticker); ok {
+		listing, ok := s.listings.Lookup(h.Name)
+		if !ok && h.Ticker != "" {
+			if entry, ok2 := s.listings.LookupByCode(h.Ticker); ok2 {
 				result.Holdings[i].Name = entry.Name
+				listing, ok = master.Listing{Code: entry.Code, Kind: entry.Kind}, true
+			}
+		}
+		if ok {
+			if listing.Kind.IsForeign() {
+				result.Holdings[i].Currency = "USD"
+			} else {
+				result.Holdings[i].Currency = "KRW"
+			}
+		}
+		if result.Holdings[i].Currency == "USD" {
+			needsFx = true
+		}
+	}
+
+	// 마스터로 해외 종목임이 확정된 것만 원화 환산을 강제로 다시 낸다. Gemini
+	// 가 직접 읽은 evalAmount·profitLoss 는 통화를 혼동했을 위험이 있어
+	// 있어도 덮어쓴다 — currentPrice·avgBuyPrice 는 숫자만 베끼면 되니 더 믿을 만하다.
+	if needsFx && s.quoteClient != nil {
+		if rate, err := s.quoteClient.ExchangeRate(r.Context(), "USD", "KRW"); err == nil {
+			for i := range result.Holdings {
+				if result.Holdings[i].Currency == "USD" {
+					ocr.RecomputeKRW(&result.Holdings[i], rate)
+				}
 			}
 		}
 	}
+
 	writeJSON(w, http.StatusOK, result)
+}
+
+type quoteResult struct {
+	Price    float64 `json:"price"`
+	Currency string  `json:"currency"`
+}
+
+type quotesResponse struct {
+	Quotes map[string]quoteResult `json:"quotes"`
+	// UsdKrw 은 조회한 종목 중 원화가 아닌 게 있을 때만 채운다.
+	UsdKrw float64 `json:"usdKrw,omitempty"`
+}
+
+// quotes 는 이미 알고 있는 종목(파일로 올렸거나 수동으로 넣은)의 현재가만
+// 새로고침한다. 수량·평단가는 그대로 두고 프론트에서 evalAmount 를 다시 낸다.
+func (s *Server) quotes(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Codes []string `json:"codes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "요청을 읽지 못했습니다: %v", err)
+		return
+	}
+	if len(body.Codes) == 0 {
+		writeError(w, http.StatusBadRequest, "codes 가 비어 있습니다")
+		return
+	}
+
+	prices, err := s.quoteClient.Prices(r.Context(), body.Codes)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "시세 조회 실패: %v", err)
+		return
+	}
+
+	resp := quotesResponse{Quotes: make(map[string]quoteResult, len(prices))}
+	hasForeign := false
+	for code, p := range prices {
+		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency}
+		if p.Currency != "KRW" {
+			hasForeign = true
+		}
+	}
+
+	if hasForeign {
+		rate, err := s.quoteClient.ExchangeRate(r.Context(), "USD", "KRW")
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "환율 조회 실패: %v", err)
+			return
+		}
+		resp.UsdKrw = rate
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func manualAccountIDOf(accountNumber string) (string, bool) {
