@@ -14,7 +14,6 @@ interface Props {
   onEditHolding: (holding: Holding) => void
   showLive?: boolean
   onToggleLive?: () => void
-  liveQuotesAvailable?: boolean
   showUSD?: boolean
   onToggleUSD?: () => void
   quotes?: Record<string, Quote> | null
@@ -30,7 +29,6 @@ export function HoldingsTable({
   onEditHolding,
   showLive,
   onToggleLive,
-  liveQuotesAvailable,
   showUSD,
   onToggleUSD,
   quotes,
@@ -39,7 +37,24 @@ export function HoldingsTable({
   return (
     <section className="holdings">
       <header className="section-head">
-        <h2>보유 종목</h2>
+        <div className="section-head-title">
+          <h2>보유 종목</h2>
+          {onToggleLive && (
+            <button
+              type="button"
+              className="switch"
+              role="switch"
+              aria-checked={!!showLive}
+              disabled={busy}
+              onClick={onToggleLive}
+            >
+              <span className="switch-track">
+                <span className="switch-knob" />
+              </span>
+              실시간 시세
+            </button>
+          )}
+        </div>
         <div className="head-actions">
           <div className="toggle" role="group" aria-label="보기 방식">
             <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>
@@ -53,36 +68,16 @@ export function HoldingsTable({
               계좌별
             </button>
           </div>
-          {liveQuotesAvailable && (
-            <div className="toggle" role="group" aria-label="표시 통화">
-              <button type="button" aria-pressed={!showUSD} onClick={() => showUSD && onToggleUSD?.()}>
-                원화
-              </button>
-              <button type="button" aria-pressed={!!showUSD} onClick={() => !showUSD && onToggleUSD?.()}>
-                달러
-              </button>
-            </div>
-          )}
+          <div className="toggle" role="group" aria-label="표시 통화">
+            <button type="button" aria-pressed={!showUSD} onClick={() => showUSD && onToggleUSD?.()}>
+              원화
+            </button>
+            <button type="button" aria-pressed={!!showUSD} onClick={() => !showUSD && onToggleUSD?.()}>
+              달러
+            </button>
+          </div>
         </div>
       </header>
-
-      {onToggleLive && (
-        <div className="section-subhead">
-          <button
-            type="button"
-            className="switch"
-            role="switch"
-            aria-checked={!!showLive}
-            disabled={busy}
-            onClick={onToggleLive}
-          >
-            <span className="switch-track">
-              <span className="switch-knob" />
-            </span>
-            실시간 시세
-          </button>
-        </div>
-      )}
 
       {mode === 'all' ? (
         <HoldingRows

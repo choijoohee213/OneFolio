@@ -810,8 +810,11 @@ main {
   font-size: 1rem;
   margin: 0;
 }
-.section-subhead {
-  margin-bottom: 0.75rem;
+.section-head-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 .toggle {
   display: flex;

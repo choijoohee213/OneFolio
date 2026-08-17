@@ -210,14 +210,14 @@ export default function App() {
   // 화면에만 겹쳐 보여준다 — 토글을 끄면 바로 원래(파일·수동입력) 값으로
   // 돌아간다. 평단가가 원화가 아니라 달러로 들어간 종목은 손익이 잘못
   // 나올 수 있어(입력 시점 통화를 저장하지 않음), 되돌릴 수 있는 게 중요하다.
-  async function toggleLiveQuotes() {
-    if (showLive) {
-      setShowLive(false)
-      return
-    }
-    if (!summary) return
+  //
+  // "실시간 시세"와 "달러로 보기" 둘 다 이 시세 데이터가 있어야 동작한다.
+  // 어느 쪽을 먼저 켜도 없으면 그때 한 번 받아 온다.
+  async function ensureQuotesLoaded(): Promise<boolean> {
+    if (liveQuotes !== null) return true
+    if (!summary) return false
     const withCode = summary.holdings.filter((h) => h.code)
-    if (withCode.length === 0) return
+    if (withCode.length === 0) return false
 
     setBusy(true)
     setError(null)
@@ -226,12 +226,29 @@ export default function App() {
       const result = await fetchQuotes(codes)
       setLiveQuotes(result.quotes)
       setUsdKrw(result.usdKrw ?? null)
-      setShowLive(true)
+      return true
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
+      return false
     } finally {
       setBusy(false)
     }
+  }
+
+  async function toggleLiveQuotes() {
+    if (showLive) {
+      setShowLive(false)
+      return
+    }
+    if (await ensureQuotesLoaded()) setShowLive(true)
+  }
+
+  async function toggleUSD() {
+    if (showUSD) {
+      setShowUSD(false)
+      return
+    }
+    if (await ensureQuotesLoaded()) setShowUSD(true)
   }
 
   function removeManualHolding(item: ManualHolding) {
@@ -409,9 +426,8 @@ export default function App() {
             onEditHolding={openHoldingEditor}
             showLive={showLive}
             onToggleLive={toggleLiveQuotes}
-            liveQuotesAvailable={liveQuotes !== null}
             showUSD={showUSD}
-            onToggleUSD={() => setShowUSD((v) => !v)}
+            onToggleUSD={toggleUSD}
             quotes={liveQuotes}
             usdKrw={usdKrw}
           />
