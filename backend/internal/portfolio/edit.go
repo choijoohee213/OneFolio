@@ -25,6 +25,11 @@ func ApplyEdits(p *Portfolio, edits []HoldingEdit) {
 		byKey[HoldingKey(edit.AccountNumber, edit.Name)] = edit
 	}
 
+	accountIdx := make(map[string]int, len(p.Accounts))
+	for i, account := range p.Accounts {
+		accountIdx[account.Number] = i
+	}
+
 	for i, holding := range p.Holdings {
 		edit, ok := byKey[HoldingKey(holding.AccountNumber, holding.Name)]
 		if !ok {
@@ -34,7 +39,16 @@ func ApplyEdits(p *Portfolio, edits []HoldingEdit) {
 			p.OriginalHoldings = make(map[string]domain.Holding)
 		}
 		p.OriginalHoldings[HoldingKey(holding.AccountNumber, holding.Name)] = holding
-		p.Holdings[i] = edited(holding, edit)
+
+		before := holding.EvalAmount
+		updated := edited(holding, edit)
+		p.Holdings[i] = updated
+
+		// 평가금액이 바뀌면 계좌 총액도 같이 옮겨야 비중·현금 계산이 어긋나지 않는다.
+		// 계좌 총액은 파일의 "자산총액" 스냅샷이라 종목만 고치면 둘이 따로 논다.
+		if idx, ok := accountIdx[holding.AccountNumber]; ok {
+			p.Accounts[idx].TotalAsset += updated.EvalAmount - before
+		}
 	}
 }
 
