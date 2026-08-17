@@ -210,17 +210,11 @@ export default function App() {
   // 화면에만 겹쳐 보여준다 — 토글을 끄면 바로 원래(파일·수동입력) 값으로
   // 돌아간다. 평단가가 원화가 아니라 달러로 들어간 종목은 손익이 잘못
   // 나올 수 있어(입력 시점 통화를 저장하지 않음), 되돌릴 수 있는 게 중요하다.
-  //
-  // "실시간 시세"와 "달러로 보기" 둘 다 이 시세 데이터가 있어야 동작한다.
-  // 어느 쪽을 먼저 켜도 없으면 그때 한 번 받아 온다.
-  async function ensureQuotesLoaded(): Promise<boolean> {
-    if (liveQuotes !== null) return true
+  async function fetchLiveQuotes(): Promise<boolean> {
     if (!summary) return false
     const withCode = summary.holdings.filter((h) => h.code)
     if (withCode.length === 0) return false
 
-    setBusy(true)
-    setError(null)
     try {
       const codes = [...new Set(withCode.map((h) => h.code!))]
       const result = await fetchQuotes(codes)
@@ -230,6 +224,18 @@ export default function App() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
       return false
+    }
+  }
+
+  // "실시간 시세"와 "달러로 보기" 둘 다 이 시세 데이터가 있어야 동작한다.
+  // 어느 쪽을 먼저 켜도 없으면 그때 한 번 받아 온다. 이미 있으면 그대로 쓴다 —
+  // 켜져 있는 동안의 주기적 갱신은 아래 useEffect 가 따로 맡는다.
+  async function ensureQuotesLoaded(): Promise<boolean> {
+    if (liveQuotes !== null) return true
+    setBusy(true)
+    setError(null)
+    try {
+      return await fetchLiveQuotes()
     } finally {
       setBusy(false)
     }
@@ -250,6 +256,14 @@ export default function App() {
     }
     if (await ensureQuotesLoaded()) setShowUSD(true)
   }
+
+  // 실시간 시세가 켜져 있는 동안엔 30초마다 조용히(busy 표시 없이) 다시 받아
+  // 화면 값을 갱신한다. 꺼지거나 언마운트되면 멈춘다.
+  useEffect(() => {
+    if (!showLive) return
+    const id = setInterval(fetchLiveQuotes, 30_000)
+    return () => clearInterval(id)
+  }, [showLive, summary])
 
   function removeManualHolding(item: ManualHolding) {
     setHoldingTarget(null)
