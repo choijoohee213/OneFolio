@@ -32,20 +32,22 @@ func main() {
 		log.Fatalf("종목마스터 로드 실패: %v", err)
 	}
 
+	var quoteClient *quote.Client
+	if id, secret := os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"); id != "" && secret != "" {
+		quoteClient = quote.NewClient(id, secret)
+		log.Println("시세 새로고침 활성화 (토스증권 Open API)")
+	}
+
 	var ocrClient *ocr.Client
 	if keys := os.Getenv("GEMINI_API_KEY"); keys != "" {
-		c, err := ocr.NewClient(keys)
+		// quoteClient 를 같이 넘겨야 해외 종목의 평단가·현재가가 달러로 찍혀
+		// 있을 때 원화 평가손익을 정확히 환산할 수 있다.
+		c, err := ocr.NewClient(keys, quoteClient)
 		if err != nil {
 			log.Fatalf("OCR 클라이언트 초기화 실패: %v", err)
 		}
 		ocrClient = c
 		log.Printf("OCR 활성화 (Gemini, 키 %d개)", c.KeyCount())
-	}
-
-	var quoteClient *quote.Client
-	if id, secret := os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"); id != "" && secret != "" {
-		quoteClient = quote.NewClient(id, secret)
-		log.Println("시세 새로고침 활성화 (토스증권 Open API)")
 	}
 
 	mux := http.NewServeMux()

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/choijoohee213/OneFolio/backend/internal/quote"
 	"google.golang.org/genai"
 )
 
@@ -22,9 +23,12 @@ type ExtractedHolding struct {
 	Quantity      *float64 `json:"quantity"`
 	CurrentPrice  *float64 `json:"currentPrice"`
 	AvgBuyPrice   *float64 `json:"avgBuyPrice"`
-	EvalAmount    *float64 `json:"evalAmount"`
-	ProfitLoss    *float64 `json:"profitLoss"`
-	ProfitRate    *float64 `json:"profitRate"`
+	// Currency 는 currentPrice·avgBuyPrice 가 찍힌 통화다("KRW" 또는 "USD").
+	// evalAmount·profitLoss·profitRate 는 항상 원화라 여기 포함되지 않는다.
+	Currency   string   `json:"currency,omitempty"`
+	EvalAmount *float64 `json:"evalAmount"`
+	ProfitLoss *float64 `json:"profitLoss"`
+	ProfitRate *float64 `json:"profitRate"`
 }
 
 type Result struct {
@@ -55,20 +59,24 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 - 숫자는 콤마, 원, %, +, - 기호를 제거한 순수 숫자로 변환한다. 손실(마이너스)이면 음수로.
 - 평가손익(profitLoss)과 평가금액(evalAmount)은 반드시 원화(KRW) 기준으로 추출한다. "원화평가손익" 등 원화 값이 있으면 그것을 쓰고, 원화 값이 없으면 null로 둔다.
 - 현재가(currentPrice)와 평균매입가(avgBuyPrice)는 화면에 보이는 값을 그대로 추출한다. 달러든 원화든 표시된 숫자를 넣는다.
+- currency: currentPrice·avgBuyPrice 가 찍힌 통화. 화면에 "$"나 "USD"가 보이거나 해외 종목인데 숫자가 작으면(예: 주당 70) 달러일 가능성이 높다 — 그럴 땐 "USD". 원화로 보이면 "KRW". 확실하지 않으면 "KRW"로 둔다.
 - 손익률(profitRate)은 퍼센트 숫자를 넣는다.
 - 총합계/소계 행은 제외하고 개별 종목만 추출한다.
 - 반드시 아래 JSON 형식만 출력하고 다른 텍스트는 쓰지 마라.
 
 출력 형식:
-{"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":50000,"avgBuyPrice":45000,"evalAmount":500000,"profitLoss":50000,"profitRate":11.11}]}]}`
+{"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":70.5,"avgBuyPrice":65.2,"currency":"USD","evalAmount":500000,"profitLoss":50000,"profitRate":11.11}]}]}`
 
 type Client struct {
 	clients []*genai.Client
 	model   string
 	next    atomic.Uint64
+	// quoteClient 는 해외 종목의 평단가·현재가가 달러로 찍혀 있을 때 원화
+	// 평가손익을 정확히 환산하는 데 쓴다. nil 이면 환산 없이 null로 둔다.
+	quoteClient *quote.Client
 }
 
-func NewClient(apiKeys string) (*Client, error) {
+func NewClient(apiKeys string, quoteClient *quote.Client) (*Client, error) {
 	keys := strings.Split(apiKeys, ",")
 	var clients []*genai.Client
 	ctx := context.Background()
@@ -89,7 +97,7 @@ func NewClient(apiKeys string) (*Client, error) {
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("유효한 API 키가 없습니다")
 	}
-	return &Client{clients: clients, model: "gemini-flash-latest"}, nil
+	return &Client{clients: clients, model: "gemini-flash-latest", quoteClient: quoteClient}, nil
 }
 
 func (c *Client) pickClient() *genai.Client {
@@ -102,12 +110,15 @@ func (c *Client) KeyCount() int {
 }
 
 // retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)는
-// 키마다 다르게 나는 문제라 재시도할 가치가 있다. 반면 타임아웃은 보통
-// 네트워크 경로 자체의 문제라 다른 키로 바꿔도 똑같이 멈춘다 — 재시도하면
-// 대기 시간만 키 개수만큼 늘어나 배포 플랫폼의 게이트웨이 타임아웃(502)에
-// 걸리기 쉬우므로 즉시 실패시킨다.
+// 키마다 다르게 나는 문제라 재시도할 가치가 있다. 503(UNAVAILABLE)은 모델이
+// 일시적으로 과부하 상태라는 뜻인데, 이 경우도 즉시 응답이 오는 실패라(응답이
+// 멈추는 타임아웃과 달리) 재시도해도 대기 시간이 크게 늘지 않는다. 반면
+// 타임아웃은 보통 네트워크 경로 자체의 문제라 다른 키로 바꿔도 똑같이
+// 멈춘다 — 재시도하면 대기 시간만 키 개수만큼 늘어나 배포 플랫폼의
+// 게이트웨이 타임아웃(502)에 걸리기 쉬우므로 즉시 실패시킨다.
 func retryable(err error) bool {
-	return strings.Contains(err.Error(), "429")
+	msg := err.Error()
+	return strings.Contains(msg, "429") || strings.Contains(msg, "503") || strings.Contains(msg, "UNAVAILABLE")
 }
 
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
@@ -160,14 +171,39 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 			acct.Holdings[i].AccountNumber = acct.AccountNumber
 			acct.Holdings[i].AccountType = acct.AccountType
 		}
-		fillCalculatedFields(acct.Holdings)
 		result.Holdings = append(result.Holdings, acct.Holdings...)
 		if result.AccountNumber == "" && acct.AccountNumber != "" {
 			result.AccountNumber = acct.AccountNumber
 			result.AccountType = acct.AccountType
 		}
 	}
+
+	fillCalculatedFields(result.Holdings, c.usdKrwRate(ctx, result.Holdings))
 	return &result, nil
+}
+
+// usdKrwRate 는 달러로 찍힌 종목이 하나라도 있을 때만 환율을 조회한다.
+// 조회에 실패하거나 시세 클라이언트가 없으면 nil — fillCalculatedFields 는
+// 그 경우 원화 계산이 필요한 필드를 채우지 않고 비워 둔다.
+func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *float64 {
+	if c.quoteClient == nil {
+		return nil
+	}
+	needsFx := false
+	for _, h := range holdings {
+		if h.Currency == "USD" {
+			needsFx = true
+			break
+		}
+	}
+	if !needsFx {
+		return nil
+	}
+	rate, err := c.quoteClient.ExchangeRate(ctx, "USD", "KRW")
+	if err != nil {
+		return nil
+	}
+	return &rate
 }
 
 func ptr(v float64) *float64 { return &v }
@@ -176,29 +212,43 @@ func round2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
-func fillCalculatedFields(holdings []ExtractedHolding) {
+// fillCalculatedFields 는 Gemini 가 비워 둔 파생 필드를 채운다. currentPrice·
+// avgBuyPrice 가 달러(Currency=="USD")면 usdKrw 로 원화 환산한 뒤 계산한다.
+// 환율을 모르면(usdKrw==nil) 그 종목의 원화 계산은 건너뛴다 — 잘못된 값을
+// 만드느니 비워 두는 편이 낫다.
+func fillCalculatedFields(holdings []ExtractedHolding, usdKrw *float64) {
 	for i := range holdings {
 		h := &holdings[i]
 
-		// evalAmount from profitLoss + profitRate (해외주식도 원화 기준으로 정확)
+		fx := 1.0
+		fxKnown := true
+		if h.Currency == "USD" {
+			if usdKrw == nil {
+				fxKnown = false
+			} else {
+				fx = *usdKrw
+			}
+		}
+
+		// evalAmount from profitLoss + profitRate — 이미 원화 값이라 환율이 필요 없다.
 		if h.EvalAmount == nil && h.ProfitLoss != nil && h.ProfitRate != nil && *h.ProfitRate != 0 {
 			buyAmount := *h.ProfitLoss / (*h.ProfitRate / 100)
 			h.EvalAmount = ptr(round2(buyAmount + *h.ProfitLoss))
 		}
 
-		// evalAmount = currentPrice * quantity (같은 통화일 때)
-		if h.EvalAmount == nil && h.CurrentPrice != nil && h.Quantity != nil {
-			h.EvalAmount = ptr(round2(*h.CurrentPrice * *h.Quantity))
+		// evalAmount = currentPrice(원화 환산) * quantity
+		if h.EvalAmount == nil && h.CurrentPrice != nil && h.Quantity != nil && fxKnown {
+			h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
 		}
 
-		// profitLoss = evalAmount - avgBuyPrice * quantity
-		if h.ProfitLoss == nil && h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil {
-			h.ProfitLoss = ptr(round2(*h.EvalAmount - *h.AvgBuyPrice**h.Quantity))
+		// profitLoss = evalAmount - avgBuyPrice(원화 환산) * quantity
+		if h.ProfitLoss == nil && h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil && fxKnown {
+			h.ProfitLoss = ptr(round2(*h.EvalAmount - *h.AvgBuyPrice*fx**h.Quantity))
 		}
 
 		// profitRate = profitLoss / buyAmount * 100
-		if h.ProfitRate == nil && h.ProfitLoss != nil && h.AvgBuyPrice != nil && h.Quantity != nil {
-			buyAmount := *h.AvgBuyPrice * *h.Quantity
+		if h.ProfitRate == nil && h.ProfitLoss != nil && h.AvgBuyPrice != nil && h.Quantity != nil && fxKnown {
+			buyAmount := *h.AvgBuyPrice * fx * *h.Quantity
 			if buyAmount != 0 {
 				h.ProfitRate = ptr(round2(*h.ProfitLoss / buyAmount * 100))
 			}
