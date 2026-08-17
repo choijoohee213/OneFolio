@@ -22,7 +22,7 @@ import (
 const (
 	defaultPort  = "8080"
 	readTimeout  = 30 * time.Second
-	writeTimeout = 60 * time.Second
+	writeTimeout = 90 * time.Second
 	idleTimeout  = 120 * time.Second
 )
 

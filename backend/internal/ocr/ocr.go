@@ -13,7 +13,7 @@ import (
 	"google.golang.org/genai"
 )
 
-const requestTimeout = 30 * time.Second
+const requestTimeout = 45 * time.Second
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
