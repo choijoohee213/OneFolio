@@ -286,7 +286,11 @@ export default function App() {
       evalAmount: h.evalAmount ?? 0,
       accountId: h.accountNumber ? accountIds.get(h.accountNumber) : undefined,
       quantity: h.quantity ?? undefined,
-      avgBuyPrice: h.avgBuyPrice ?? undefined,
+      // 평단가가 달러로 찍혀 있으면(currency==='USD') 그 숫자를 그대로 저장하면
+      // 본 화면에서 원화인 척 표시돼 이상해 보인다. evalAmount·profitLoss 는
+      // 이미 정확한 원화값이라 여기서 역산하면 새로 환율을 몰라도 원화 평단가가
+      // 나온다: 매입금액(원) = evalAmount - profitLoss, 평단가(원) = 매입금액 / 수량.
+      avgBuyPrice: krwAvgBuyPrice(h),
       profitLoss: h.profitLoss ?? undefined,
       profitRate: h.profitRate ?? undefined,
     }))
@@ -523,4 +527,14 @@ export default function App() {
 function withoutEdit(edits: HoldingEdit[], holding: Holding): HoldingEdit[] {
   const key = holdingKey(holding.accountNumber, holding.name)
   return edits.filter((e) => holdingKey(e.accountNumber, e.name) !== key)
+}
+
+// 평단가가 달러로 찍힌 종목은 evalAmount·profitLoss(이미 정확한 원화값)에서
+// 매입금액을 역산해 원화 평단가를 낸다. 새로 환율을 몰라도 되고, 백엔드가
+// 계산한 값과 항상 일치한다.
+function krwAvgBuyPrice(h: ExtractedHolding): number | undefined {
+  if (h.currency === 'USD' && h.evalAmount != null && h.profitLoss != null && h.quantity) {
+    return (h.evalAmount - h.profitLoss) / h.quantity
+  }
+  return h.avgBuyPrice ?? undefined
 }
