@@ -16,6 +16,7 @@ import (
 	"github.com/choijoohee213/OneFolio/backend/internal/ocr"
 	"github.com/choijoohee213/OneFolio/backend/internal/parser"
 	"github.com/choijoohee213/OneFolio/backend/internal/portfolio"
+	"github.com/choijoohee213/OneFolio/backend/internal/quote"
 )
 
 const (
@@ -32,12 +33,13 @@ const (
 )
 
 type Server struct {
-	listings  *master.Table
-	ocrClient *ocr.Client
+	listings    *master.Table
+	ocrClient   *ocr.Client
+	quoteClient *quote.Client
 }
 
-func New(listings *master.Table, ocrClient *ocr.Client) *Server {
-	return &Server{listings: listings, ocrClient: ocrClient}
+func New(listings *master.Table, ocrClient *ocr.Client, quoteClient *quote.Client) *Server {
+	return &Server{listings: listings, ocrClient: ocrClient, quoteClient: quoteClient}
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
@@ -46,6 +48,9 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/portfolio", s.portfolio)
 	if s.ocrClient != nil {
 		mux.HandleFunc("POST /api/ocr", s.extractFromScreenshot)
+	}
+	if s.quoteClient != nil {
+		mux.HandleFunc("POST /api/quotes", s.quotes)
 	}
 }
 
@@ -239,6 +244,59 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+type quoteResult struct {
+	Price    float64 `json:"price"`
+	Currency string  `json:"currency"`
+}
+
+type quotesResponse struct {
+	Quotes map[string]quoteResult `json:"quotes"`
+	// UsdKrw 은 조회한 종목 중 원화가 아닌 게 있을 때만 채운다.
+	UsdKrw float64 `json:"usdKrw,omitempty"`
+}
+
+// quotes 는 이미 알고 있는 종목(파일로 올렸거나 수동으로 넣은)의 현재가만
+// 새로고침한다. 수량·평단가는 그대로 두고 프론트에서 evalAmount 를 다시 낸다.
+func (s *Server) quotes(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Codes []string `json:"codes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "요청을 읽지 못했습니다: %v", err)
+		return
+	}
+	if len(body.Codes) == 0 {
+		writeError(w, http.StatusBadRequest, "codes 가 비어 있습니다")
+		return
+	}
+
+	prices, err := s.quoteClient.Prices(r.Context(), body.Codes)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "시세 조회 실패: %v", err)
+		return
+	}
+
+	resp := quotesResponse{Quotes: make(map[string]quoteResult, len(prices))}
+	hasForeign := false
+	for code, p := range prices {
+		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency}
+		if p.Currency != "KRW" {
+			hasForeign = true
+		}
+	}
+
+	if hasForeign {
+		rate, err := s.quoteClient.ExchangeRate(r.Context(), "USD", "KRW")
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "환율 조회 실패: %v", err)
+			return
+		}
+		resp.UsdKrw = rate
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func manualAccountIDOf(accountNumber string) (string, bool) {

@@ -16,6 +16,7 @@ import (
 	"github.com/choijoohee213/OneFolio/backend/internal/api"
 	"github.com/choijoohee213/OneFolio/backend/internal/master"
 	"github.com/choijoohee213/OneFolio/backend/internal/ocr"
+	"github.com/choijoohee213/OneFolio/backend/internal/quote"
 )
 
 const (
@@ -41,8 +42,14 @@ func main() {
 		log.Printf("OCR 활성화 (Gemini, 키 %d개)", c.KeyCount())
 	}
 
+	var quoteClient *quote.Client
+	if id, secret := os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"); id != "" && secret != "" {
+		quoteClient = quote.NewClient(id, secret)
+		log.Println("시세 새로고침 활성화 (토스증권 Open API)")
+	}
+
 	mux := http.NewServeMux()
-	api.New(listings, ocrClient).Register(mux)
+	api.New(listings, ocrClient, quoteClient).Register(mux)
 
 	address := ":" + env("PORT", defaultPort)
 	server := &http.Server{
