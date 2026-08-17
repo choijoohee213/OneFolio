@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { toUploadedFiles } from './api'
+import { fetchQuotes, toUploadedFiles } from './api'
 import { createSampleFiles } from './sampleData'
 import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
@@ -14,6 +14,7 @@ import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { ThemeToggle } from './components/ThemeToggle'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
 import { won } from './format'
+import { applyLiveQuotes, type Quote } from './liveQuotes'
 import { clearState, conflictingEdits, loadState, saveState, supersededManualAccounts } from './storage'
 import { applyTheme, loadTheme, type Theme } from './theme'
 import type {
@@ -48,6 +49,10 @@ export default function App() {
   const [showUnmatched, setShowUnmatched] = useState(false)
   const [showScreenshot, setShowScreenshot] = useState(false)
   const [showFileUpload, setShowFileUpload] = useState(false)
+  const [liveQuotes, setLiveQuotes] = useState<Record<string, Quote> | null>(null)
+  const [usdKrw, setUsdKrw] = useState<number | null>(null)
+  const [showLive, setShowLive] = useState(false)
+  const [showUSD, setShowUSD] = useState(false)
 
   useEffect(() => {
     loadState().then((state) => {
@@ -201,6 +206,34 @@ export default function App() {
     return apply({ holdingEdits: withoutEdit(holdingEdits, holding) })
   }
 
+  // 종목코드를 아는 것만 새로고침할 수 있다. 받은 시세는 저장하지 않고
+  // 화면에만 겹쳐 보여준다 — 토글을 끄면 바로 원래(파일·수동입력) 값으로
+  // 돌아간다. 평단가가 원화가 아니라 달러로 들어간 종목은 손익이 잘못
+  // 나올 수 있어(입력 시점 통화를 저장하지 않음), 되돌릴 수 있는 게 중요하다.
+  async function toggleLiveQuotes() {
+    if (showLive) {
+      setShowLive(false)
+      return
+    }
+    if (!summary) return
+    const withCode = summary.holdings.filter((h) => h.code)
+    if (withCode.length === 0) return
+
+    setBusy(true)
+    setError(null)
+    try {
+      const codes = [...new Set(withCode.map((h) => h.code!))]
+      const result = await fetchQuotes(codes)
+      setLiveQuotes(result.quotes)
+      setUsdKrw(result.usdKrw ?? null)
+      setShowLive(true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function removeManualHolding(item: ManualHolding) {
     setHoldingTarget(null)
     const nextOverrides = { ...overrides }
@@ -298,6 +331,7 @@ export default function App() {
   const superseded = supersededManualAccounts(manualAccounts, summary)
   const conflicts = conflictingEdits(holdingEdits, summary)
   const editingManual = holdingTarget?.kind === 'manual' ? holdingTarget.item : null
+  const displaySummary = showLive && summary && liveQuotes ? applyLiveQuotes(summary, liveQuotes, usdKrw) : summary
 
   return (
     <main>
@@ -310,14 +344,16 @@ export default function App() {
             applyTheme(next)
           }}
         />
-        {summary && (
+        {displaySummary && (
           <div className="total">
             {/* 계좌가 하나도 없으면(계좌 없이 종목만 있을 때) 계좌 총합은 0원이라
                 아무것도 없는 것처럼 보인다. 그럴 땐 실제로 집계된 금액을 보여준다. */}
             <span className="total-label">
-              {summary.accounts.length > 0 ? '계좌 총합' : '직접 추가한 자산'}
+              {displaySummary.accounts.length > 0 ? '계좌 총합' : '직접 추가한 자산'}
             </span>
-            <strong>{won(summary.accounts.length > 0 ? summary.totalAsset : summary.coveredAsset)}</strong>
+            <strong>
+              {won(displaySummary.accounts.length > 0 ? displaySummary.totalAsset : displaySummary.coveredAsset)}
+            </strong>
           </div>
         )}
       </header>
@@ -341,13 +377,13 @@ export default function App() {
         />
       )}
 
-      {summary && (
+      {displaySummary && (
         <AccountsPanel
-          accounts={summary.accounts}
-          holdings={summary.holdings}
+          accounts={displaySummary.accounts}
+          holdings={displaySummary.holdings}
           manualAccounts={manualAccounts}
           superseded={superseded}
-          coveredAsset={summary.coveredAsset}
+          coveredAsset={displaySummary.coveredAsset}
           busy={busy}
           onRemove={(number) => apply({ files: withoutAccount(files, number) })}
           onAddAccount={() => setAccountTarget('new')}
@@ -356,18 +392,25 @@ export default function App() {
         />
       )}
 
-      {summary && (
+      {displaySummary && (
         <>
-          <AllocationPie categories={summary.categories} coveredAsset={summary.coveredAsset} />
+          <AllocationPie categories={displaySummary.categories} coveredAsset={displaySummary.coveredAsset} />
           <HoldingsTable
-            holdings={summary.holdings}
-            accounts={summary.accounts}
+            holdings={displaySummary.holdings}
+            accounts={displaySummary.accounts}
             mode={mode}
             onModeChange={setMode}
             busy={busy}
             onAddHolding={() => setHoldingTarget({ kind: 'new' })}
             onScreenshot={() => setShowScreenshot(true)}
             onEditHolding={openHoldingEditor}
+            showLive={showLive}
+            onToggleLive={toggleLiveQuotes}
+            liveQuotesAvailable={liveQuotes !== null}
+            showUSD={showUSD}
+            onToggleUSD={() => setShowUSD((v) => !v)}
+            quotes={liveQuotes}
+            usdKrw={usdKrw}
           />
           <footer className="page-foot">
             <p>

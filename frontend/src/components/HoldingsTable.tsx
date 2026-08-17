@@ -1,5 +1,6 @@
 import { won } from '../format'
 import type { AccountSummary, Holding } from '../types'
+import type { Quote } from '../liveQuotes'
 import { HoldingRows } from './HoldingRows'
 
 export type GroupMode = 'all' | 'account'
@@ -13,6 +14,13 @@ interface Props {
   onAddHolding: () => void
   onScreenshot: () => void
   onEditHolding: (holding: Holding) => void
+  showLive?: boolean
+  onToggleLive?: () => void
+  liveQuotesAvailable?: boolean
+  showUSD?: boolean
+  onToggleUSD?: () => void
+  quotes?: Record<string, Quote> | null
+  usdKrw?: number | null
 }
 
 export function HoldingsTable({
@@ -24,6 +32,13 @@ export function HoldingsTable({
   onAddHolding,
   onScreenshot,
   onEditHolding,
+  showLive,
+  onToggleLive,
+  liveQuotesAvailable,
+  showUSD,
+  onToggleUSD,
+  quotes,
+  usdKrw,
 }: Props) {
   return (
     <section className="holdings">
@@ -48,17 +63,37 @@ export function HoldingsTable({
           <button type="button" className="add-toggle" disabled={busy} onClick={onScreenshot}>
             스크린샷
           </button>
+          {onToggleLive && (
+            <button type="button" className="add-toggle" disabled={busy} aria-pressed={showLive} onClick={onToggleLive}>
+              실시간 시세
+            </button>
+          )}
+          {liveQuotesAvailable && (
+            <button type="button" className="add-toggle" aria-pressed={showUSD} onClick={onToggleUSD}>
+              달러로 보기
+            </button>
+          )}
         </div>
       </header>
 
       {mode === 'all' ? (
-        <HoldingRows holdings={mergeByName(holdings)} busy={busy} onEdit={onEditHolding} />
+        <HoldingRows
+          holdings={mergeByName(holdings)}
+          busy={busy}
+          onEdit={onEditHolding}
+          showUSD={showUSD}
+          quotes={quotes}
+          usdKrw={usdKrw}
+        />
       ) : (
         <AccountGroups
           holdings={holdings}
           accounts={accounts}
           busy={busy}
           onEdit={onEditHolding}
+          showUSD={showUSD}
+          quotes={quotes}
+          usdKrw={usdKrw}
         />
       )}
     </section>
@@ -70,11 +105,17 @@ function AccountGroups({
   accounts,
   busy,
   onEdit,
+  showUSD,
+  quotes,
+  usdKrw,
 }: {
   holdings: Holding[]
   accounts: AccountSummary[]
   busy: boolean
   onEdit: (holding: Holding) => void
+  showUSD?: boolean
+  quotes?: Record<string, Quote> | null
+  usdKrw?: number | null
 }) {
   const groups = accounts
     .map((account) => ({
@@ -97,7 +138,14 @@ function AccountGroups({
             <span className="group-count">{rows.length}종목</span>
             <span className="group-amount">{won(sumEvalAmount(rows))}</span>
           </summary>
-          <HoldingRows holdings={rows} busy={busy} onEdit={onEdit} />
+          <HoldingRows
+            holdings={rows}
+            busy={busy}
+            onEdit={onEdit}
+            showUSD={showUSD}
+            quotes={quotes}
+            usdKrw={usdKrw}
+          />
         </details>
       ))}
     </div>

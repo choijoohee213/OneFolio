@@ -9,6 +9,14 @@ export function signedWon(value: number): string {
   return `${value > 0 ? '+' : ''}${won(value)}`
 }
 
+export function usd(value: number): string {
+  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+export function signedUsd(value: number): string {
+  return `${value > 0 ? '+' : ''}${usd(value)}`
+}
+
 export function percent(value: number): string {
   return `${value.toFixed(2)}%`
 }
