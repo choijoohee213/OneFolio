@@ -25,6 +25,16 @@ function formatKRW(v: number | null): string {
   return Math.round(v).toLocaleString('ko-KR')
 }
 
+// 평단가는 종목마다 통화가 다를 수 있다(해외 종목은 달러로 찍힌 경우가 많다).
+// "$" 를 붙여 숫자만 보고도 원화인지 달러인지 바로 구분되게 한다.
+function formatAvgBuyPrice(v: number | null, currency?: string): string {
+  if (v == null) return ''
+  if (currency === 'USD') {
+    return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  return formatKRW(v)
+}
+
 function formatSignedKRW(v: number | null): string {
   if (v == null) return ''
   const s = Math.round(v).toLocaleString('ko-KR')
@@ -38,7 +48,7 @@ function formatRate(v: number | null): string {
 }
 
 function parseKRW(s: string): number | null {
-  const raw = s.replace(/[,+]/g, '')
+  const raw = s.replace(/[,+$]/g, '')
   if (raw === '') return null
   const n = Number(raw)
   return isNaN(n) ? null : n
@@ -466,7 +476,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                     <th>종목명</th>
                     <th>수량</th>
                     <th>평가금액(원)</th>
-                    <th>평균매입가(원)</th>
+                    <th>평균매입가</th>
                     <th>평가손익(원)</th>
                     <th>손익률(%)</th>
                     <th></th>
@@ -498,7 +508,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
                         </td>
                         <td>
                           <input
-                            value={formatKRW(h.avgBuyPrice)}
+                            value={formatAvgBuyPrice(h.avgBuyPrice, h.currency)}
                             onChange={(e) => updateHolding(idx, 'avgBuyPrice', e.target.value)}
                           />
                         </td>
