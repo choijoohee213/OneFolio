@@ -363,10 +363,18 @@ export default function App() {
       </header>
 
       {summary && (
-        <FileDrop
-          onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
-          busy={busy}
-        />
+        <div className="quick-add">
+          <FileDrop
+            onFiles={async (picked) => apply({ files: [...files, ...(await toUploadedFiles(picked))] })}
+            busy={busy}
+          />
+          <button type="button" className="add-toggle" disabled={busy} onClick={() => setShowScreenshot(true)}>
+            스크린샷으로 추가
+          </button>
+          <button type="button" className="add-toggle" disabled={busy} onClick={() => setHoldingTarget({ kind: 'new' })}>
+            종목 추가
+          </button>
+        </div>
       )}
 
       {error && <p className="error">{error}</p>}
@@ -405,8 +413,6 @@ export default function App() {
             mode={mode}
             onModeChange={setMode}
             busy={busy}
-            onAddHolding={() => setHoldingTarget({ kind: 'new' })}
-            onScreenshot={() => setShowScreenshot(true)}
             onEditHolding={openHoldingEditor}
             showLive={showLive}
             onToggleLive={toggleLiveQuotes}

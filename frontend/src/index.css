@@ -121,8 +121,18 @@ main {
   letter-spacing: -0.02em;
 }
 
-/* ---------- 업로드 (계좌 추가 후, 상단 축약 바) ---------- */
+/* ---------- 자산 추가 (계좌 추가 후, 상단 한 줄) ---------- */
+.quick-add {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.quick-add > .add-toggle {
+  flex-shrink: 0;
+}
 .drop-compact {
+  flex: 1 1 260px;
   border: 1.5px dashed var(--border);
   border-radius: 12px;
   padding: 0.85rem 1rem;
@@ -784,6 +794,9 @@ main {
   font-size: 1rem;
   margin: 0;
 }
+.section-subhead {
+  margin-bottom: 0.75rem;
+}
 .toggle {
   display: flex;
   border: 1px solid var(--border);
@@ -801,6 +814,53 @@ main {
 }
 .toggle button[aria-pressed='true'] {
   background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.switch-track {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--bg);
+  transition: transform 0.15s;
+}
+.switch[aria-checked='true'] .switch-track {
+  background: var(--accent);
+}
+.switch[aria-checked='true'] .switch-knob {
+  transform: translateX(13px);
+  background: #fff;
+}
+.switch[aria-checked='true'] {
   color: var(--text);
   font-weight: 600;
 }

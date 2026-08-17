@@ -11,8 +11,6 @@ interface Props {
   mode: GroupMode
   onModeChange: (mode: GroupMode) => void
   busy: boolean
-  onAddHolding: () => void
-  onScreenshot: () => void
   onEditHolding: (holding: Holding) => void
   showLive?: boolean
   onToggleLive?: () => void
@@ -29,8 +27,6 @@ export function HoldingsTable({
   mode,
   onModeChange,
   busy,
-  onAddHolding,
-  onScreenshot,
   onEditHolding,
   showLive,
   onToggleLive,
@@ -57,24 +53,36 @@ export function HoldingsTable({
               계좌별
             </button>
           </div>
-          <button type="button" className="add-toggle" disabled={busy} onClick={onAddHolding}>
-            종목 추가
-          </button>
-          <button type="button" className="add-toggle" disabled={busy} onClick={onScreenshot}>
-            스크린샷
-          </button>
-          {onToggleLive && (
-            <button type="button" className="add-toggle" disabled={busy} aria-pressed={showLive} onClick={onToggleLive}>
-              실시간 시세
-            </button>
-          )}
           {liveQuotesAvailable && (
-            <button type="button" className="add-toggle" aria-pressed={showUSD} onClick={onToggleUSD}>
-              달러로 보기
-            </button>
+            <div className="toggle" role="group" aria-label="표시 통화">
+              <button type="button" aria-pressed={!showUSD} onClick={() => showUSD && onToggleUSD?.()}>
+                원화
+              </button>
+              <button type="button" aria-pressed={!!showUSD} onClick={() => !showUSD && onToggleUSD?.()}>
+                달러
+              </button>
+            </div>
           )}
         </div>
       </header>
+
+      {onToggleLive && (
+        <div className="section-subhead">
+          <button
+            type="button"
+            className="switch"
+            role="switch"
+            aria-checked={!!showLive}
+            disabled={busy}
+            onClick={onToggleLive}
+          >
+            <span className="switch-track">
+              <span className="switch-knob" />
+            </span>
+            실시간 시세
+          </button>
+        </div>
+      )}
 
       {mode === 'all' ? (
         <HoldingRows
