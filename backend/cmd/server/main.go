@@ -33,9 +33,9 @@ func main() {
 	}
 
 	var quoteClient *quote.Client
-	if id, secret := os.Getenv("CLIENT_ID"), os.Getenv("CLIENT_SECRET"); id != "" && secret != "" {
-		quoteClient = quote.NewClient(id, secret)
-		log.Println("시세 새로고침 활성화 (토스증권 Open API)")
+	if appKey, appSecret := os.Getenv("KIS_APP_KEY"), os.Getenv("KIS_APP_SECRET"); appKey != "" && appSecret != "" {
+		quoteClient = quote.NewClient(appKey, appSecret)
+		log.Println("시세 새로고침 활성화 (한국투자증권 Open API)")
 	}
 
 	var ocrClient *ocr.Client
