@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -117,10 +118,46 @@ type envelope struct {
 	Output json.RawMessage `json:"output"`
 }
 
+// transientError 는 다시 시도해 볼 만한 실패(네트워크 오류, 5xx)를 표시한다.
+// rt_cd 가 "0"이 아닌 논리적 실패(예: 해외 종목 거래소 추측 중 틀린 거래소)는
+// transientError 가 아니다 — 재시도해도 결과가 똑같으므로 바로 다음 후보로
+// 넘어가는 게 맞다.
+type transientError struct{ err error }
+
+func (e *transientError) Error() string { return e.err.Error() }
+func (e *transientError) Unwrap() error { return e.err }
+
+const (
+	maxRetries = 2
+	retryDelay = 300 * time.Millisecond
+)
+
+// get 은 transientError 에 한해 짧은 대기 후 재시도한다. 한투 API 가 가끔
+// 순간적인 500을 내는 걸 실제로 겪어서(부하 없이도 발생) 넣었다 — 재시도 없이는
+// 그 종목만 조용히 빠진 채 응답이 나가서 사용자가 원인을 알 수 없다.
 func (c *Client) get(ctx context.Context, path, trID string, params url.Values, out any) error {
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(retryDelay)
+		}
+		err := c.doRequest(ctx, path, trID, params, out)
+		if err == nil {
+			return nil
+		}
+		var te *transientError
+		if !errors.As(err, &te) {
+			return err
+		}
+		lastErr = err
+	}
+	return lastErr
+}
+
+func (c *Client) doRequest(ctx context.Context, path, trID string, params url.Values, out any) error {
 	token, err := c.accessToken(ctx)
 	if err != nil {
-		return err
+		return &transientError{err}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path+"?"+params.Encode(), nil)
@@ -136,17 +173,20 @@ func (c *Client) get(ctx context.Context, path, trID string, params url.Values, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("한투 API 요청 실패: %w", err)
+		return &transientError{fmt.Errorf("한투 API 요청 실패: %w", err)}
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode >= 500 {
+		return &transientError{fmt.Errorf("한투 API 응답 실패: %s", resp.Status)}
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("한투 API 응답 실패: %s", resp.Status)
 	}
 
 	var env envelope
 	if err := json.NewDecoder(resp.Body).Decode(&env); err != nil {
-		return fmt.Errorf("한투 API 응답 파싱 실패: %w", err)
+		return &transientError{fmt.Errorf("한투 API 응답 파싱 실패: %w", err)}
 	}
 	if env.RtCd != "0" {
 		return fmt.Errorf("한투 API 오류: %s", env.Msg1)

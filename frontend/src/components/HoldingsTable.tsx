@@ -85,6 +85,7 @@ export function HoldingsTable({
           busy={busy}
           onEdit={onEditHolding}
           showUSD={showUSD}
+          showLive={showLive}
           quotes={quotes}
           usdKrw={usdKrw}
         />
@@ -95,6 +96,7 @@ export function HoldingsTable({
           busy={busy}
           onEdit={onEditHolding}
           showUSD={showUSD}
+          showLive={showLive}
           quotes={quotes}
           usdKrw={usdKrw}
         />
@@ -109,6 +111,7 @@ function AccountGroups({
   busy,
   onEdit,
   showUSD,
+  showLive,
   quotes,
   usdKrw,
 }: {
@@ -117,6 +120,7 @@ function AccountGroups({
   busy: boolean
   onEdit: (holding: Holding) => void
   showUSD?: boolean
+  showLive?: boolean
   quotes?: Record<string, Quote> | null
   usdKrw?: number | null
 }) {
@@ -146,6 +150,7 @@ function AccountGroups({
             busy={busy}
             onEdit={onEdit}
             showUSD={showUSD}
+            showLive={showLive}
             quotes={quotes}
             usdKrw={usdKrw}
           />
