@@ -403,7 +403,7 @@ Host: localhost:8080</code></pre>
     <table>
       <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(예: <code>005930</code>). 해외: 티커(예: <code>AAPL</code>)</td></tr>
+        <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(<code>005930</code>), 영문 섞인 신형 코드(<code>0167A0</code>), ETN 코드(<code>Q580074</code>). 해외: 티커(<code>AAPL</code>). 국내/해외는 코드 모양이 아니라 <code>kind</code>로 판별한다</td></tr>
         <tr><td><code>name</code></td><td class="type">string</td><td>종목명 (한글)</td></tr>
         <tr><td><code>kind</code></td><td class="type">string</td><td><code>DS</code>(국내주식), <code>DE</code>(국내ETF), <code>FS</code>(해외주식), <code>FE</code>(해외ETF)</td></tr>
       </tbody>
@@ -492,14 +492,16 @@ Host: localhost:8080</code></pre>
     <h4>응답 200</h4>
 <pre><code>{
   "quotes": {
-    "005930": {"price": 72000, "currency": "KRW"},
-    "AAPL": {"price": 227.5, "currency": "USD"}
+    "005930": {"price": 72000, "currency": "KRW", "prevClose": 71300},
+    "AAPL": {"price": 227.5, "currency": "USD", "prevClose": 229.1}
   },
   "usdKrw": 1446.2
 }</code></pre>
     <p>
       조회에 실패한 종목코드는 <code>quotes</code>에서 빠진다(요청 전체를 실패시키지
       않는다). <code>usdKrw</code>는 원화가 아닌 종목이 하나라도 있을 때만 채워진다.
+      <code>prevClose</code>는 전일 종가로, 값이 없으면 생략된다 — 현재가를
+      상승/하락 색으로 표시하는 기준이다.
     </p>
 
     <h4>curl 예시</h4>

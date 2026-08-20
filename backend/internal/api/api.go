@@ -275,14 +275,32 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 }
 
 type quoteResult struct {
-	Price    float64 `json:"price"`
-	Currency string  `json:"currency"`
+	Price     float64 `json:"price"`
+	Currency  string  `json:"currency"`
+	PrevClose float64 `json:"prevClose,omitempty"`
 }
 
 type quotesResponse struct {
 	Quotes map[string]quoteResult `json:"quotes"`
 	// UsdKrw 은 조회한 종목 중 원화가 아닌 게 있을 때만 채운다.
 	UsdKrw float64 `json:"usdKrw,omitempty"`
+}
+
+// resolveSymbols 는 종목코드가 국내인지 해외인지 종목마스터로 판별한다.
+// 코드 모양으로는 가를 수 없다 — 국내에도 0167A0 같은 영문 섞인 코드와
+// Q580074 같은 ETN 코드가 있어서, 숫자 여부로 판단하면 국내 종목의 29%가
+// 해외로 잘못 분류돼 조회에 실패한다.
+// 마스터에 없는 코드(프론트에 남은 옛 데이터 등)만 첫 글자로 짐작한다.
+func (s *Server) resolveSymbols(codes []string) []quote.Symbol {
+	symbols := make([]quote.Symbol, 0, len(codes))
+	for _, code := range codes {
+		foreign := code != "" && (code[0] < '0' || code[0] > '9')
+		if entry, ok := s.listings.LookupByCode(code); ok {
+			foreign = entry.Kind.IsForeign()
+		}
+		symbols = append(symbols, quote.Symbol{Code: code, Foreign: foreign})
+	}
+	return symbols
 }
 
 // quotes 는 이미 알고 있는 종목(파일로 올렸거나 수동으로 넣은)의 현재가만
@@ -300,7 +318,7 @@ func (s *Server) quotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prices, err := s.quoteClient.Prices(r.Context(), body.Codes)
+	prices, err := s.quoteClient.Prices(r.Context(), s.resolveSymbols(body.Codes))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "시세 조회 실패: %v", err)
 		return
@@ -309,7 +327,7 @@ func (s *Server) quotes(w http.ResponseWriter, r *http.Request) {
 	resp := quotesResponse{Quotes: make(map[string]quoteResult, len(prices))}
 	hasForeign := false
 	for code, p := range prices {
-		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency}
+		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency, PrevClose: p.PrevClose}
 		if p.Currency != "KRW" {
 			hasForeign = true
 		}

@@ -34,10 +34,21 @@ const (
 // 셋으로 충분하다.
 var overseasExchanges = []string{"NAS", "NYS", "AMS"}
 
+// Symbol 은 조회할 종목 하나다. 국내/해외는 코드 모양으로 짐작할 수 없어
+// (국내에도 0167A0 같은 영문 섞인 코드와 Q580074 같은 ETN 코드가 있다)
+// 종목마스터로 판별한 결과를 호출자가 넘겨준다.
+type Symbol struct {
+	Code    string
+	Foreign bool
+}
+
 type Price struct {
 	Symbol   string
 	Price    float64
 	Currency string
+	// PrevClose 는 전일 종가다. 현재가를 빨강(상승)·파랑(하락)으로 표시하는
+	// 기준이 되며, 값이 없으면 0 이다.
+	PrevClose float64
 }
 
 type Client struct {
@@ -199,21 +210,10 @@ func (c *Client) doRequest(ctx context.Context, path, trID string, params url.Va
 	return nil
 }
 
-func isDomesticCode(code string) bool {
-	if code == "" {
-		return false
-	}
-	for _, r := range code {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
-
 func (c *Client) domesticPrice(ctx context.Context, code string) (Price, error) {
 	var out struct {
 		Prpr string `json:"stck_prpr"`
+		Sdpr string `json:"stck_sdpr"`
 	}
 	params := url.Values{"FID_COND_MRKT_DIV_CODE": {"J"}, "FID_INPUT_ISCD": {code}}
 	if err := c.get(ctx, "/uapi/domestic-stock/v1/quotations/inquire-price", "FHKST01010100", params, &out); err != nil {
@@ -223,7 +223,8 @@ func (c *Client) domesticPrice(ctx context.Context, code string) (Price, error) 
 	if err != nil {
 		return Price{}, fmt.Errorf("가격 파싱 실패: %w", err)
 	}
-	return Price{Symbol: code, Price: price, Currency: "KRW"}, nil
+	prevClose, _ := strconv.ParseFloat(out.Sdpr, 64)
+	return Price{Symbol: code, Price: price, Currency: "KRW", PrevClose: prevClose}, nil
 }
 
 // overseasPrice 는 현재가와 함께 당일환율(t_rate)도 돌려준다 — 해외주식
@@ -263,6 +264,7 @@ func (c *Client) overseasPrice(ctx context.Context, symbol string) (Price, float
 func (c *Client) tryOverseasExchange(ctx context.Context, symbol, excd string) (Price, float64, error) {
 	var out struct {
 		Last  string `json:"last"`
+		Base  string `json:"base"`
 		Curr  string `json:"curr"`
 		TRate string `json:"t_rate"`
 	}
@@ -275,33 +277,34 @@ func (c *Client) tryOverseasExchange(ctx context.Context, symbol, excd string) (
 		return Price{}, 0, fmt.Errorf("%s/%s: 시세 없음", excd, symbol)
 	}
 	rate, _ := strconv.ParseFloat(out.TRate, 64)
+	prevClose, _ := strconv.ParseFloat(out.Base, 64)
 	currency := out.Curr
 	if currency == "" {
 		currency = "USD"
 	}
-	return Price{Symbol: symbol, Price: last, Currency: currency}, rate, nil
+	return Price{Symbol: symbol, Price: last, Currency: currency, PrevClose: prevClose}, rate, nil
 }
 
-// Prices 는 종목코드(국내는 "005930" 같은 6자리 숫자, 해외는 "AAPL" 같은 티커)로
-// 현재가를 조회한다. 국내는 표준시세, 해외는 거래소를 순서대로 시도해 찾는다.
-// 개별 종목 조회가 실패해도 나머지는 계속 채운다 — 하나 때문에 전체를 비우지 않는다.
-func (c *Client) Prices(ctx context.Context, symbols []string) (map[string]Price, error) {
+// Prices 는 현재가를 조회한다. 국내는 표준시세, 해외는 거래소를 순서대로
+// 시도해 찾는다. 개별 종목 조회가 실패해도 나머지는 계속 채운다 — 하나 때문에
+// 전체를 비우지 않는다.
+func (c *Client) Prices(ctx context.Context, symbols []Symbol) (map[string]Price, error) {
 	result := make(map[string]Price, len(symbols))
 	for _, symbol := range symbols {
-		if isDomesticCode(symbol) {
-			price, err := c.domesticPrice(ctx, symbol)
+		if !symbol.Foreign {
+			price, err := c.domesticPrice(ctx, symbol.Code)
 			if err != nil {
 				continue
 			}
-			result[symbol] = price
+			result[symbol.Code] = price
 			continue
 		}
 
-		price, rate, err := c.overseasPrice(ctx, symbol)
+		price, rate, err := c.overseasPrice(ctx, symbol.Code)
 		if err != nil {
 			continue
 		}
-		result[symbol] = price
+		result[symbol.Code] = price
 		if rate > 0 {
 			c.mu.Lock()
 			c.lastRate = rate

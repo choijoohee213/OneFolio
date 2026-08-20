@@ -105,7 +105,7 @@ export async function extractFromScreenshot(image: File): Promise<OcrResult> {
 }
 
 export interface QuotesResult {
-  quotes: Record<string, { price: number; currency: string }>
+  quotes: Record<string, { price: number; currency: string; prevClose?: number }>
   usdKrw?: number
 }
 

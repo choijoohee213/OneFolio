@@ -968,7 +968,6 @@ tbody tr:last-child td {
   border-bottom: 0;
 }
 td.name {
-  white-space: normal;
   font-weight: 500;
 }
 .num {
@@ -980,6 +979,29 @@ td.name {
 }
 .loss {
   color: var(--loss);
+}
+
+.price-cell {
+  font-weight: 600;
+}
+.price-cell.flash-up,
+.price-cell.flash-down {
+  animation: price-flash 0.7s ease-out;
+}
+.price-cell.flash-up {
+  --flash-color: var(--gain);
+}
+.price-cell.flash-down {
+  --flash-color: var(--loss);
+}
+@keyframes price-flash {
+  0% {
+    background-color: color-mix(in srgb, var(--flash-color) 35%, transparent);
+    color: var(--flash-color);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
 /* ---------- 스크린샷 OCR ---------- */

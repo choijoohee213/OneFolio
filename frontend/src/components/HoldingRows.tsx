@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, usd, won } from '../format'
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
@@ -61,7 +62,13 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes,
                   {isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}
                 </td>
                 <td className="num">{holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)}</td>
-                {showLive && <td className="num">{currentPrice()}</td>}
+                {showLive && (
+                  <PriceCell
+                    quotePrice={quote?.price ?? null}
+                    prevClose={quote?.prevClose ?? null}
+                    formatted={currentPrice()}
+                  />
+                )}
                 <td className="num">{amount(holding.evalAmount)}</td>
                 <td className={`num ${sign(holding.profitLoss)}`}>
                   {holding.profitLoss === null ? '—' : signedAmount(holding.profitLoss)}
@@ -98,4 +105,42 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes,
 function sign(value: number | null): string {
   if (value === null || value === 0) return ''
   return value > 0 ? 'gain' : 'loss'
+}
+
+// 글자색은 증권사 관례대로 전일 종가 대비다(상승 빨강·하락 파랑). 플래시는
+// 직전 조회값 대비라 기준이 다르다 — 하락장에서 살짝 오르면 파란 글자에
+// 빨간 플래시가 뜨는 게 정상이다.
+// 통화 표시(원화/달러) 전환은 quote.price 자체를 바꾸지 않으니, 그걸 기준으로
+// 비교해야 통화 토글만으로 애니메이션이 오작동하지 않는다.
+function PriceCell({
+  quotePrice,
+  prevClose,
+  formatted,
+}: {
+  quotePrice: number | null
+  prevClose: number | null
+  formatted: string
+}) {
+  const prevRef = useRef<number | null>(null)
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null)
+
+  useEffect(() => {
+    const prev = prevRef.current
+    prevRef.current = quotePrice
+    if (quotePrice === null || prev === null || quotePrice === prev) return
+    setFlash(quotePrice > prev ? 'up' : 'down')
+    const id = setTimeout(() => setFlash(null), 700)
+    return () => clearTimeout(id)
+  }, [quotePrice])
+
+  const daily =
+    quotePrice === null || !prevClose || quotePrice === prevClose
+      ? ''
+      : quotePrice > prevClose
+        ? 'gain'
+        : 'loss'
+
+  return (
+    <td className={`num price-cell ${daily}${flash ? ` flash-${flash}` : ''}`}>{formatted}</td>
+  )
 }
