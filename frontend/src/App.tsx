@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { fetchQuotes, toUploadedFiles } from './api'
 import { createSampleFiles } from './sampleData'
 import { recompute, withoutAccount } from './collection'
@@ -210,11 +210,16 @@ export default function App() {
   // 화면에만 겹쳐 보여준다 — 토글을 끄면 바로 원래(파일·수동입력) 값으로
   // 돌아간다. 평단가가 원화가 아니라 달러로 들어간 종목은 손익이 잘못
   // 나올 수 있어(입력 시점 통화를 저장하지 않음), 되돌릴 수 있는 게 중요하다.
+  // 새 요청이 이전 요청보다 먼저 끝나는 경우를 막는다 — 재시도로 한 번의
+  // 조회가 폴링 주기보다 오래 걸리면 다음 틱은 건너뛴다(쌓이지 않고).
+  const fetchingQuotesRef = useRef(false)
+
   async function fetchLiveQuotes(): Promise<boolean> {
-    if (!summary) return false
+    if (!summary || fetchingQuotesRef.current) return false
     const withCode = summary.holdings.filter((h) => h.code)
     if (withCode.length === 0) return false
 
+    fetchingQuotesRef.current = true
     try {
       const codes = [...new Set(withCode.map((h) => h.code!))]
       const result = await fetchQuotes(codes)
@@ -224,6 +229,8 @@ export default function App() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
       return false
+    } finally {
+      fetchingQuotesRef.current = false
     }
   }
 
@@ -257,11 +264,14 @@ export default function App() {
     if (await ensureQuotesLoaded()) setShowUSD(true)
   }
 
-  // 실시간 시세가 켜져 있는 동안엔 30초마다 조용히(busy 표시 없이) 다시 받아
-  // 화면 값을 갱신한다. 꺼지거나 언마운트되면 멈춘다.
+  // 실시간 시세가 켜져 있는 동안엔 3초마다 조용히(busy 표시 없이) 다시 받아
+  // 화면 값을 갱신한다. REST 폴링이 낼 수 있는 한도에서 최대한 자주 — 한투
+  // API 자체가 완전 틱단위 실시간은 아니라 이보다 빨라도 체감 이득이 적고,
+  // 종목이 많으면 한 번 조회에 걸리는 시간(순차 호출)도 있어 너무 빠르면
+  // 요청이 겹친다. 꺼지거나 언마운트되면 멈춘다.
   useEffect(() => {
     if (!showLive) return
-    const id = setInterval(fetchLiveQuotes, 30_000)
+    const id = setInterval(fetchLiveQuotes, 3_000)
     return () => clearInterval(id)
   }, [showLive, summary])
 
