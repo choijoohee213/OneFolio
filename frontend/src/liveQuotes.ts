@@ -54,8 +54,11 @@ export function applyLiveQuotes(
     amountByCategory.set(h.category, (amountByCategory.get(h.category) ?? 0) + h.evalAmount)
     holdingsTotal += h.evalAmount
   }
+  // 1원 미만은 현금으로 치지 않는다. coveredAsset 과 holdingsTotal 은 더하는
+  // 순서가 달라, 현금이 없는 계좌에서도 부동소수점 잔차(1e-7 수준)가 남는다.
+  // 0 과 비교하면 그 잔차 때문에 "현금성 0.0%" 가 생겼다 사라졌다 한다.
   const cash = coveredAsset - holdingsTotal
-  if (coveredAsset > 0 && cash !== 0) {
+  if (coveredAsset > 0 && Math.abs(cash) >= 1) {
     amountByCategory.set('현금성', (amountByCategory.get('현금성') ?? 0) + cash)
   }
   const categories = [...amountByCategory.entries()]
