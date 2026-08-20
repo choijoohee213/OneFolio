@@ -275,8 +275,9 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 }
 
 type quoteResult struct {
-	Price    float64 `json:"price"`
-	Currency string  `json:"currency"`
+	Price     float64 `json:"price"`
+	Currency  string  `json:"currency"`
+	PrevClose float64 `json:"prevClose,omitempty"`
 }
 
 type quotesResponse struct {
@@ -309,7 +310,7 @@ func (s *Server) quotes(w http.ResponseWriter, r *http.Request) {
 	resp := quotesResponse{Quotes: make(map[string]quoteResult, len(prices))}
 	hasForeign := false
 	for code, p := range prices {
-		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency}
+		resp.Quotes[code] = quoteResult{Price: p.Price, Currency: p.Currency, PrevClose: p.PrevClose}
 		if p.Currency != "KRW" {
 			hasForeign = true
 		}

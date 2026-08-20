@@ -38,6 +38,9 @@ type Price struct {
 	Symbol   string
 	Price    float64
 	Currency string
+	// PrevClose 는 전일 종가다. 현재가를 빨강(상승)·파랑(하락)으로 표시하는
+	// 기준이 되며, 값이 없으면 0 이다.
+	PrevClose float64
 }
 
 type Client struct {
@@ -214,6 +217,7 @@ func isDomesticCode(code string) bool {
 func (c *Client) domesticPrice(ctx context.Context, code string) (Price, error) {
 	var out struct {
 		Prpr string `json:"stck_prpr"`
+		Sdpr string `json:"stck_sdpr"`
 	}
 	params := url.Values{"FID_COND_MRKT_DIV_CODE": {"J"}, "FID_INPUT_ISCD": {code}}
 	if err := c.get(ctx, "/uapi/domestic-stock/v1/quotations/inquire-price", "FHKST01010100", params, &out); err != nil {
@@ -223,7 +227,8 @@ func (c *Client) domesticPrice(ctx context.Context, code string) (Price, error) 
 	if err != nil {
 		return Price{}, fmt.Errorf("가격 파싱 실패: %w", err)
 	}
-	return Price{Symbol: code, Price: price, Currency: "KRW"}, nil
+	prevClose, _ := strconv.ParseFloat(out.Sdpr, 64)
+	return Price{Symbol: code, Price: price, Currency: "KRW", PrevClose: prevClose}, nil
 }
 
 // overseasPrice 는 현재가와 함께 당일환율(t_rate)도 돌려준다 — 해외주식
@@ -263,6 +268,7 @@ func (c *Client) overseasPrice(ctx context.Context, symbol string) (Price, float
 func (c *Client) tryOverseasExchange(ctx context.Context, symbol, excd string) (Price, float64, error) {
 	var out struct {
 		Last  string `json:"last"`
+		Base  string `json:"base"`
 		Curr  string `json:"curr"`
 		TRate string `json:"t_rate"`
 	}
@@ -275,11 +281,12 @@ func (c *Client) tryOverseasExchange(ctx context.Context, symbol, excd string) (
 		return Price{}, 0, fmt.Errorf("%s/%s: 시세 없음", excd, symbol)
 	}
 	rate, _ := strconv.ParseFloat(out.TRate, 64)
+	prevClose, _ := strconv.ParseFloat(out.Base, 64)
 	currency := out.Curr
 	if currency == "" {
 		currency = "USD"
 	}
-	return Price{Symbol: symbol, Price: last, Currency: currency}, rate, nil
+	return Price{Symbol: symbol, Price: last, Currency: currency, PrevClose: prevClose}, rate, nil
 }
 
 // Prices 는 종목코드(국내는 "005930" 같은 6자리 숫자, 해외는 "AAPL" 같은 티커)로

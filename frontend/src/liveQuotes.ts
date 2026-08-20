@@ -3,6 +3,7 @@ import type { Category, Summary } from './types'
 export interface Quote {
   price: number
   currency: string
+  prevClose?: number
 }
 
 /** 파일/수동입력 원본은 그대로 두고, 화면에 보여줄 값만 현재가로 다시 낸다.
