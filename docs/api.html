@@ -403,7 +403,7 @@ Host: localhost:8080</code></pre>
     <table>
       <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
       <tbody>
-        <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(예: <code>005930</code>). 해외: 티커(예: <code>AAPL</code>)</td></tr>
+        <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(<code>005930</code>), 영문 섞인 신형 코드(<code>0167A0</code>), ETN 코드(<code>Q580074</code>). 해외: 티커(<code>AAPL</code>). 국내/해외는 코드 모양이 아니라 <code>kind</code>로 판별한다</td></tr>
         <tr><td><code>name</code></td><td class="type">string</td><td>종목명 (한글)</td></tr>
         <tr><td><code>kind</code></td><td class="type">string</td><td><code>DS</code>(국내주식), <code>DE</code>(국내ETF), <code>FS</code>(해외주식), <code>FE</code>(해외ETF)</td></tr>
       </tbody>

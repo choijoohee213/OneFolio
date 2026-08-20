@@ -34,6 +34,14 @@ const (
 // 셋으로 충분하다.
 var overseasExchanges = []string{"NAS", "NYS", "AMS"}
 
+// Symbol 은 조회할 종목 하나다. 국내/해외는 코드 모양으로 짐작할 수 없어
+// (국내에도 0167A0 같은 영문 섞인 코드와 Q580074 같은 ETN 코드가 있다)
+// 종목마스터로 판별한 결과를 호출자가 넘겨준다.
+type Symbol struct {
+	Code    string
+	Foreign bool
+}
+
 type Price struct {
 	Symbol   string
 	Price    float64
@@ -202,18 +210,6 @@ func (c *Client) doRequest(ctx context.Context, path, trID string, params url.Va
 	return nil
 }
 
-func isDomesticCode(code string) bool {
-	if code == "" {
-		return false
-	}
-	for _, r := range code {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
-}
-
 func (c *Client) domesticPrice(ctx context.Context, code string) (Price, error) {
 	var out struct {
 		Prpr string `json:"stck_prpr"`
@@ -289,26 +285,26 @@ func (c *Client) tryOverseasExchange(ctx context.Context, symbol, excd string) (
 	return Price{Symbol: symbol, Price: last, Currency: currency, PrevClose: prevClose}, rate, nil
 }
 
-// Prices 는 종목코드(국내는 "005930" 같은 6자리 숫자, 해외는 "AAPL" 같은 티커)로
-// 현재가를 조회한다. 국내는 표준시세, 해외는 거래소를 순서대로 시도해 찾는다.
-// 개별 종목 조회가 실패해도 나머지는 계속 채운다 — 하나 때문에 전체를 비우지 않는다.
-func (c *Client) Prices(ctx context.Context, symbols []string) (map[string]Price, error) {
+// Prices 는 현재가를 조회한다. 국내는 표준시세, 해외는 거래소를 순서대로
+// 시도해 찾는다. 개별 종목 조회가 실패해도 나머지는 계속 채운다 — 하나 때문에
+// 전체를 비우지 않는다.
+func (c *Client) Prices(ctx context.Context, symbols []Symbol) (map[string]Price, error) {
 	result := make(map[string]Price, len(symbols))
 	for _, symbol := range symbols {
-		if isDomesticCode(symbol) {
-			price, err := c.domesticPrice(ctx, symbol)
+		if !symbol.Foreign {
+			price, err := c.domesticPrice(ctx, symbol.Code)
 			if err != nil {
 				continue
 			}
-			result[symbol] = price
+			result[symbol.Code] = price
 			continue
 		}
 
-		price, rate, err := c.overseasPrice(ctx, symbol)
+		price, rate, err := c.overseasPrice(ctx, symbol.Code)
 		if err != nil {
 			continue
 		}
-		result[symbol] = price
+		result[symbol.Code] = price
 		if rate > 0 {
 			c.mu.Lock()
 			c.lastRate = rate
