@@ -8,11 +8,12 @@ interface Props {
   busy: boolean
   onEdit: (holding: Holding) => void
   showUSD?: boolean
+  showLive?: boolean
   quotes?: Record<string, Quote> | null
   usdKrw?: number | null
 }
 
-export function HoldingRows({ holdings, busy, onEdit, showUSD, quotes, usdKrw }: Props) {
+export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKrw }: Props) {
   return (
     <div className="scroll">
       <table>
@@ -22,6 +23,7 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, quotes, usdKrw }:
             <th>분류</th>
             <th className="num">수량</th>
             <th className="num">평단가</th>
+            {showLive && <th className="num">현재가</th>}
             <th className="num">평가금액</th>
             <th className="num">평가손익</th>
             <th className="num">손익률</th>
@@ -31,10 +33,15 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, quotes, usdKrw }:
         </thead>
         <tbody>
           {holdings.map((holding) => {
-            const fx =
-              showUSD && holding.code && quotes?.[holding.code]?.currency === 'USD' ? usdKrw ?? null : null
+            const quote = holding.code ? quotes?.[holding.code] : undefined
+            const fx = showUSD && quote?.currency === 'USD' ? usdKrw ?? null : null
             const amount = (v: number) => (fx ? usd(v / fx) : won(v))
             const signedAmount = (v: number) => (fx ? signedUsd(v / fx) : signedWon(v))
+            const currentPrice = () => {
+              if (!quote) return '—'
+              if (quote.currency === 'USD') return fx ? usd(quote.price) : won(quote.price * (usdKrw ?? 0))
+              return won(quote.price)
+            }
 
             return (
               <tr key={`${holding.accountNumber}-${holding.name}`}>
@@ -54,6 +61,7 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, quotes, usdKrw }:
                   {isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}
                 </td>
                 <td className="num">{holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)}</td>
+                {showLive && <td className="num">{currentPrice()}</td>}
                 <td className="num">{amount(holding.evalAmount)}</td>
                 <td className={`num ${sign(holding.profitLoss)}`}>
                   {holding.profitLoss === null ? '—' : signedAmount(holding.profitLoss)}

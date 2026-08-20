@@ -288,6 +288,7 @@
   <li>응답의 <code>holdings[].category</code>를 확인한다. 잘못 분류된 종목이 있으면 사용자가 태깅한다.</li>
   <li>태깅 결과를 <code>overrides</code>에 담아 <code>POST /api/portfolio</code>를 다시 호출한다.</li>
   <li><code>POST /api/ocr</code> — 증권 앱 스크린샷에서 보유 종목을 추출한다. (선택, <code>GEMINI_API_KEY</code> 필요)</li>
+  <li><code>POST /api/quotes</code> — 이미 아는 종목의 현재가를 새로고침한다. (선택, <code>KIS_APP_KEY</code>/<code>KIS_APP_SECRET</code> 필요)</li>
 </ol>
 <p>
   서버는 상태를 갖지 않으므로 <code>overrides</code>는 매 요청에 함께 보내야 한다.
@@ -465,6 +466,46 @@ Host: localhost:8080</code></pre>
     <h4>curl 예시</h4>
 <pre><code>curl -X POST http://localhost:8080/api/ocr \
   -F "image=@screenshot.png"</code></pre>
+  </div>
+</details>
+
+<!-- ---- POST /api/quotes ---- -->
+<details class="op post" id="op-quotes">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge post">POST</span>
+    <span class="path">/api/quotes</span>
+    <span class="summary-text">이미 아는 종목의 현재가 새로고침 (한국투자증권 Open API)</span>
+  </summary>
+  <div class="op-body">
+    <p>
+      종목코드 목록을 받아 현재가만 새로고침한다. 수량·평단가는 그대로 두고
+      프론트에서 <code>evalAmount</code>를 다시 낸다 — 저장된 값은 건드리지 않는다.
+      <code>KIS_APP_KEY</code>/<code>KIS_APP_SECRET</code> 환경변수가 없으면 이
+      엔드포인트는 등록되지 않는다.
+    </p>
+
+    <h4>요청</h4>
+    <p><code>Content-Type: application/json</code></p>
+<pre><code>{"codes": ["005930", "AAPL"]}</code></pre>
+
+    <h4>응답 200</h4>
+<pre><code>{
+  "quotes": {
+    "005930": {"price": 72000, "currency": "KRW"},
+    "AAPL": {"price": 227.5, "currency": "USD"}
+  },
+  "usdKrw": 1446.2
+}</code></pre>
+    <p>
+      조회에 실패한 종목코드는 <code>quotes</code>에서 빠진다(요청 전체를 실패시키지
+      않는다). <code>usdKrw</code>는 원화가 아닌 종목이 하나라도 있을 때만 채워진다.
+    </p>
+
+    <h4>curl 예시</h4>
+<pre><code>curl -X POST http://localhost:8080/api/quotes \
+  -H "Content-Type: application/json" \
+  -d '{"codes":["005930","AAPL"]}'</code></pre>
   </div>
 </details>
 
@@ -926,6 +967,8 @@ Content-Disposition: form-data; name="holdingEdits"
     <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
     <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
     <tr><td><code>GEMINI_API_KEY</code></td><td class="type">(비어있음)</td><td>Gemini API 키. 설정하면 <code>POST /api/ocr</code> 활성화</td></tr>
+    <tr><td><code>KIS_APP_KEY</code></td><td class="type">(비어있음)</td><td>한국투자증권 Open API 앱키. <code>KIS_APP_SECRET</code>과 함께 설정하면 <code>POST /api/quotes</code> 활성화</td></tr>
+    <tr><td><code>KIS_APP_SECRET</code></td><td class="type">(비어있음)</td><td>한국투자증권 Open API 앱시크리트</td></tr>
   </tbody>
 </table>
 </div>
