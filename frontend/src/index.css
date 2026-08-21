@@ -22,6 +22,19 @@
   --cat-3: #2fb98d; /* 지수 ETF */
   --cat-4: #e86b69; /* 레버리지·테마 ETF */
   --cat-5: #e5ae3c; /* 현금성 */
+
+  /* 분류 외 기준(종목·계좌·통화·시장)의 조각 색. 항목이 고정되지 않아
+     카테고리 색을 쓸 수 없다. 슬롯 순서대로 배정하며 순환하지 않는다 —
+     8칸을 넘으면 나머지는 기타로 접는다. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+  --series-other: #8a8981;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +55,15 @@
     --cat-3: #3fc79a;
     --cat-4: #ee8480;
     --cat-5: #edbb55;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --series-other: #7c7b74;
   }
 }
 
@@ -62,6 +84,15 @@
   --cat-3: #3fc79a;
   --cat-4: #ee8480;
   --cat-5: #edbb55;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #7c7b74;
 }
 
 * {
@@ -672,6 +703,118 @@ main {
 .tooltip-of {
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+/* ---------- 트리맵 ---------- */
+.treemap-section,
+.profit-bars-section {
+  margin-top: 2.5rem;
+}
+.section-note {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.treemap-wrap {
+  position: relative;
+}
+.treemap {
+  width: 100%;
+  height: clamp(260px, 42vw, 380px);
+  display: block;
+}
+.treemap .cell {
+  stroke: var(--surface);
+  stroke-width: 0.3;
+  cursor: default;
+  transition: opacity 0.12s;
+}
+.treemap .cell:focus-visible {
+  outline: none;
+  stroke: var(--text);
+  stroke-width: 0.6;
+}
+.treemap .cell.on {
+  opacity: 0.82;
+}
+.cell-name,
+.cell-rate {
+  pointer-events: none;
+  fill: var(--text);
+  font-size: 2.1px;
+  font-weight: 600;
+}
+.cell-rate {
+  font-size: 1.9px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* ---------- 손익 기여도 ---------- */
+.profit-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+.profit-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+.bar-name {
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bar-track {
+  position: relative;
+  height: 1.1rem;
+  display: block;
+}
+.bar-fill {
+  position: absolute;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  border-radius: 3px;
+  min-width: 2px;
+}
+.bar-fill.gain {
+  background: var(--gain);
+}
+.bar-fill.loss {
+  background: var(--loss);
+}
+/* 0 기준선. 막대가 어느 쪽으로 뻗었는지 눈으로 잡아준다 */
+.bar-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.bar-value {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.bar-rate {
+  margin-left: 0.4rem;
+  opacity: 0.7;
+  font-size: 0.72rem;
+}
+@media (max-width: 34rem) {
+  .profit-bars li {
+    grid-template-columns: minmax(0, 5rem) minmax(0, 1fr) auto;
+    gap: 0.4rem;
+  }
+  .bar-rate {
+    display: none;
+  }
 }
 
 .legend li {

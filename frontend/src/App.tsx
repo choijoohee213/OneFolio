@@ -5,6 +5,8 @@ import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
+import { Treemap } from './components/Treemap'
+import { ProfitBars } from './components/ProfitBars'
 import { EditConflicts } from './components/EditConflicts'
 import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -440,7 +442,14 @@ export default function App() {
 
       {displaySummary && (
         <>
-          <AllocationPie categories={displaySummary.categories} coveredAsset={displaySummary.coveredAsset} />
+          <AllocationPie
+            categories={displaySummary.categories}
+            holdings={displaySummary.holdings}
+            accounts={displaySummary.accounts}
+            coveredAsset={displaySummary.coveredAsset}
+          />
+          <Treemap holdings={displaySummary.holdings} coveredAsset={displaySummary.coveredAsset} />
+          <ProfitBars holdings={displaySummary.holdings} />
           <HoldingsTable
             holdings={displaySummary.holdings}
             accounts={displaySummary.accounts}
