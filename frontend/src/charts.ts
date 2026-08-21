@@ -1,14 +1,24 @@
 import { categoryColor } from './format'
-import type { AccountSummary, CategoryTotal, Holding } from './types'
-import { isManualAccountNumber } from './types'
+import type { AccountSummary, CategoryTotal, Holding, Market } from './types'
+import { isDomesticMarket, isManualAccountNumber } from './types'
 
-export const BASES = ['category', 'holding', 'account'] as const
+export const BASES = ['category', 'holding', 'account', 'currency', 'market'] as const
 export type Basis = (typeof BASES)[number]
 
 export const BASIS_LABEL: Record<Basis, string> = {
   category: '분류',
   holding: '종목',
   account: '계좌',
+  currency: '통화',
+  market: '시장',
+}
+
+const MARKET_LABEL: Record<Market, string> = {
+  KOSPI: '코스피',
+  KOSDAQ: '코스닥',
+  NASDAQ: '나스닥',
+  NYSE: '뉴욕',
+  AMEX: '아멕스',
 }
 
 export interface Slice {
@@ -41,8 +51,43 @@ export function toSlices(
       }))
   }
 
-  const amounts = basis === 'holding' ? sumByName(holdings) : sumByAccount(holdings, accounts)
-  return withSlotColors(amounts, coveredAsset)
+  return withSlotColors(sumBy(basis, holdings, accounts), coveredAsset)
+}
+
+function sumBy(
+  basis: Exclude<Basis, 'category'>,
+  holdings: Holding[],
+  accounts: AccountSummary[],
+): Map<string, number> {
+  switch (basis) {
+    case 'holding':
+      return sumByName(holdings)
+    case 'account':
+      return sumByAccount(holdings, accounts)
+    case 'currency':
+      return sumByKey(holdings, currencyOf)
+    case 'market':
+      return sumByKey(holdings, marketOf)
+  }
+}
+
+// 시장을 모르는 종목은 원화로 본다 — 직접 추가한 자산과 예수금이 여기 해당하고,
+// 둘 다 국내 계좌의 원화 자산이다.
+function currencyOf(holding: Holding): string {
+  return holding.market && !isDomesticMarket(holding.market) ? '달러' : '원화'
+}
+
+function marketOf(holding: Holding): string {
+  return holding.market ? MARKET_LABEL[holding.market] : '시장 미상'
+}
+
+function sumByKey(holdings: Holding[], keyOf: (holding: Holding) => string): Map<string, number> {
+  const amounts = new Map<string, number>()
+  for (const holding of holdings) {
+    const key = keyOf(holding)
+    amounts.set(key, (amounts.get(key) ?? 0) + holding.evalAmount)
+  }
+  return amounts
 }
 
 function sumByName(holdings: Holding[]): Map<string, number> {

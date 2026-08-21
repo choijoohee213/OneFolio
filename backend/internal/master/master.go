@@ -24,15 +24,29 @@ const (
 func (k Kind) IsETF() bool     { return k == DomesticETF || k == ForeignETF }
 func (k Kind) IsForeign() bool { return k == ForeignStock || k == ForeignETF }
 
+// Market 은 종목이 상장된 시장이다. 종목마스터를 시장별 파일로 받아 오므로
+// 어느 파일에서 왔는지가 곧 시장이다.
+type Market string
+
+const (
+	KOSPI  Market = "KOSPI"
+	KOSDAQ Market = "KOSDAQ"
+	NASDAQ Market = "NASDAQ"
+	NYSE   Market = "NYSE"
+	AMEX   Market = "AMEX"
+)
+
 type Listing struct {
-	Code string
-	Kind Kind
+	Code   string
+	Kind   Kind
+	Market Market
 }
 
 type Entry struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
-	Kind Kind   `json:"kind"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	Kind   Kind   `json:"kind"`
+	Market Market `json:"market,omitempty"`
 }
 
 type Table struct {
@@ -57,14 +71,14 @@ func Load() (*Table, error) {
 	}
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		parts := strings.SplitN(scanner.Text(), "\t", 3)
-		if len(parts) < 3 {
+		parts := strings.SplitN(scanner.Text(), "\t", 4)
+		if len(parts) < 4 {
 			continue
 		}
-		code, name, kind := parts[0], parts[1], Kind(parts[2])
+		code, name, kind, market := parts[0], parts[1], Kind(parts[2]), Market(parts[3])
 
-		t.byName[normalize(name)] = Listing{Code: code, Kind: kind}
-		entry := Entry{Code: code, Name: name, Kind: kind}
+		t.byName[normalize(name)] = Listing{Code: code, Kind: kind, Market: market}
+		entry := Entry{Code: code, Name: name, Kind: kind, Market: market}
 		if code != "" {
 			t.byCode[strings.ToUpper(code)] = entry
 		}

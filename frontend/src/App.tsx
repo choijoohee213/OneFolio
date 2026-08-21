@@ -71,6 +71,15 @@ export default function App() {
     })
   }, [])
 
+  // market 은 나중에 추가된 값이라 그 전에 저장된 집계에는 없다. 시장·통화 차트가
+  // "미상"만 띄우지 않도록, 복원 직후 한 번 다시 계산해 채운다.
+  useEffect(() => {
+    if (!restored || !summary) return
+    if (summary.holdings.some((holding) => holding.code && !holding.market)) void apply({})
+    // 복원 직후 한 번만 본다. summary 를 넣으면 재계산 결과에 다시 반응한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored])
+
   async function apply(next: {
     files?: UploadedFile[]
     overrides?: Overrides

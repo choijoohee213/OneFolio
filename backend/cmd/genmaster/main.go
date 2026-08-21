@@ -27,32 +27,41 @@ const (
 	outPath = "internal/master/listings.tsv.gz"
 )
 
+// 시장은 파일별로 갈린다 — 어느 파일에서 읽었는지가 곧 상장 시장이다.
 var (
-	domesticFiles = []string{"kospi_code.mst.zip", "kosdaq_code.mst.zip"}
-	overseasFiles = []string{"nasmst.cod.zip", "nysmst.cod.zip", "amsmst.cod.zip"}
+	domesticFiles = map[string]master.Market{
+		"kospi_code.mst.zip":  master.KOSPI,
+		"kosdaq_code.mst.zip": master.KOSDAQ,
+	}
+	overseasFiles = map[string]master.Market{
+		"nasmst.cod.zip": master.NASDAQ,
+		"nysmst.cod.zip": master.NYSE,
+		"amsmst.cod.zip": master.AMEX,
+	}
 )
 
 type listing struct {
-	code string
-	kind master.Kind
+	code   string
+	kind   master.Kind
+	market master.Market
 }
 
 func main() {
 	listings := make(map[string]listing)
 
-	for _, name := range domesticFiles {
+	for _, name := range sortedNames(domesticFiles) {
 		data, err := download(name)
 		if err != nil {
 			log.Fatalf("%s: %v", name, err)
 		}
-		readDomestic(data, listings)
+		readDomestic(data, listings, domesticFiles[name])
 	}
-	for _, name := range overseasFiles {
+	for _, name := range sortedNames(overseasFiles) {
 		data, err := download(name)
 		if err != nil {
 			log.Fatalf("%s: %v", name, err)
 		}
-		readOverseas(data, listings)
+		readOverseas(data, listings, overseasFiles[name])
 	}
 
 	if err := write(listings); err != nil {
@@ -100,7 +109,7 @@ const (
 	minLineLen = groupEnd
 )
 
-func readDomestic(data []byte, listings map[string]listing) {
+func readDomestic(data []byte, listings map[string]listing, market master.Market) {
 	for _, line := range bytes.Split(data, []byte("\n")) {
 		line = bytes.TrimRight(line, "\r")
 		if len(line) < minLineLen {
@@ -116,7 +125,7 @@ func readDomestic(data []byte, listings map[string]listing) {
 		if group := decode(line[nameEnd:groupEnd]); group == "EF" || group == "EN" {
 			kind = master.DomesticETF
 		}
-		putIfAbsent(listings, name, listing{code: code, kind: kind})
+		putIfAbsent(listings, name, listing{code: code, kind: kind, market: market})
 	}
 }
 
@@ -128,7 +137,7 @@ const (
 	overseasColumns    = 9
 )
 
-func readOverseas(data []byte, listings map[string]listing) {
+func readOverseas(data []byte, listings map[string]listing, market master.Market) {
 	for _, line := range strings.Split(decode(data), "\n") {
 		columns := strings.Split(line, "\t")
 		if len(columns) < overseasColumns {
@@ -142,11 +151,22 @@ func readOverseas(data []byte, listings map[string]listing) {
 		}
 		switch strings.TrimSpace(columns[overseasTypeColumn]) {
 		case "2":
-			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignStock})
+			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignStock, market: market})
 		case "3":
-			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignETF})
+			putIfAbsent(listings, name, listing{code: code, kind: master.ForeignETF, market: market})
 		}
 	}
+}
+
+// 맵 순회 순서는 매번 달라진다. 같은 종목명이 두 시장에 있으면 먼저 읽은 쪽이
+// 이기므로(putIfAbsent), 순서를 고정해야 실행할 때마다 결과가 바뀌지 않는다.
+func sortedNames(files map[string]master.Market) []string {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func putIfAbsent(listings map[string]listing, name string, l listing) {
@@ -184,7 +204,7 @@ func write(listings map[string]listing) error {
 
 	for _, name := range names {
 		l := listings[name]
-		if _, err := fmt.Fprintf(compressed, "%s\t%s\t%s\n", l.code, name, l.kind); err != nil {
+		if _, err := fmt.Fprintf(compressed, "%s\t%s\t%s\t%s\n", l.code, name, l.kind, l.market); err != nil {
 			return err
 		}
 	}
