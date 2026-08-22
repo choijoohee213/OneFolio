@@ -1,6 +1,10 @@
 package ocr
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+)
 
 func f(v float64) *float64 { return &v }
 
@@ -117,5 +121,29 @@ func TestFillCalculatedFieldsUsesGivenKRWValuesEvenForUSD(t *testing.T) {
 	}
 	if *got.ProfitLoss != 80_000 {
 		t.Errorf("profitLoss = %v, want 80000 (그대로 유지)", *got.ProfitLoss)
+	}
+}
+
+// 타임아웃을 즉시 실패로 두면 배포 환경에서 다섯 번에 한 번쯤 그대로 실패한다.
+// 곧바로 다시 걸면 대개 풀리므로 재시도 대상이어야 한다.
+func TestRetryableCoversTimeout(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"타임아웃", context.DeadlineExceeded, true},
+		{"요청 전송 중 타임아웃", errors.New(`doRequest: error sending request: Post "https://x": context deadline exceeded`), true},
+		{"한도초과", errors.New("Error 429, Message: quota exceeded"), true},
+		{"과부하", errors.New("Error 503, Message: This model is currently experiencing high traffic"), true},
+		{"잘못된 요청", errors.New("Error 400, Message: Request contains an invalid argument"), false},
+		{"지원 종료", errors.New("Error 404, Message: model is no longer available"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := retryable(c.err); got != c.want {
+				t.Errorf("retryable(%v) = %v, want %v", c.err, got, c.want)
+			}
+		})
 	}
 }
