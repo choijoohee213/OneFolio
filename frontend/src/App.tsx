@@ -5,6 +5,8 @@ import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
+import { Treemap } from './components/Treemap'
+import { ProfitBars } from './components/ProfitBars'
 import { EditConflicts } from './components/EditConflicts'
 import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -31,12 +33,25 @@ import type {
 } from './types'
 import { holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
 
+// 자산은 숫자로 확인하는 원장이고, 배분과 손익은 그림으로 파악하는 차트다.
+// 형식으로 가르면 새 화면을 어디 둘지 따질 일이 없다. 트리맵은 칸 색이
+// 손익률이라 배분이 아니라 손익에 둔다.
+const TABS = ['assets', 'allocation', 'profit'] as const
+type Tab = (typeof TABS)[number]
+
+const TAB_LABEL: Record<Tab, string> = {
+  assets: '자산',
+  allocation: '배분',
+  profit: '손익',
+}
+
 export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [manualAccounts, setManualAccounts] = useState<ManualAccount[]>([])
   const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
   const [holdingEdits, setHoldingEdits] = useState<HoldingEdit[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [tab, setTab] = useState<Tab>('assets')
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
   const [busy, setBusy] = useState(false)
@@ -68,6 +83,15 @@ export default function App() {
       setRestored(true)
     })
   }, [])
+
+  // market 은 나중에 추가된 값이라 그 전에 저장된 집계에는 없다. 시장·통화 차트가
+  // "미상"만 띄우지 않도록, 복원 직후 한 번 다시 계산해 채운다.
+  useEffect(() => {
+    if (!restored || !summary) return
+    if (summary.holdings.some((holding) => holding.code && !holding.market)) void apply({})
+    // 복원 직후 한 번만 본다. summary 를 넣으면 재계산 결과에 다시 반응한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored])
 
   async function apply(next: {
     files?: UploadedFile[]
@@ -401,6 +425,23 @@ export default function App() {
             </strong>
           </div>
         )}
+        {/* 실시간 시세는 계좌·차트·표에 모두 반영되므로 어느 탭에서든 끄고 켤 수
+            있게 헤더에 둔다. */}
+        {displaySummary && (
+          <button
+            type="button"
+            className="switch"
+            role="switch"
+            aria-checked={showLive}
+            disabled={busy}
+            onClick={toggleLiveQuotes}
+          >
+            <span className="switch-track">
+              <span className="switch-knob" />
+            </span>
+            실시간 시세
+          </button>
+        )}
         {summary && (
           <AddMenu
             busy={busy}
@@ -425,36 +466,66 @@ export default function App() {
       )}
 
       {displaySummary && (
-        <AccountsPanel
-          accounts={displaySummary.accounts}
-          holdings={displaySummary.holdings}
-          manualAccounts={manualAccounts}
-          superseded={superseded}
-          coveredAsset={displaySummary.coveredAsset}
-          busy={busy}
-          onRemove={(number) => apply({ files: withoutAccount(files, number) })}
-          onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
-          onRemoveAccount={removeAccount}
-        />
-      )}
-
-      {displaySummary && (
         <>
-          <AllocationPie categories={displaySummary.categories} coveredAsset={displaySummary.coveredAsset} />
-          <HoldingsTable
-            holdings={displaySummary.holdings}
-            accounts={displaySummary.accounts}
-            mode={mode}
-            onModeChange={setMode}
-            busy={busy}
-            onEditHolding={openHoldingEditor}
-            showLive={showLive}
-            onToggleLive={toggleLiveQuotes}
-            showUSD={showUSD}
-            onToggleUSD={toggleUSD}
-            quotes={liveQuotes}
-            usdKrw={usdKrw}
-          />
+          <nav className="tabs" role="tablist" aria-label="화면">
+            {TABS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={tab === option}
+                onClick={() => setTab(option)}
+              >
+                {TAB_LABEL[option]}
+              </button>
+            ))}
+          </nav>
+
+          {tab === 'assets' && (
+            <>
+              <AccountsPanel
+                accounts={displaySummary.accounts}
+                holdings={displaySummary.holdings}
+                manualAccounts={manualAccounts}
+                superseded={superseded}
+                coveredAsset={displaySummary.coveredAsset}
+                busy={busy}
+                onRemove={(number) => apply({ files: withoutAccount(files, number) })}
+                onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
+                onRemoveAccount={removeAccount}
+              />
+              <HoldingsTable
+                holdings={displaySummary.holdings}
+                accounts={displaySummary.accounts}
+                mode={mode}
+                onModeChange={setMode}
+                busy={busy}
+                onEditHolding={openHoldingEditor}
+                showUSD={showUSD}
+                onToggleUSD={toggleUSD}
+                showLive={showLive}
+                quotes={liveQuotes}
+                usdKrw={usdKrw}
+              />
+            </>
+          )}
+
+          {tab === 'allocation' && (
+            <AllocationPie
+              categories={displaySummary.categories}
+              holdings={displaySummary.holdings}
+              accounts={displaySummary.accounts}
+              coveredAsset={displaySummary.coveredAsset}
+            />
+          )}
+
+          {tab === 'profit' && (
+            <>
+              <Treemap holdings={displaySummary.holdings} coveredAsset={displaySummary.coveredAsset} />
+              <ProfitBars holdings={displaySummary.holdings} />
+            </>
+          )}
+
           <footer className="page-foot">
             <p>
               올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산 후

@@ -48,6 +48,7 @@ type HoldingDetail struct {
 	Category domain.Category `json:"category"`
 	Weight   float64         `json:"weight"`
 	Code     string          `json:"code,omitempty"`
+	Market   master.Market   `json:"market,omitempty"`
 
 	// Original 은 사용자가 값을 고친 종목의 잔고파일 원본이다. 고치지 않았으면 비어 있다.
 	// 화면이 "내가 고칠 때 보던 파일 값"과 비교해 파일이 그새 바뀌었는지 가린다.
@@ -100,9 +101,11 @@ func Summarize(p *Portfolio, classifier *classify.Classifier, listings *master.T
 
 		if listing, ok := listings.Lookup(holding.Name); ok {
 			detail.Code = listing.Code
+			detail.Market = listing.Market
 		} else if code, ok := stockMappings[holding.Name]; ok && code != "" {
 			if entry, ok := listings.LookupByCode(code); ok {
 				detail.Code = entry.Code
+				detail.Market = entry.Market
 			}
 		} else if !IsManualHolding(holding.AccountNumber) {
 			unmatchedSet[holding.Name] = true

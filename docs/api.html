@@ -406,6 +406,7 @@ Host: localhost:8080</code></pre>
         <tr><td><code>code</code></td><td class="type">string</td><td>종목코드. 국내: 6자리 단축코드(<code>005930</code>), 영문 섞인 신형 코드(<code>0167A0</code>), ETN 코드(<code>Q580074</code>). 해외: 티커(<code>AAPL</code>). 국내/해외는 코드 모양이 아니라 <code>kind</code>로 판별한다</td></tr>
         <tr><td><code>name</code></td><td class="type">string</td><td>종목명 (한글)</td></tr>
         <tr><td><code>kind</code></td><td class="type">string</td><td><code>DS</code>(국내주식), <code>DE</code>(국내ETF), <code>FS</code>(해외주식), <code>FE</code>(해외ETF)</td></tr>
+        <tr><td><code>market</code></td><td class="type">string</td><td>상장 시장. <code>KOSPI</code> · <code>KOSDAQ</code> · <code>NASDAQ</code> · <code>NYSE</code> · <code>AMEX</code>. 종목마스터에서 찾은 종목만 채워진다</td></tr>
       </tbody>
     </table>
     </div>
@@ -873,6 +874,7 @@ Content-Disposition: form-data; name="holdingEdits"
   <tbody>
     <tr><td><code>name</code></td><td class="type">string</td><td class="type">아니오</td><td>상품명</td></tr>
     <tr><td><code>code</code></td><td class="type">string</td><td class="type">예</td><td>종목코드. 마스터에서 매칭됐거나 <code>stockMappings</code>로 지정한 경우에만 채워진다. 미래 시세 조회 키로 쓴다</td></tr>
+    <tr><td><code>market</code></td><td class="type">string</td><td class="type">예</td><td>상장 시장(<code>KOSPI</code> · <code>KOSDAQ</code> · <code>NASDAQ</code> · <code>NYSE</code> · <code>AMEX</code>). <code>code</code>와 같은 조건으로 채워진다</td></tr>
     <tr><td><code>category</code></td><td class="type">string</td><td class="type">아니오</td><td>분류 결과</td></tr>
     <tr><td><code>accountNumber</code></td><td class="type">string</td><td class="type">아니오</td><td>소속 계좌번호 (하이픈 제거). <code>manual-account:</code>로 시작하면 직접 추가한 계좌(뒤는 그 계좌의 <code>id</code>), <code>manual-item:</code>으로 시작하면 계좌 없이 직접 추가한 종목(뒤는 그 종목의 <code>id</code>)이다</td></tr>
     <tr><td><code>quantity</code></td><td class="type">number</td><td class="type">아니오</td><td>보유수량. 소수점 거래가 있어 정수가 아닐 수 있다</td></tr>
