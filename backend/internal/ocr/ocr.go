@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -13,7 +15,13 @@ import (
 	"google.golang.org/genai"
 )
 
-const requestTimeout = 45 * time.Second
+const requestTimeout = 30 * time.Second
+
+// 모델은 버전을 박아 고정한다. latest 별칭은 늘 가장 새 모델을 가리키는데,
+// 새 모델일수록 트래픽이 몰려 503(과부하)을 자주 뱉는다. 실측에서 별칭은
+// 세 번 중 한 번만 성공하고 평균 14.5초가 걸린 반면, 버전을 고정하니 세 번
+// 모두 성공하고 평균 2.3초였다. GEMINI_MODEL 로 바꿀 수 있다.
+const defaultModel = "gemini-3.5-flash"
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
@@ -97,7 +105,11 @@ func NewClient(apiKeys string, quoteClient *quote.Client) (*Client, error) {
 	if len(clients) == 0 {
 		return nil, fmt.Errorf("유효한 API 키가 없습니다")
 	}
-	return &Client{clients: clients, model: "gemini-flash-latest", quoteClient: quoteClient}, nil
+	model := os.Getenv("GEMINI_MODEL")
+	if model == "" {
+		model = defaultModel
+	}
+	return &Client{clients: clients, model: model, quoteClient: quoteClient}, nil
 }
 
 func (c *Client) pickClient() *genai.Client {
@@ -109,17 +121,19 @@ func (c *Client) KeyCount() int {
 	return len(c.clients)
 }
 
-// retryable 은 다음 키로 넘어가 볼 만한 실패인지 가린다. 429(한도초과)는
-// 키마다 다르게 나는 문제라 재시도할 가치가 있다. 503(UNAVAILABLE)은 모델이
-// 일시적으로 과부하 상태라는 뜻인데, 이 경우도 즉시 응답이 오는 실패라(응답이
-// 멈추는 타임아웃과 달리) 재시도해도 대기 시간이 크게 늘지 않는다. 반면
-// 타임아웃은 보통 네트워크 경로 자체의 문제라 다른 키로 바꿔도 똑같이
-// 멈춘다 — 재시도하면 대기 시간만 키 개수만큼 늘어나 배포 플랫폼의
-// 게이트웨이 타임아웃(502)에 걸리기 쉬우므로 즉시 실패시킨다.
+// retryable 은 다시 걸어볼 만한 실패인지 가린다. 429(한도초과)는 키마다 다르게
+// 나므로 다음 키로 넘어가면 풀린다. 503(과부하)은 키와 무관하지만 잠깐 뒤에는
+// 풀리기도 해서 한 번은 더 걸어본다. 타임아웃은 보통 네트워크 경로 자체의
+// 문제라 다시 걸어도 똑같이 멈춘다 — 대기 시간만 키 개수만큼 늘어나 배포
+// 플랫폼의 게이트웨이 타임아웃에 걸리기 쉬우므로 즉시 실패시킨다.
 func retryable(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "429") || strings.Contains(msg, "503") || strings.Contains(msg, "UNAVAILABLE")
 }
+
+// 503 은 즉시 오지 않고 수십 초 걸려 오기도 한다. 키 개수만큼 다 돌면 그 시간이
+// 그대로 쌓이므로 시도 횟수를 따로 묶는다.
+const maxAttempts = 2
 
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
 	contents := []*genai.Content{
@@ -138,24 +152,30 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(0))},
 	}
 
+	attempts := maxAttempts
+	if len(c.clients) < attempts {
+		attempts = len(c.clients)
+	}
+
 	var resp *genai.GenerateContentResponse
 	var err error
-	tried := 0
-	for tried < len(c.clients) {
+	for tried := 0; tried < attempts; tried++ {
 		client := c.pickClient()
 		attemptCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		start := time.Now()
 		resp, err = client.Models.GenerateContent(attemptCtx, c.model, contents, config)
 		cancel()
 		if err == nil {
 			break
 		}
+		// 실패는 화면에 이유가 다 드러나지 않아 로그로 남긴다.
+		log.Printf("OCR 실패 (%s, %d/%d, %.1fs): %v", c.model, tried+1, attempts, time.Since(start).Seconds(), err)
 		if !retryable(err) {
 			return nil, fmt.Errorf("gemini 호출 실패: %w", err)
 		}
-		tried++
 	}
 	if err != nil {
-		return nil, fmt.Errorf("gemini 호출 실패 (모든 키 재시도 소진): %w", err)
+		return nil, fmt.Errorf("gemini 호출 실패 (%d회 시도): %w", attempts, err)
 	}
 
 	text := resp.Text()
