@@ -10,9 +10,10 @@ const HEIGHT = 62
 // 손익률 색이 이 값에서 가장 진하다. ±수백 %인 종목 하나 때문에 나머지가
 // 전부 흐려지는 걸 막으려고 한계를 둔다.
 const FULL_RATE = 30
+// 글자를 넣을지 가르는 최소 칸 크기. 배치와 같은 단위(폭·높이 모두 0~100%)다.
 const NAME_MIN_WIDTH = 9
-const NAME_MIN_HEIGHT = 6
-const RATE_MIN_HEIGHT = 11
+const NAME_MIN_HEIGHT = 10
+const RATE_MIN_HEIGHT = 18
 
 interface Props {
   holdings: Holding[]
@@ -43,7 +44,13 @@ export function Treemap({ holdings, coveredAsset }: Props) {
   if (cells.length === 0) return null
 
   return (
-    <div className="treemap-wrap" ref={wrapper}>
+    <section className="treemap-section">
+      <header className="section-head">
+        <h2>종목별 비중과 손익</h2>
+        <p className="section-note">칸 크기는 비중, 색은 손익률입니다</p>
+      </header>
+
+      <div className="treemap-wrap" ref={wrapper}>
       <div className="treemap" role="list">
         {cells.map((cell) => {
           const weight = weightOf(cell.total, coveredAsset)
@@ -96,7 +103,8 @@ export function Treemap({ holdings, coveredAsset }: Props) {
           )}
         </div>
       )}
-    </div>
+      </div>
+    </section>
   )
 }
 
@@ -149,12 +157,14 @@ function layout(totals: HoldingTotal[]): Cell[] {
     let offset = 0
     for (let i = 0; i < row.length; i++) {
       const length = (row[i] / rowArea) * side
+      // 칸은 %로 배치하므로 세로도 0~100 으로 환산한다. HEIGHT 기준 값을 그대로
+      // 넘기면 컨테이너 아래쪽 (100-HEIGHT)% 가 빈 채로 남는다.
       cells.push({
         total: items[index + i],
         x: vertical ? x : x + offset,
-        y: vertical ? y + offset : y,
+        y: ((vertical ? y + offset : y) / HEIGHT) * 100,
         width: vertical ? thickness : length,
-        height: vertical ? length : thickness,
+        height: ((vertical ? length : thickness) / HEIGHT) * 100,
       })
       offset += length
     }

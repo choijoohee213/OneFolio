@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { percent, won } from '../format'
 import { BASES, BASIS_LABEL, toSlices, type Basis, type Slice } from '../charts'
-import { Treemap } from './Treemap'
 import type { AccountSummary, CategoryTotal, Holding } from '../types'
 
 const SIZE = 220
@@ -31,13 +30,9 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
   const [tip, setTip] = useState({ x: 0, y: 0 })
   const wrapper = useRef<HTMLDivElement>(null)
 
-  // 종목 기준은 트리맵으로 보여준다 — 종목 수가 많으면 파이 조각이 잘게 쪼개져
-  // 읽기 어렵고, 트리맵은 같은 자리에서 손익률까지 색으로 얹을 수 있다.
-  const asTreemap = basis === 'holding'
-
   const wedges = useMemo(
-    () => (asTreemap ? [] : toWedges(toSlices(basis, categories, holdings, accounts, coveredAsset))),
-    [asTreemap, basis, categories, holdings, accounts, coveredAsset],
+    () => toWedges(toSlices(basis, categories, holdings, accounts, coveredAsset)),
+    [basis, categories, holdings, accounts, coveredAsset],
   )
   const hovered = wedges.find((wedge) => wedge.slice.key === active)
 
@@ -77,12 +72,6 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
         </div>
       </header>
 
-      {asTreemap ? (
-        <>
-          <p className="section-note treemap-note">칸 크기는 비중, 색은 손익률입니다</p>
-          <Treemap holdings={holdings} coveredAsset={coveredAsset} />
-        </>
-      ) : (
       <div className="pie-row">
         <div className="pie-wrap" ref={wrapper}>
           <svg
@@ -176,7 +165,6 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
           ))}
         </ul>
       </div>
-      )}
     </section>
   )
 }

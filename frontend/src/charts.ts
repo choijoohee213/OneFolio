@@ -2,12 +2,11 @@ import { categoryColor } from './format'
 import type { AccountSummary, CategoryTotal, Holding, Market } from './types'
 import { isDomesticMarket, isManualAccountNumber } from './types'
 
-export const BASES = ['category', 'holding', 'account', 'currency', 'market'] as const
+export const BASES = ['category', 'account', 'currency', 'market'] as const
 export type Basis = (typeof BASES)[number]
 
 export const BASIS_LABEL: Record<Basis, string> = {
   category: '분류',
-  holding: '종목',
   account: '계좌',
   currency: '통화',
   market: '시장',
@@ -60,8 +59,6 @@ function sumBy(
   accounts: AccountSummary[],
 ): Map<string, number> {
   switch (basis) {
-    case 'holding':
-      return sumByName(holdings)
     case 'account':
       return sumByAccount(holdings, accounts)
     case 'currency':
@@ -86,14 +83,6 @@ function sumByKey(holdings: Holding[], keyOf: (holding: Holding) => string): Map
   for (const holding of holdings) {
     const key = keyOf(holding)
     amounts.set(key, (amounts.get(key) ?? 0) + holding.evalAmount)
-  }
-  return amounts
-}
-
-function sumByName(holdings: Holding[]): Map<string, number> {
-  const amounts = new Map<string, number>()
-  for (const holding of holdings) {
-    amounts.set(holding.name, (amounts.get(holding.name) ?? 0) + holding.evalAmount)
   }
   return amounts
 }

@@ -5,16 +5,8 @@ import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
+import { Treemap } from './components/Treemap'
 import { ProfitBars } from './components/ProfitBars'
-
-const TABS = ['overview', 'analysis', 'holdings'] as const
-type Tab = (typeof TABS)[number]
-
-const TAB_LABEL: Record<Tab, string> = {
-  overview: '개요',
-  analysis: '분석',
-  holdings: '종목',
-}
 import { EditConflicts } from './components/EditConflicts'
 import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -41,13 +33,24 @@ import type {
 } from './types'
 import { holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
 
+// 탭은 답하는 질문으로 가른다 — 배분은 "어떻게 나뉘어 있나", 손익은 "뭐가
+// 벌고 까먹나", 종목은 낱낱의 원장이다. 트리맵은 색이 손익률이라 손익에 둔다.
+const TABS = ['allocation', 'profit', 'holdings'] as const
+type Tab = (typeof TABS)[number]
+
+const TAB_LABEL: Record<Tab, string> = {
+  allocation: '배분',
+  profit: '손익',
+  holdings: '종목',
+}
+
 export default function App() {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [manualAccounts, setManualAccounts] = useState<ManualAccount[]>([])
   const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
   const [holdingEdits, setHoldingEdits] = useState<HoldingEdit[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>('allocation')
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
   const [busy, setBusy] = useState(false)
@@ -477,7 +480,7 @@ export default function App() {
             ))}
           </nav>
 
-          {tab === 'overview' && (
+          {tab === 'allocation' && (
             <>
               <AccountsPanel
                 accounts={displaySummary.accounts}
@@ -499,7 +502,12 @@ export default function App() {
             </>
           )}
 
-          {tab === 'analysis' && <ProfitBars holdings={displaySummary.holdings} />}
+          {tab === 'profit' && (
+            <>
+              <Treemap holdings={displaySummary.holdings} coveredAsset={displaySummary.coveredAsset} />
+              <ProfitBars holdings={displaySummary.holdings} />
+            </>
+          )}
 
           {tab === 'holdings' && (
             <HoldingsTable
