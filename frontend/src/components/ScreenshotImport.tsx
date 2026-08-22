@@ -54,6 +54,11 @@ function parseKRW(s: string): number | null {
   return isNaN(n) ? null : n
 }
 
+// 두 장을 겹쳐 보내면 빨라질 것 같지만 반대다. 백엔드가 얇은 인스턴스라
+// 겹치는 순간 한 건당 3초이던 게 13~30초로 늘고 타임아웃까지 난다.
+// 한 장씩 보내는 편이 결과적으로 빠르고 실패도 적다.
+const CONCURRENCY = 1
+
 async function pooledMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: number): Promise<R[]> {
   const results: R[] = new Array(items.length)
   let next = 0
@@ -201,7 +206,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
         completed++
         setProcessingIndex(completed)
         return result
-      }, 2)
+      }, CONCURRENCY)
 
       const newHoldings: ExtractedHolding[] = []
       for (const result of results) {
