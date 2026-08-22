@@ -15,7 +15,9 @@ import (
 	"google.golang.org/genai"
 )
 
-const requestTimeout = 30 * time.Second
+// 정상 응답은 2~4초에 온다. 한참 기다리다 실패하느니 일찍 끊고 다시 거는 편이
+// 빠르다 — 배포 환경에서 관측된 지연은 다시 걸면 대개 곧바로 풀린다.
+const requestTimeout = 15 * time.Second
 
 // 모델은 버전을 박아 고정한다. latest 별칭은 늘 가장 새 모델을 가리키는데,
 // 새 모델일수록 트래픽이 몰려 503(과부하)을 자주 뱉는다.
@@ -126,12 +128,17 @@ func (c *Client) KeyCount() int {
 
 // retryable 은 다시 걸어볼 만한 실패인지 가린다. 429(한도초과)는 키마다 다르게
 // 나므로 다음 키로 넘어가면 풀린다. 503(과부하)은 키와 무관하지만 잠깐 뒤에는
-// 풀리기도 해서 한 번은 더 걸어본다. 타임아웃은 보통 네트워크 경로 자체의
-// 문제라 다시 걸어도 똑같이 멈춘다 — 대기 시간만 키 개수만큼 늘어나 배포
-// 플랫폼의 게이트웨이 타임아웃에 걸리기 쉬우므로 즉시 실패시킨다.
+// 풀리기도 해서 한 번은 더 걸어본다.
+//
+// 타임아웃도 다시 건다. 전에는 경로 자체의 문제라 보고 즉시 실패시켰는데,
+// 배포 환경에서 재어 보니 그렇지 않았다 — 다섯 번에 한 번쯤 30초를 넘기지만
+// 곧바로 다시 걸면 2~3초에 돌아온다. 규칙성이 없어 미리 피할 수도 없다.
 func retryable(err error) bool {
 	msg := err.Error()
-	return strings.Contains(msg, "429") || strings.Contains(msg, "503") || strings.Contains(msg, "UNAVAILABLE")
+	return strings.Contains(msg, "429") ||
+		strings.Contains(msg, "503") ||
+		strings.Contains(msg, "UNAVAILABLE") ||
+		strings.Contains(msg, "context deadline exceeded")
 }
 
 // 503 은 즉시 오지 않고 수십 초 걸려 오기도 한다. 키 개수만큼 다 돌면 그 시간이
