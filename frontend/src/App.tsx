@@ -33,15 +33,16 @@ import type {
 } from './types'
 import { holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
 
-// 탭은 답하는 질문으로 가른다 — 배분은 "어떻게 나뉘어 있나", 손익은 "뭐가
-// 벌고 까먹나", 종목은 낱낱의 원장이다. 트리맵은 색이 손익률이라 손익에 둔다.
-const TABS = ['allocation', 'profit', 'holdings'] as const
+// 자산은 숫자로 확인하는 원장이고, 배분과 손익은 그림으로 파악하는 차트다.
+// 형식으로 가르면 새 화면을 어디 둘지 따질 일이 없다. 트리맵은 칸 색이
+// 손익률이라 배분이 아니라 손익에 둔다.
+const TABS = ['assets', 'allocation', 'profit'] as const
 type Tab = (typeof TABS)[number]
 
 const TAB_LABEL: Record<Tab, string> = {
+  assets: '자산',
   allocation: '배분',
   profit: '손익',
-  holdings: '종목',
 }
 
 export default function App() {
@@ -50,7 +51,7 @@ export default function App() {
   const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
   const [holdingEdits, setHoldingEdits] = useState<HoldingEdit[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [tab, setTab] = useState<Tab>('allocation')
+  const [tab, setTab] = useState<Tab>('assets')
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
   const [busy, setBusy] = useState(false)
@@ -480,7 +481,7 @@ export default function App() {
             ))}
           </nav>
 
-          {tab === 'allocation' && (
+          {tab === 'assets' && (
             <>
               <AccountsPanel
                 accounts={displaySummary.accounts}
@@ -493,13 +494,29 @@ export default function App() {
                 onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
                 onRemoveAccount={removeAccount}
               />
-              <AllocationPie
-                categories={displaySummary.categories}
+              <HoldingsTable
                 holdings={displaySummary.holdings}
                 accounts={displaySummary.accounts}
-                coveredAsset={displaySummary.coveredAsset}
+                mode={mode}
+                onModeChange={setMode}
+                busy={busy}
+                onEditHolding={openHoldingEditor}
+                showUSD={showUSD}
+                onToggleUSD={toggleUSD}
+                showLive={showLive}
+                quotes={liveQuotes}
+                usdKrw={usdKrw}
               />
             </>
+          )}
+
+          {tab === 'allocation' && (
+            <AllocationPie
+              categories={displaySummary.categories}
+              holdings={displaySummary.holdings}
+              accounts={displaySummary.accounts}
+              coveredAsset={displaySummary.coveredAsset}
+            />
           )}
 
           {tab === 'profit' && (
@@ -507,22 +524,6 @@ export default function App() {
               <Treemap holdings={displaySummary.holdings} coveredAsset={displaySummary.coveredAsset} />
               <ProfitBars holdings={displaySummary.holdings} />
             </>
-          )}
-
-          {tab === 'holdings' && (
-            <HoldingsTable
-              holdings={displaySummary.holdings}
-              accounts={displaySummary.accounts}
-              mode={mode}
-              onModeChange={setMode}
-              busy={busy}
-              onEditHolding={openHoldingEditor}
-              showUSD={showUSD}
-              onToggleUSD={toggleUSD}
-              showLive={showLive}
-              quotes={liveQuotes}
-              usdKrw={usdKrw}
-            />
           )}
 
           <footer className="page-foot">
