@@ -13,7 +13,6 @@ interface Props {
   busy: boolean
   onEditHolding: (holding: Holding) => void
   showLive?: boolean
-  onToggleLive?: () => void
   showUSD?: boolean
   onToggleUSD?: () => void
   quotes?: Record<string, Quote> | null
@@ -28,7 +27,6 @@ export function HoldingsTable({
   busy,
   onEditHolding,
   showLive,
-  onToggleLive,
   showUSD,
   onToggleUSD,
   quotes,
@@ -37,24 +35,7 @@ export function HoldingsTable({
   return (
     <section className="holdings">
       <header className="section-head">
-        <div className="section-head-title">
-          <h2>보유 종목</h2>
-          {onToggleLive && (
-            <button
-              type="button"
-              className="switch"
-              role="switch"
-              aria-checked={!!showLive}
-              disabled={busy}
-              onClick={onToggleLive}
-            >
-              <span className="switch-track">
-                <span className="switch-knob" />
-              </span>
-              실시간 시세
-            </button>
-          )}
-        </div>
+        <h2>보유 종목</h2>
         <div className="head-actions">
           <div className="toggle" role="group" aria-label="보기 방식">
             <button type="button" aria-pressed={mode === 'all'} onClick={() => onModeChange('all')}>

@@ -705,8 +705,35 @@ main {
   color: var(--muted);
 }
 
+/* ---------- 탭 ---------- */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 1.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  /* 선택된 탭의 밑줄이 컨테이너 경계선을 덮도록 겹쳐 놓는다 */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs button:hover {
+  color: var(--text-secondary);
+}
+.tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
 /* ---------- 트리맵 ---------- */
-.treemap-section,
 .profit-bars-section {
   margin-top: 2.5rem;
 }
@@ -715,39 +742,63 @@ main {
   font-size: 0.76rem;
   color: var(--muted);
 }
+.treemap-note {
+  margin: -0.25rem 0 0.6rem;
+}
 .treemap-wrap {
   position: relative;
 }
 .treemap {
+  position: relative;
   width: 100%;
   height: clamp(260px, 42vw, 380px);
-  display: block;
 }
 .treemap .cell {
-  stroke: var(--surface);
-  stroke-width: 0.3;
+  position: absolute;
+  /* 칸 사이 틈은 바깥 여백으로 낸다 — 크기를 줄이면 면적이 비중과 어긋난다 */
+  border: 1.5px solid var(--bg);
+  border-radius: 5px;
+  padding: 0.3rem 0.4rem;
+  font: inherit;
+  /* 칸 배경은 손익률에 따라 밝기가 달라진다. 어느 쪽이든 읽히도록 글자는
+     흰색으로 고정하고 그림자로 받친다 — 배경색마다 글자색을 고르면
+     경계에서 대비가 무너진다. */
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+  text-align: left;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
   cursor: default;
-  transition: opacity 0.12s;
+  transition: filter 0.12s;
+}
+.treemap .cell:hover,
+.treemap .cell.on {
+  filter: brightness(1.12);
 }
 .treemap .cell:focus-visible {
-  outline: none;
-  stroke: var(--text);
-  stroke-width: 0.6;
-}
-.treemap .cell.on {
-  opacity: 0.82;
+  outline: 2px solid var(--text);
+  outline-offset: -3px;
 }
 .cell-name,
 .cell-rate {
   pointer-events: none;
-  fill: var(--text);
-  font-size: 2.1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.cell-name {
+  font-size: 0.76rem;
   font-weight: 600;
 }
 .cell-rate {
-  font-size: 1.9px;
-  font-weight: 500;
-  opacity: 0.75;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 
 /* ---------- 손익 기여도 ---------- */

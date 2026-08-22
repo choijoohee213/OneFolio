@@ -5,8 +5,16 @@ import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
 import { AccountsPanel } from './components/AccountsPanel'
 import { AllocationPie } from './components/AllocationPie'
-import { Treemap } from './components/Treemap'
 import { ProfitBars } from './components/ProfitBars'
+
+const TABS = ['overview', 'analysis', 'holdings'] as const
+type Tab = (typeof TABS)[number]
+
+const TAB_LABEL: Record<Tab, string> = {
+  overview: '개요',
+  analysis: '분석',
+  holdings: '종목',
+}
 import { EditConflicts } from './components/EditConflicts'
 import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
@@ -39,6 +47,7 @@ export default function App() {
   const [manualHoldings, setManualHoldings] = useState<ManualHolding[]>([])
   const [holdingEdits, setHoldingEdits] = useState<HoldingEdit[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
+  const [tab, setTab] = useState<Tab>('overview')
   const [overrides, setOverrides] = useState<Overrides>({})
   const [mode, setMode] = useState<GroupMode>('all')
   const [busy, setBusy] = useState(false)
@@ -412,6 +421,23 @@ export default function App() {
             </strong>
           </div>
         )}
+        {/* 실시간 시세는 계좌·차트·표에 모두 반영되므로 어느 탭에서든 끄고 켤 수
+            있게 헤더에 둔다. */}
+        {displaySummary && (
+          <button
+            type="button"
+            className="switch"
+            role="switch"
+            aria-checked={showLive}
+            disabled={busy}
+            onClick={toggleLiveQuotes}
+          >
+            <span className="switch-track">
+              <span className="switch-knob" />
+            </span>
+            실시간 시세
+          </button>
+        )}
         {summary && (
           <AddMenu
             busy={busy}
@@ -436,43 +462,61 @@ export default function App() {
       )}
 
       {displaySummary && (
-        <AccountsPanel
-          accounts={displaySummary.accounts}
-          holdings={displaySummary.holdings}
-          manualAccounts={manualAccounts}
-          superseded={superseded}
-          coveredAsset={displaySummary.coveredAsset}
-          busy={busy}
-          onRemove={(number) => apply({ files: withoutAccount(files, number) })}
-          onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
-          onRemoveAccount={removeAccount}
-        />
-      )}
-
-      {displaySummary && (
         <>
-          <AllocationPie
-            categories={displaySummary.categories}
-            holdings={displaySummary.holdings}
-            accounts={displaySummary.accounts}
-            coveredAsset={displaySummary.coveredAsset}
-          />
-          <Treemap holdings={displaySummary.holdings} coveredAsset={displaySummary.coveredAsset} />
-          <ProfitBars holdings={displaySummary.holdings} />
-          <HoldingsTable
-            holdings={displaySummary.holdings}
-            accounts={displaySummary.accounts}
-            mode={mode}
-            onModeChange={setMode}
-            busy={busy}
-            onEditHolding={openHoldingEditor}
-            showLive={showLive}
-            onToggleLive={toggleLiveQuotes}
-            showUSD={showUSD}
-            onToggleUSD={toggleUSD}
-            quotes={liveQuotes}
-            usdKrw={usdKrw}
-          />
+          <nav className="tabs" role="tablist" aria-label="화면">
+            {TABS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={tab === option}
+                onClick={() => setTab(option)}
+              >
+                {TAB_LABEL[option]}
+              </button>
+            ))}
+          </nav>
+
+          {tab === 'overview' && (
+            <>
+              <AccountsPanel
+                accounts={displaySummary.accounts}
+                holdings={displaySummary.holdings}
+                manualAccounts={manualAccounts}
+                superseded={superseded}
+                coveredAsset={displaySummary.coveredAsset}
+                busy={busy}
+                onRemove={(number) => apply({ files: withoutAccount(files, number) })}
+                onEditAccount={(id) => setAccountTarget(manualAccounts.find((a) => a.id === id) ?? null)}
+                onRemoveAccount={removeAccount}
+              />
+              <AllocationPie
+                categories={displaySummary.categories}
+                holdings={displaySummary.holdings}
+                accounts={displaySummary.accounts}
+                coveredAsset={displaySummary.coveredAsset}
+              />
+            </>
+          )}
+
+          {tab === 'analysis' && <ProfitBars holdings={displaySummary.holdings} />}
+
+          {tab === 'holdings' && (
+            <HoldingsTable
+              holdings={displaySummary.holdings}
+              accounts={displaySummary.accounts}
+              mode={mode}
+              onModeChange={setMode}
+              busy={busy}
+              onEditHolding={openHoldingEditor}
+              showUSD={showUSD}
+              onToggleUSD={toggleUSD}
+              showLive={showLive}
+              quotes={liveQuotes}
+              usdKrw={usdKrw}
+            />
+          )}
+
           <footer className="page-foot">
             <p>
               올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산 후
