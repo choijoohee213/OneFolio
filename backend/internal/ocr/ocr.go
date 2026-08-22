@@ -18,10 +18,13 @@ import (
 const requestTimeout = 30 * time.Second
 
 // 모델은 버전을 박아 고정한다. latest 별칭은 늘 가장 새 모델을 가리키는데,
-// 새 모델일수록 트래픽이 몰려 503(과부하)을 자주 뱉는다. 실측에서 별칭은
-// 세 번 중 한 번만 성공하고 평균 14.5초가 걸린 반면, 버전을 고정하니 세 번
-// 모두 성공하고 평균 2.3초였다. GEMINI_MODEL 로 바꿀 수 있다.
-const defaultModel = "gemini-3.5-flash"
+// 새 모델일수록 트래픽이 몰려 503(과부하)을 자주 뱉는다.
+//
+// 큰 모델은 시간대를 심하게 타서, 같은 캡처가 2초에 끝나기도 하고 16초가
+// 걸리기도 한다. 캡처에서 표를 읽어 옮기는 일에는 lite 로 충분하고 추출
+// 결과도 같으면서, 두 시간대 모두 2초 안팎으로 일정했다.
+// GEMINI_MODEL 로 바꿀 수 있다.
+const defaultModel = "gemini-3.1-flash-lite"
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
