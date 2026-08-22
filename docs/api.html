@@ -970,7 +970,8 @@ Content-Disposition: form-data; name="holdingEdits"
   <tbody>
     <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
     <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
-    <tr><td><code>GEMINI_API_KEY</code></td><td class="type">(비어있음)</td><td>Gemini API 키. 설정하면 <code>POST /api/ocr</code> 활성화</td></tr>
+    <tr><td><code>GEMINI_API_KEY</code></td><td class="type">(비어있음)</td><td>Gemini API 키. 설정하면 <code>POST /api/ocr</code> 활성화. 쉼표로 여러 개를 주면 번갈아 쓴다</td></tr>
+    <tr><td><code>GEMINI_MODEL</code></td><td class="type">gemini-3.5-flash</td><td>OCR 에 쓸 Gemini 모델. <code>latest</code> 별칭은 트래픽이 몰려 503 이 잦으므로 버전을 고정해 둔다</td></tr>
     <tr><td><code>KIS_APP_KEY</code></td><td class="type">(비어있음)</td><td>한국투자증권 Open API 앱키. <code>KIS_APP_SECRET</code>과 함께 설정하면 <code>POST /api/quotes</code> 활성화</td></tr>
     <tr><td><code>KIS_APP_SECRET</code></td><td class="type">(비어있음)</td><td>한국투자증권 Open API 앱시크리트</td></tr>
   </tbody>
