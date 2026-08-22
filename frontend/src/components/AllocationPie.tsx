@@ -3,12 +3,14 @@ import { percent, won } from '../format'
 import { BASES, BASIS_LABEL, toSlices, type Basis, type Slice } from '../charts'
 import type { AccountSummary, CategoryTotal, Holding } from '../types'
 
-const SIZE = 220
+const SIZE = 150
 const CENTER = SIZE / 2
-const RADIUS = 96
-const GAP_RADIANS = 0.02
-const POP_DISTANCE = 7
-const LABEL_MIN_WEIGHT = 7
+const RADIUS = 66
+const GAP_RADIANS = 0.03
+const POP_DISTANCE = 5
+// 작은 파이에서는 얇은 조각에 숫자가 안 들어간다. 못 넣은 조각의 비중은
+// 옆 범례가 그대로 보여준다.
+const LABEL_MIN_WEIGHT = 12
 
 interface Props {
   categories: CategoryTotal[]
@@ -24,8 +26,32 @@ interface Wedge {
   middle: number
 }
 
+// 기준을 토글로 하나씩 넘기는 대신 넷을 나란히 둔다. "해외 비중이 큰데 그게
+// 전부 나스닥이네" 같은 건 두 차트를 같이 놓고 봐야 잡힌다.
 export function AllocationPie({ categories, holdings, accounts, coveredAsset }: Props) {
-  const [basis, setBasis] = useState<Basis>('category')
+  return (
+    <section className="allocation">
+      <header className="section-head">
+        <h2>자산배분</h2>
+      </header>
+
+      <div className="pie-grid">
+        {BASES.map((basis) => (
+          <PieCard
+            key={basis}
+            basis={basis}
+            categories={categories}
+            holdings={holdings}
+            accounts={accounts}
+            coveredAsset={coveredAsset}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PieCard({ basis, categories, holdings, accounts, coveredAsset }: Props & { basis: Basis }) {
   const [active, setActive] = useState<string | null>(null)
   const [tip, setTip] = useState({ x: 0, y: 0 })
   const wrapper = useRef<HTMLDivElement>(null)
@@ -52,25 +78,8 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
   }
 
   return (
-    <section className="allocation">
-      <header className="section-head">
-        <h2>자산배분</h2>
-        <div className="toggle" role="group" aria-label="차트 기준">
-          {BASES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={basis === option}
-              onClick={() => {
-                setBasis(option)
-                setActive(null)
-              }}
-            >
-              {BASIS_LABEL[option]}
-            </button>
-          ))}
-        </div>
-      </header>
+    <article className="pie-card">
+      <h3>{BASIS_LABEL[basis]}</h3>
 
       <div className="pie-row">
         <div className="pie-wrap" ref={wrapper}>
@@ -144,7 +153,6 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
               </span>
               <span className="tooltip-weight">{percent(hovered.slice.weight)}</span>
               <span className="tooltip-amount">{won(hovered.slice.amount)}</span>
-              <span className="tooltip-of">전체 {won(coveredAsset)} 중</span>
             </div>
           )}
         </div>
@@ -160,12 +168,11 @@ export function AllocationPie({ categories, holdings, accounts, coveredAsset }: 
               <span className="swatch" style={{ background: wedge.slice.color }} />
               <span className="legend-name">{wedge.slice.key}</span>
               <span className="legend-weight">{percent(wedge.slice.weight)}</span>
-              <span className="legend-amount">{won(wedge.slice.amount)}</span>
             </li>
           ))}
         </ul>
       </div>
-    </section>
+    </article>
   )
 }
 

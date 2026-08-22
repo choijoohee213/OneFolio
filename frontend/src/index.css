@@ -654,16 +654,49 @@ main {
 .allocation {
   margin-top: 2.5rem;
 }
-.pie-row {
+.pie-grid {
   display: grid;
   gap: 1.25rem;
+}
+/* 카드 하나에 파이와 범례가 나란히 들어가려면 약 26rem 이 필요하다.
+   두 장을 나란히 놓으려면 그 두 배에 간격까지 있어야 한다. */
+@media (min-width: 54rem) {
+  .pie-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 2rem;
+  }
+}
+.pie-card {
+  min-width: 0;
+}
+.pie-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.pie-row {
+  display: grid;
+  gap: 1rem;
   align-items: center;
   margin-bottom: 0.5rem;
 }
-@media (min-width: 34rem) {
+/* 좁아도 파이와 범례는 나란히 둔다 — 세로로 쌓으면 카드 하나가 400px 가까이
+   되어 넉 장을 넘기는 데만 스크롤이 한참 걸린다. */
+@media (min-width: 22rem) {
   .pie-row {
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 2rem;
+    gap: 1rem;
+  }
+}
+@media (max-width: 34rem) {
+  .pie {
+    width: 118px;
+    height: 118px;
+  }
+  .legend li {
+    padding: 0.34rem 0;
+    font-size: 0.8rem;
   }
 }
 .pie-wrap {
@@ -671,8 +704,8 @@ main {
   justify-self: center;
 }
 .pie {
-  width: 220px;
-  height: 220px;
+  width: 150px;
+  height: 150px;
   display: block;
   overflow: visible;
 }
@@ -695,7 +728,7 @@ main {
   stroke-width: 2;
 }
 .pie-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   fill: #fff;
   font-variant-numeric: tabular-nums;
