@@ -1,9 +1,20 @@
+import { useState } from 'react'
 import { won } from '../format'
 import type { AccountSummary, Holding } from '../types'
 import type { Quote } from '../liveQuotes'
-import { HoldingRows } from './HoldingRows'
+import { HoldingRows, type ViewMode } from './HoldingRows'
 
 export type GroupMode = 'all' | 'account'
+
+const VIEW_KEY = 'onefolio:holdings-view'
+
+// 좁은 화면에서는 카드가, 넓은 화면에서는 표가 편하다. 한 번 고르면 그 선택을
+// 기억한다 — 화면 폭은 첫 기본값을 정할 때만 본다.
+function loadView(): ViewMode {
+  const saved = localStorage.getItem(VIEW_KEY)
+  if (saved === 'card' || saved === 'table') return saved
+  return window.matchMedia('(max-width: 34rem)').matches ? 'card' : 'table'
+}
 
 interface Props {
   holdings: Holding[]
@@ -32,6 +43,27 @@ export function HoldingsTable({
   quotes,
   usdKrw,
 }: Props) {
+  const [view, setView] = useState<ViewMode>(loadView)
+  const [detail, setDetail] = useState<Holding | null>(null)
+
+  function changeView(next: ViewMode) {
+    setView(next)
+    localStorage.setItem(VIEW_KEY, next)
+  }
+
+  const rowProps = {
+    busy,
+    onEdit: onEditHolding,
+    showUSD,
+    showLive,
+    quotes,
+    usdKrw,
+    view,
+    detail,
+    onOpenDetail: setDetail,
+    onCloseDetail: () => setDetail(null),
+  }
+
   return (
     <section className="holdings">
       <header className="section-head">
@@ -57,30 +89,21 @@ export function HoldingsTable({
               달러
             </button>
           </div>
+          <div className="toggle" role="group" aria-label="목록 모양">
+            <button type="button" aria-pressed={view === 'card'} onClick={() => changeView('card')}>
+              카드
+            </button>
+            <button type="button" aria-pressed={view === 'table'} onClick={() => changeView('table')}>
+              표
+            </button>
+          </div>
         </div>
       </header>
 
       {mode === 'all' ? (
-        <HoldingRows
-          holdings={mergeByName(holdings)}
-          busy={busy}
-          onEdit={onEditHolding}
-          showUSD={showUSD}
-          showLive={showLive}
-          quotes={quotes}
-          usdKrw={usdKrw}
-        />
+        <HoldingRows holdings={mergeByName(holdings)} {...rowProps} />
       ) : (
-        <AccountGroups
-          holdings={holdings}
-          accounts={accounts}
-          busy={busy}
-          onEdit={onEditHolding}
-          showUSD={showUSD}
-          showLive={showLive}
-          quotes={quotes}
-          usdKrw={usdKrw}
-        />
+        <AccountGroups holdings={holdings} accounts={accounts} rowProps={rowProps} />
       )}
     </section>
   )
@@ -89,21 +112,11 @@ export function HoldingsTable({
 function AccountGroups({
   holdings,
   accounts,
-  busy,
-  onEdit,
-  showUSD,
-  showLive,
-  quotes,
-  usdKrw,
+  rowProps,
 }: {
   holdings: Holding[]
   accounts: AccountSummary[]
-  busy: boolean
-  onEdit: (holding: Holding) => void
-  showUSD?: boolean
-  showLive?: boolean
-  quotes?: Record<string, Quote> | null
-  usdKrw?: number | null
+  rowProps: Omit<React.ComponentProps<typeof HoldingRows>, 'holdings'>
 }) {
   const groups = accounts
     .map((account) => ({
@@ -126,15 +139,7 @@ function AccountGroups({
             <span className="group-count">{rows.length}종목</span>
             <span className="group-amount">{won(sumEvalAmount(rows))}</span>
           </summary>
-          <HoldingRows
-            holdings={rows}
-            busy={busy}
-            onEdit={onEdit}
-            showUSD={showUSD}
-            showLive={showLive}
-            quotes={quotes}
-            usdKrw={usdKrw}
-          />
+          <HoldingRows holdings={rows} {...rowProps} />
         </details>
       ))}
     </div>

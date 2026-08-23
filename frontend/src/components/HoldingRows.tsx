@@ -3,6 +3,9 @@ import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, 
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
 import type { Quote } from '../liveQuotes'
+import { HoldingCards } from './HoldingCards'
+
+export type ViewMode = 'card' | 'table'
 
 interface Props {
   holdings: Holding[]
@@ -12,9 +15,17 @@ interface Props {
   showLive?: boolean
   quotes?: Record<string, Quote> | null
   usdKrw?: number | null
+  view: ViewMode
+  detail: Holding | null
+  onOpenDetail: (holding: Holding) => void
+  onCloseDetail: () => void
 }
 
-export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKrw }: Props) {
+export function HoldingRows(props: Props) {
+  return props.view === 'card' ? <HoldingCards {...props} /> : <HoldingTable {...props} />
+}
+
+function HoldingTable({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKrw }: Props) {
   return (
     <div className="scroll">
       <table>

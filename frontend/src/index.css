@@ -1246,6 +1246,153 @@ td.name {
 .price-cell {
   font-weight: 600;
 }
+
+/* 토글이 셋이라 좁은 화면에서는 제목과 같은 줄에 다 못 선다.
+   제목을 위로 올리고 토글은 아래에서 줄바꿈되게 둔다. */
+@media (max-width: 34rem) {
+  .holdings .section-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+  .holdings .head-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---------- 보유 종목: 카드 목록 ---------- */
+.holding-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.holding-card {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.holding-card:hover {
+  border-color: var(--accent);
+}
+.hc-main {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.hc-name {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.hc-sub {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+.hc-figures {
+  display: grid;
+  gap: 0.1rem;
+  text-align: right;
+  white-space: nowrap;
+}
+.hc-eval {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hc-pl {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 보유 종목: 상세 ---------- */
+.hd-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.hd-code {
+  font-variant-numeric: tabular-nums;
+}
+.hd-code::before {
+  content: '· ';
+}
+.holding-detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem 1rem;
+  margin: 0;
+}
+.holding-detail dt {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.holding-detail dd {
+  margin: 0;
+  text-align: right;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.holding-detail dd.strong {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.hd-edit {
+  margin-top: 1.1rem;
+  width: 100%;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.hd-edit:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hd-edit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 표를 가로로 밀어도 어느 종목 줄인지는 보여야 한다. 밀려 들어온 숫자가
+   종목 칸 뒤로 사라지는데, 경계가 없으면 숫자가 잘린 것처럼 읽힌다 —
+   오른쪽에 선을 하나 둬서 여기서 가려진다는 걸 알려 준다. */
+.holdings th:first-child,
+.holdings td.name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+  box-shadow: 1px 0 0 var(--border);
+}
+.holdings thead th:first-child {
+  z-index: 2;
+}
+/* 계좌별 보기의 표는 접이식 안에 있어 배경이 다르다 */
+.group .holdings th:first-child,
+.group .holdings td.name,
+.holdings .group th:first-child,
+.holdings .group td.name {
+  background: var(--bg);
+}
 .price-cell.flash-up,
 .price-cell.flash-down {
   animation: price-flash 0.7s ease-out;
