@@ -24,10 +24,10 @@ const (
 	filesField     = "files"
 	overridesField = "overrides"
 
-	manualAccountsField  = "manualAccounts"
-	manualHoldingsField  = "manualHoldings"
-	holdingEditsField    = "holdingEdits"
-	stockMappingsField   = "stockMappings"
+	manualAccountsField = "manualAccounts"
+	manualHoldingsField = "manualHoldings"
+	holdingEditsField   = "holdingEdits"
+	stockMappingsField  = "stockMappings"
 
 	defaultSearchLimit = 20
 )
@@ -421,6 +421,7 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 		AccountID   string   `json:"accountId"`
 		Quantity    *float64 `json:"quantity"`
 		AvgBuyPrice *float64 `json:"avgBuyPrice"`
+		BuyAmount   *float64 `json:"buyAmount"`
 		ProfitLoss  *float64 `json:"profitLoss"`
 		ProfitRate  *float64 `json:"profitRate"`
 	}
@@ -453,8 +454,10 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 			quantity = *input.Quantity
 		}
 
-		var buyAmount *float64
-		if input.AvgBuyPrice != nil && quantity > 0 {
+		// 매입금액을 받았으면 그걸 쓴다. 평단은 화면에서 반올림된 값이라
+		// 수량을 곱하면 원 단위가 어긋난다(예: 271,222×9=2,440,998, 실제 2,441,000).
+		buyAmount := input.BuyAmount
+		if buyAmount == nil && input.AvgBuyPrice != nil && quantity > 0 {
 			v := *input.AvgBuyPrice * quantity
 			buyAmount = &v
 		}

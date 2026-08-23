@@ -118,32 +118,43 @@ function AccountGroups({
   accounts: AccountSummary[]
   rowProps: Omit<React.ComponentProps<typeof HoldingRows>, 'holdings'>
 }) {
-  const groups = accounts
-    .map((account) => ({
-      account,
-      rows: holdings
-        .filter((holding) => holding.accountNumber === account.number)
-        .sort((a, b) => b.evalAmount - a.evalAmount),
-    }))
-    .filter((group) => group.rows.length > 0)
+  const numbers = new Set(accounts.map((account) => account.number))
+  const groups = accounts.map((account) => ({
+    key: account.number,
+    name: account.type,
+    rows: byAmount(holdings.filter((holding) => holding.accountNumber === account.number)),
+  }))
+
+  // 어느 계좌에도 안 속한 종목(계좌번호 없이 직접 넣었거나 캡처에 계좌가 안
+  // 보였던 것)은 여기서 빠지면 화면에서 통째로 사라진다 — 따로 묶어 둔다.
+  const loose = byAmount(holdings.filter((holding) => !numbers.has(holding.accountNumber)))
+  if (loose.length > 0) {
+    groups.push({ key: '', name: '계좌 미지정', rows: loose })
+  }
 
   return (
     <div className="groups">
-      {groups.map(({ account, rows }) => (
-        <details key={account.number} className="group">
-          <summary>
-            <span className="chevron" aria-hidden="true">
-              ▶
-            </span>
-            <span className="group-name">{account.type}</span>
-            <span className="group-count">{rows.length}종목</span>
-            <span className="group-amount">{won(sumEvalAmount(rows))}</span>
-          </summary>
-          <HoldingRows holdings={rows} {...rowProps} />
-        </details>
-      ))}
+      {groups
+        .filter((group) => group.rows.length > 0)
+        .map(({ key, name, rows }) => (
+          <details key={key} className="group">
+            <summary>
+              <span className="chevron" aria-hidden="true">
+                ▶
+              </span>
+              <span className="group-name">{name}</span>
+              <span className="group-count">{rows.length}종목</span>
+              <span className="group-amount">{won(sumEvalAmount(rows))}</span>
+            </summary>
+            <HoldingRows holdings={rows} {...rowProps} />
+          </details>
+        ))}
     </div>
   )
+}
+
+function byAmount(holdings: Holding[]): Holding[] {
+  return [...holdings].sort((a, b) => b.evalAmount - a.evalAmount)
 }
 
 function sumEvalAmount(holdings: Holding[]): number {

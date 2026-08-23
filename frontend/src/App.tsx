@@ -364,6 +364,7 @@ export default function App() {
       // 이미 정확한 원화값이라 여기서 역산하면 새로 환율을 몰라도 원화 평단가가
       // 나온다: 매입금액(원) = evalAmount - profitLoss, 평단가(원) = 매입금액 / 수량.
       avgBuyPrice: krwAvgBuyPrice(h),
+      buyAmount: h.buyAmount ?? undefined,
       profitLoss: h.profitLoss ?? undefined,
       profitRate: h.profitRate ?? undefined,
     }))

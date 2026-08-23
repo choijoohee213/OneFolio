@@ -1171,6 +1171,17 @@ main {
 .group > summary::-webkit-details-marker {
   display: none;
 }
+/* 카드 목록을 담은 계좌는 머리글 배경을 지운다. 카드가 머리글과 같은 색이라
+   어디까지가 계좌이고 어디부터가 종목인지 구분되지 않는다 — 표일 때는 표에
+   배경이 없어 이 문제가 없다. */
+.group:has(.holding-cards) > summary {
+  background: transparent;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.group .holding-cards {
+  padding: 0.6rem 0.85rem 0.85rem;
+}
 .group > summary:hover {
   color: var(--accent);
 }
@@ -1382,6 +1393,13 @@ td.name {
   z-index: 1;
   background: var(--bg);
   box-shadow: 1px 0 0 var(--border);
+  /* 종목명이 길면 고정 칸이 그만큼 넓어져 정작 밀어서 볼 자리가 없다.
+     화면이 좁아지는 만큼 같이 줄어들게 두고, 넘치는 이름은 줄여 쓴다 —
+     전체 이름은 카드나 상세에서 본다. */
+  max-width: clamp(6rem, 30vw, 16rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .holdings thead th:first-child {
   z-index: 2;
