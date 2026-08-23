@@ -42,8 +42,8 @@ func TestClassifyFromMaster(t *testing.T) {
 
 		{"SOL AI반도체TOP2플러스", domain.ThemeETF},
 		{"KODEX 미국AI전력핵심인프라", domain.ThemeETF},
-		{"DIREXION SEMICONDUCTOR DAILY 3X", domain.ThemeETF},
-		{"PROSHARES QQQ 3X", domain.ThemeETF},
+		{"DIREXION SEMICONDUCTOR DAILY 3X", domain.Leverage},
+		{"PROSHARES QQQ 3X", domain.Leverage},
 	}
 
 	for _, tt := range tests {
@@ -85,7 +85,7 @@ func TestFallbackForUnlistedName(t *testing.T) {
 		{"신규해외주", price(123456.78), domain.ForeignStock},
 		{"KODEX 신규테마", price(10000), domain.ThemeETF},
 		{"TIGER 신규나스닥100", price(10000), domain.IndexETF},
-		{"이름만레버리지", price(10000), domain.ThemeETF},
+		{"이름만레버리지", price(10000), domain.Leverage},
 
 		// 브랜드는 접두사로만 인정한다. SOLUS 는 SOL 브랜드가 아니다.
 		{"SOLUS첨단소재", price(15000), domain.DomesticStock},
@@ -96,5 +96,41 @@ func TestFallbackForUnlistedName(t *testing.T) {
 		if got := classifier.Classify(holding); got != tt.want {
 			t.Errorf("Classify(%q) = %q, want %q", tt.name, got, tt.want)
 		}
+	}
+}
+
+// 채권과 레버리지를 테마와 한 칸에 두면 위험 성격이 정반대인 것들이 한 덩어리로
+// 보인다. 특히 기초자산이 채권이어도 배율이 붙으면 레버리지로 가야 한다.
+func TestBondAndLeverageSplit(t *testing.T) {
+	listings, err := master.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := New(listings, nil)
+
+	cases := []struct {
+		name string
+		want domain.Category
+	}{
+		{"ACE 미국30년국채액티브(H)", domain.Bond},
+		{"KIWOOM 국고채10년", domain.Bond},
+		{"1Q 단기금융채액티브", domain.Bond},
+		{"TIGER 종합채권(AA-이상)액티브", domain.Bond},
+		{"KODEX CD금리액티브(합성)", domain.Bond},
+
+		// 채권을 담았어도 배율이 붙으면 레버리지다
+		{"KIWOOM 국고채10년레버리지", domain.Leverage},
+		{"KODEX 200선물인버스2X", domain.Leverage},
+
+		{"TIGER 미국S&P500", domain.IndexETF},
+		{"SOL AI반도체TOP2플러스", domain.ThemeETF},
+		{"삼성전자", domain.DomesticStock},
+	}
+	for _, c2 := range cases {
+		t.Run(c2.name, func(t *testing.T) {
+			if got := c.Classify(domain.Holding{Name: c2.name}); got != c2.want {
+				t.Errorf("Classify(%q) = %q, want %q", c2.name, got, c2.want)
+			}
+		})
 	}
 }

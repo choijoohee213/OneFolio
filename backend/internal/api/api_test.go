@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/choijoohee213/OneFolio/backend/internal/domain"
 	"github.com/choijoohee213/OneFolio/backend/internal/master"
 	"github.com/choijoohee213/OneFolio/backend/internal/portfolio"
 )
@@ -351,5 +352,22 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 
 	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
 		t.Errorf("Allow-Origin = %q, want 빈 값", got)
+	}
+}
+
+// 분류 이름이 바뀌기 전에 저장해 둔 값이 올라와도 화면이 막히면 안 된다.
+func TestParseOverridesMigratesOldNames(t *testing.T) {
+	got, err := parseOverrides(`{"어떤종목":"레버리지·테마 ETF","삼성전자":"개별주(국내)"}`)
+	if err != nil {
+		t.Fatalf("옛 이름에서 막혔다: %v", err)
+	}
+	if got["어떤종목"] != domain.ThemeETF {
+		t.Errorf("옛 이름이 안 옮겨졌다: %q", got["어떤종목"])
+	}
+	if got["삼성전자"] != domain.DomesticStock {
+		t.Errorf("멀쩡한 값이 바뀌었다: %q", got["삼성전자"])
+	}
+	if _, err := parseOverrides(`{"x":"없는분류"}`); err == nil {
+		t.Error("정말 모르는 분류는 걸러야 한다")
 	}
 }
