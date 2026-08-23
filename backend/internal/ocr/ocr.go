@@ -40,6 +40,9 @@ type ExtractedHolding struct {
 	// evalAmount·profitLoss·profitRate 는 항상 원화라 여기 포함되지 않는다.
 	Currency   string   `json:"currency,omitempty"`
 	EvalAmount *float64 `json:"evalAmount"`
+	// BuyAmount 는 화면에 매입금액이 보일 때만 채운다. 평단×수량으로 내면
+	// 화면의 평단이 반올림된 값이라 원 단위가 어긋난다.
+	BuyAmount  *float64 `json:"buyAmount"`
 	ProfitLoss *float64 `json:"profitLoss"`
 	ProfitRate *float64 `json:"profitRate"`
 }
@@ -65,7 +68,8 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 규칙:
 - 계좌번호(예: 111-1111-1111-0)와 계좌유형(예: 종합_주식)이 보이면 추출한다. 안 보이면 빈 문자열로 둔다.
 - 여러 계좌가 보이면 accounts 배열에 계좌별로 나눠 넣는다. 계좌 구분이 안 되면 하나의 항목에 모두 넣는다.
-- 종목명, 티커(종목코드), 수량, 현재가, 평균매입가, 평가금액, 평가손익, 손익률을 읽는다.
+- 종목명, 티커(종목코드), 수량, 현재가, 평균매입가, 매입금액, 평가금액, 평가손익, 손익률을 읽는다.
+- 매입금액(buyAmount)은 화면에 그 값이 보일 때만 넣는다. 안 보이면 null 로 둔다 — 평균매입가에 수량을 곱해 지어내지 마라.
 - 종목명이 잘려 있으면(예: "PROSHARES ...") 옆에 보이는 티커(예: TQQQ)를 참고해 정식 명칭을 유추하라. 예: TQQQ → PROSHARES ULTRA PRO QQQ.
 - 티커: 해외주식은 알파벳 심볼(예: TQQQ, AMD), 국내주식은 숫자 종목코드(예: 005930)를 넣는다. 안 보이면 빈 문자열.
 - 이미지에 보이지 않는 필드는 null로 둔다.
@@ -78,7 +82,7 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 - 반드시 아래 JSON 형식만 출력하고 다른 텍스트는 쓰지 마라.
 
 출력 형식:
-{"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":70.5,"avgBuyPrice":65.2,"currency":"USD","evalAmount":500000,"profitLoss":50000,"profitRate":11.11}]}]}`
+{"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":70.5,"avgBuyPrice":65.2,"currency":"USD","evalAmount":500000,"buyAmount":450000,"profitLoss":50000,"profitRate":11.11}]}]}`
 
 type Client struct {
 	clients []*genai.Client
@@ -292,17 +296,26 @@ func fillCalculatedFields(holdings []ExtractedHolding, usdKrw *float64) {
 			h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
 		}
 
-		// profitLoss = evalAmount - avgBuyPrice(원화 환산) * quantity
-		if h.ProfitLoss == nil && h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil && fxKnown {
-			h.ProfitLoss = ptr(round2(*h.EvalAmount - *h.AvgBuyPrice*fx**h.Quantity))
+		// 매입금액은 화면에서 읽은 값을 우선한다. 평단은 반올림돼 있어서
+		// 수량을 곱하면 원 단위가 어긋난다(예: 271,222×9=2,440,998, 실제 2,441,000).
+		buyAmount := func() *float64 {
+			if h.BuyAmount != nil {
+				return h.BuyAmount
+			}
+			if h.AvgBuyPrice != nil && h.Quantity != nil && fxKnown {
+				return ptr(*h.AvgBuyPrice * fx * *h.Quantity)
+			}
+			return nil
+		}()
+
+		// profitLoss = evalAmount - 매입금액
+		if h.ProfitLoss == nil && h.EvalAmount != nil && buyAmount != nil {
+			h.ProfitLoss = ptr(round2(*h.EvalAmount - *buyAmount))
 		}
 
-		// profitRate = profitLoss / buyAmount * 100
-		if h.ProfitRate == nil && h.ProfitLoss != nil && h.AvgBuyPrice != nil && h.Quantity != nil && fxKnown {
-			buyAmount := *h.AvgBuyPrice * fx * *h.Quantity
-			if buyAmount != 0 {
-				h.ProfitRate = ptr(round2(*h.ProfitLoss / buyAmount * 100))
-			}
+		// profitRate = profitLoss / 매입금액 * 100
+		if h.ProfitRate == nil && h.ProfitLoss != nil && buyAmount != nil && *buyAmount != 0 {
+			h.ProfitRate = ptr(round2(*h.ProfitLoss / *buyAmount * 100))
 		}
 	}
 }

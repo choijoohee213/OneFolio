@@ -55,6 +55,7 @@ export async function fetchPortfolio(
           accountId: h.accountId ?? '',
           quantity: h.quantity ?? null,
           avgBuyPrice: h.avgBuyPrice ?? null,
+          buyAmount: h.buyAmount ?? null,
           profitLoss: h.profitLoss ?? null,
           profitRate: h.profitRate ?? null,
         })),

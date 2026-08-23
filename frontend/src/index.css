@@ -1382,6 +1382,12 @@ td.name {
   z-index: 1;
   background: var(--bg);
   box-shadow: 1px 0 0 var(--border);
+  /* 종목명이 길면 고정 칸이 그만큼 넓어져 정작 밀어서 볼 자리가 없다.
+     넘치면 줄여 쓴다 — 전체 이름은 카드나 상세에서 본다. */
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .holdings thead th:first-child {
   z-index: 2;
