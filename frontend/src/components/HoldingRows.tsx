@@ -54,14 +54,14 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes,
                     </span>
                   )}
                 </td>
-                <td>
+                <td className="category">
                   <span className="swatch small" style={{ background: categoryColor(holding.category) }} />
                   {holding.category}
                 </td>
-                <td className="num">
+                <td className="num qty">
                   {isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}
                 </td>
-                <td className="num">{holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)}</td>
+                <td className="num avg">{holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)}</td>
                 {showLive && (
                   <PriceCell
                     quotePrice={quote?.price ?? null}
@@ -69,15 +69,15 @@ export function HoldingRows({ holdings, busy, onEdit, showUSD, showLive, quotes,
                     formatted={currentPrice()}
                   />
                 )}
-                <td className="num">{amount(holding.evalAmount)}</td>
-                <td className={`num ${sign(holding.profitLoss)}`}>
+                <td className="num eval">{amount(holding.evalAmount)}</td>
+                <td className={`num pl ${sign(holding.profitLoss)}`}>
                   {holding.profitLoss === null ? '—' : signedAmount(holding.profitLoss)}
                 </td>
-                <td className={`num ${sign(holding.profitRate)}`}>
+                <td className={`num rate ${sign(holding.profitRate)}`}>
                   {holding.profitRate === null ? '—' : signedPercent(holding.profitRate)}
                 </td>
-                <td className="num">{percent(holding.weight)}</td>
-                <td className="num">
+                <td className="num weight">{percent(holding.weight)}</td>
+                <td className="num edit">
                   <button
                     type="button"
                     className="link"

@@ -1246,6 +1246,127 @@ td.name {
 .price-cell {
   font-weight: 600;
 }
+
+/* ---------- 좁은 화면: 보유 종목을 카드로 ---------- */
+/* 컬럼이 아홉이라 가로로 700px 가까이 된다. 좁은 화면에서 가로 스크롤로
+   훑게 하는 대신 한 종목을 한 장으로 접는다. 표 구조는 그대로 두고 배치만
+   바꿔서, 읽어주기에는 여전히 표로 남는다. */
+@media (max-width: 34rem) {
+  .holdings .scroll {
+    overflow-x: visible;
+  }
+  .holdings table {
+    display: block;
+    min-width: 0;
+    font-size: 1rem;
+  }
+  .holdings thead {
+    /* 화면에서만 감춘다 — 각 값이 무엇인지는 읽어주기가 헤더로 안내한다 */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .holdings tbody {
+    display: grid;
+    gap: 0.5rem;
+  }
+  .holdings tbody tr {
+    display: grid;
+    grid-template-columns: auto auto auto 1fr;
+    align-items: baseline;
+    gap: 0.15rem 0.5rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .holdings tbody td {
+    border: 0;
+    padding: 0;
+  }
+
+  /* 1행 종목명·손익률, 2행 평가금액·평가손익, 3행 나머지 */
+  .holdings td.name {
+    grid-area: 1 / 1 / 2 / 4;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .holdings td.rate {
+    grid-area: 1 / 4 / 2 / 5;
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  .holdings td.eval {
+    grid-area: 2 / 1 / 3 / 3;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: left;
+  }
+  .holdings td.pl {
+    grid-area: 2 / 3 / 3 / 5;
+    font-size: 0.88rem;
+  }
+  .holdings td.category {
+    grid-area: 3 / 1 / 4 / 4;
+    font-size: 0.76rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+  /* 수량·평단·현재가·비중은 한 줄에 넷을 늘어놓으면 숫자가 길어 넘친다.
+     둘씩 끊어 두 줄로 놓는다 — 현재가가 없으면 아랫줄에 비중만 남는다. */
+  .holdings td.qty,
+  .holdings td.avg,
+  .holdings td.price-cell,
+  .holdings td.weight {
+    font-size: 0.76rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    text-align: left;
+  }
+  .holdings td.qty {
+    grid-area: 4 / 1 / 5 / 3;
+  }
+  .holdings td.avg {
+    grid-area: 4 / 3 / 5 / 5;
+  }
+  .holdings td.price-cell {
+    grid-area: 5 / 1 / 6 / 3;
+  }
+  .holdings td.weight {
+    grid-area: 5 / 3 / 6 / 5;
+  }
+  /* 현재가 칸이 없을 때는 비중을 위로 끌어올려 빈 줄을 없앤다 */
+  .holdings tbody tr:not(:has(.price-cell)) td.weight {
+    grid-area: 5 / 1 / 6 / 3;
+  }
+  /* 수량·평단·현재가·비중이 무슨 값인지 표에서는 헤더가 알려주지만
+     카드에서는 헤더가 없다. 짧은 이름을 앞에 붙여 준다. */
+  .holdings td.qty::before {
+    content: '수량 ';
+    color: var(--muted);
+  }
+  .holdings td.avg::before {
+    content: '평단 ';
+    color: var(--muted);
+  }
+  .holdings td.price-cell::before {
+    content: '현재 ';
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .holdings td.weight::before {
+    content: '비중 ';
+    color: var(--muted);
+  }
+  /* 손익률이 오른쪽 위를 차지하므로 수정은 분류와 같은 줄 끝에 둔다 */
+  .holdings td.edit {
+    grid-area: 3 / 4 / 4 / 5;
+    justify-self: end;
+    margin-top: 0.15rem;
+  }
+}
 .price-cell.flash-up,
 .price-cell.flash-down {
   animation: price-flash 0.7s ease-out;
