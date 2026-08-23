@@ -341,7 +341,15 @@ export default function App() {
       } else {
         const id = crypto.randomUUID()
         accountIds.set(h.accountNumber, id)
-        nextAccounts.push({ id, name: h.accountNumber, totalAsset: 0, accountNumber: h.accountNumber })
+        // 이름은 계좌유형(예: 종합_주식)을 쓴다. 잔고파일로 만든 계좌도 유형을
+        // 이름으로 쓰고 있어서, 번호를 넣으면 목록에서 둘이 따로 놀아 보인다.
+        // 화면에 유형이 안 보였으면 그때만 번호로 대신한다.
+        nextAccounts.push({
+          id,
+          name: h.accountType || h.accountNumber,
+          totalAsset: 0,
+          accountNumber: h.accountNumber,
+        })
       }
     }
 
