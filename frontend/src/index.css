@@ -688,7 +688,9 @@ main {
 .pie-row {
   display: grid;
   gap: 1rem;
-  align-items: center;
+  /* 파이를 위에 맞춘다. 가운데로 두면 범례가 긴 카드에서만 파이가 아래로
+     밀려, 나란히 놓인 카드끼리 파이 높이가 어긋난다. */
+  align-items: start;
   margin-bottom: 0.5rem;
 }
 /* 좁아도 파이와 범례는 나란히 둔다 — 세로로 쌓으면 카드 하나가 400px 가까이
