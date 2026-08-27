@@ -50,8 +50,8 @@ type Entry struct {
 }
 
 type Table struct {
-	byName map[string]Listing // normalized name → listing
-	byCode map[string]Entry   // uppercase code → entry
+	byName  map[string]Listing // normalized name → listing
+	byCode  map[string]Entry   // uppercase code → entry
 	entries []Entry
 }
 

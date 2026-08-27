@@ -13,15 +13,23 @@ import (
 type Classifier struct {
 	listings  *master.Table
 	overrides map[string]domain.Category
+	// codes 는 종목명으로 알아둔 종목코드다. 이름이 국내와 해외에 겹칠 때
+	// (SK하이닉스와 그 ADR) 코드가 더 확실한 신원이라 먼저 본다.
+	codes map[string]string
 }
 
-func New(listings *master.Table, overrides map[string]domain.Category) *Classifier {
-	return &Classifier{listings: listings, overrides: overrides}
+func New(listings *master.Table, overrides map[string]domain.Category, codes map[string]string) *Classifier {
+	return &Classifier{listings: listings, overrides: overrides, codes: codes}
 }
 
 func (c *Classifier) Classify(h domain.Holding) domain.Category {
 	if category, ok := c.overrides[h.Name]; ok {
 		return category
+	}
+	if code, ok := c.codes[h.Name]; ok && code != "" {
+		if entry, found := c.listings.LookupByCode(code); found {
+			return FromKind(entry.Kind, entry.Name)
+		}
 	}
 	if listing, ok := c.listings.Lookup(h.Name); ok {
 		return FromKind(listing.Kind, h.Name)

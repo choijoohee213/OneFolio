@@ -190,7 +190,7 @@ func (s *Server) portfolio(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	classifier := classify.New(s.listings, overrides)
+	classifier := classify.New(s.listings, overrides, stockMappings)
 	summary := portfolio.Summarize(merged, classifier, s.listings, stockMappings)
 	summary.Sources = sources
 	writeJSON(w, http.StatusOK, summary)
@@ -239,11 +239,13 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 	// 해외/국내가 확정되면 그걸 우선한다. 마스터에 없는 종목만 Gemini 판단을 쓴다.
 	needsFx := false
 	for i, h := range result.Holdings {
+		// 티커를 먼저 본다. 같은 이름이 국내와 해외에 다 있을 때(SK하이닉스와
+		// 그 ADR 처럼) 이름부터 맞추면 국내가 잡히고 티커는 버려진다.
 		listing, ok := s.listings.Lookup(h.Name)
-		if !ok && h.Ticker != "" {
-			if entry, ok2 := s.listings.LookupByCode(h.Ticker); ok2 {
+		if h.Ticker != "" {
+			if entry, byTicker := s.listings.LookupByCode(h.Ticker); byTicker {
 				result.Holdings[i].Name = entry.Name
-				listing, ok = master.Listing{Code: entry.Code, Kind: entry.Kind}, true
+				listing, ok = master.Listing{Code: entry.Code, Kind: entry.Kind, Market: entry.Market}, true
 			}
 		}
 		if ok {
