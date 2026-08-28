@@ -70,8 +70,12 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 - 여러 계좌가 보이면 accounts 배열에 계좌별로 나눠 넣는다. 계좌 구분이 안 되면 하나의 항목에 모두 넣는다.
 - 종목명, 티커(종목코드), 수량, 현재가, 평균매입가, 매입금액, 평가금액, 평가손익, 손익률을 읽는다.
 - 매입금액(buyAmount)은 화면에 그 값이 보일 때만 넣는다. 안 보이면 null 로 둔다 — 평균매입가에 수량을 곱해 지어내지 마라.
-- 종목명이 잘려 있으면(예: "PROSHARES ...") 옆에 보이는 티커(예: TQQQ)를 참고해 정식 명칭을 유추하라. 예: TQQQ → PROSHARES ULTRA PRO QQQ.
-- 티커: 해외주식은 알파벳 심볼(예: TQQQ, AMD), 국내주식은 숫자 종목코드(예: 005930)를 넣는다. 안 보이면 빈 문자열.
+- 종목명은 화면에 적힌 그대로 옮긴다. 번역하거나 영문·정식 명칭으로 바꾸지 마라 —
+  "SK하이닉스(ADR)" 은 "SK Hynix" 가 아니라 "SK하이닉스(ADR)" 이다.
+- 종목명이 두 줄로 나뉘어 있으면 이어 붙인다. 예: "TSMC(AD" + "R)" → "TSMC(ADR)".
+- 말줄임표로 진짜 잘려 있을 때만(예: "PROSHARES ...") 옆에 보이는 티커를 참고해 뒷부분을 채운다.
+- 티커: 화면에 보일 때만 넣는다. 해외주식은 알파벳 심볼(예: TQQQ, AMD), 국내주식은
+  숫자 종목코드(예: 005930). 화면에 없으면 빈 문자열로 두고 짐작해서 지어내지 마라.
 - 이미지에 보이지 않는 필드는 null로 둔다.
 - 숫자는 콤마, 원, %, +, - 기호를 제거한 순수 숫자로 변환한다. 손실(마이너스)이면 음수로.
 - 평가손익(profitLoss)과 평가금액(evalAmount)은 반드시 원화(KRW) 기준으로 추출한다. "원화평가손익" 등 원화 값이 있으면 그것을 쓰고, 원화 값이 없으면 null로 둔다.
@@ -212,14 +216,15 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		}
 	}
 
-	fillCalculatedFields(result.Holdings, c.usdKrwRate(ctx, result.Holdings))
+	// 파생 필드는 여기서 채우지 않는다. 달러인지 원화인지는 종목마스터로
+	// 확정한 뒤라야 알 수 있어서, 호출한 쪽이 FillCalculated 로 마무리한다.
 	return &result, nil
 }
 
 // usdKrwRate 는 달러로 찍힌 종목이 하나라도 있을 때만 환율을 조회한다.
 // 조회에 실패하거나 시세 클라이언트가 없으면 nil — fillCalculatedFields 는
 // 그 경우 원화 계산이 필요한 필드를 채우지 않고 비워 둔다.
-func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *float64 {
+func (c *Client) UsdKrwRate(ctx context.Context, holdings []ExtractedHolding) *float64 {
 	if c.quoteClient == nil {
 		return nil
 	}
@@ -240,38 +245,20 @@ func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *f
 	return &rate
 }
 
-// RecomputeKRW 는 currentPrice·avgBuyPrice 를 usdKrw 로 원화 환산해서 evalAmount·
-// profitLoss·profitRate 를 무조건 다시 낸다 — 이미 값이 있어도 덮어쓴다.
-// 종목마스터로 해외 종목임을 확정했을 때만 불러야 한다: Gemini 가 화면에서
-// 직접 읽은 evalAmount·profitLoss 는 통화를 혼동했을 수 있어 currentPrice·
-// avgBuyPrice(숫자만 베끼면 되는 값)에서 다시 계산한 값을 더 신뢰할 수 있다.
-func RecomputeKRW(h *ExtractedHolding, usdKrw float64) {
-	if h.CurrentPrice != nil && h.Quantity != nil {
-		h.EvalAmount = ptr(round2(*h.CurrentPrice * usdKrw * *h.Quantity))
-	}
-	if h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil {
-		buyAmount := *h.AvgBuyPrice * usdKrw * *h.Quantity
-		profit := *h.EvalAmount - buyAmount
-		h.ProfitLoss = ptr(round2(profit))
-		if buyAmount != 0 {
-			h.ProfitRate = ptr(round2(profit / buyAmount * 100))
-		} else {
-			h.ProfitRate = nil
-		}
-	}
-}
-
 func ptr(v float64) *float64 { return &v }
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
-// fillCalculatedFields 는 Gemini 가 비워 둔 파생 필드를 채운다. currentPrice·
-// avgBuyPrice 가 달러(Currency=="USD")면 usdKrw 로 원화 환산한 뒤 계산한다.
-// 환율을 모르면(usdKrw==nil) 그 종목의 원화 계산은 건너뛴다 — 잘못된 값을
-// 만드느니 비워 두는 편이 낫다.
-func fillCalculatedFields(holdings []ExtractedHolding, usdKrw *float64) {
+// FillCalculated 는 화면에서 읽지 못한 값만 계산해서 채운다. 화면에 있던 값은
+// 절대 건드리지 않는다 — 증권사가 계산해 둔 값이 우리 환율로 다시 낸 값보다
+// 믿을 만하다.
+//
+// currentPrice·avgBuyPrice 가 달러(Currency=="USD")면 usdKrw 로 원화 환산한 뒤
+// 계산한다. 환율을 모르면(usdKrw==nil) 그 종목의 원화 계산은 건너뛴다 —
+// 잘못된 값을 만드느니 비워 두는 편이 낫다.
+func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 	for i := range holdings {
 		h := &holdings[i]
 

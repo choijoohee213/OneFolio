@@ -99,15 +99,22 @@ func Summarize(p *Portfolio, classifier *classify.Classifier, listings *master.T
 			Weight:   ratio(holding.EvalAmount, summary.CoveredAsset),
 		}
 
-		if listing, ok := listings.Lookup(holding.Name); ok {
-			detail.Code = listing.Code
-			detail.Market = listing.Market
-		} else if code, ok := stockMappings[holding.Name]; ok && code != "" {
+		// 종목코드를 먼저 본다 — 이름은 국내와 해외에 같은 것이 있을 수 있어
+		// (SK하이닉스와 그 ADR) 코드가 더 확실한 신원이다.
+		matched := false
+		if code, has := stockMappings[holding.Name]; has && code != "" {
 			if entry, ok := listings.LookupByCode(code); ok {
 				detail.Code = entry.Code
 				detail.Market = entry.Market
+				matched = true
 			}
-		} else if !IsManualHolding(holding.AccountNumber) {
+		}
+		if listing, ok := listings.Lookup(holding.Name); ok && !matched {
+			detail.Code = listing.Code
+			detail.Market = listing.Market
+			matched = true
+		}
+		if !matched && !IsManualHolding(holding.AccountNumber) {
 			unmatchedSet[holding.Name] = true
 		}
 

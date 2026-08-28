@@ -20,7 +20,7 @@ func loadListings(t *testing.T) *master.Table {
 
 // 실제 보유종목이 마스터 조회만으로 제대로 갈리는지 본다.
 func TestClassifyFromMaster(t *testing.T) {
-	classifier := New(loadListings(t), nil)
+	classifier := New(loadListings(t), nil, nil)
 
 	tests := []struct {
 		name string
@@ -55,7 +55,7 @@ func TestClassifyFromMaster(t *testing.T) {
 
 // 띄어쓰기가 달라도 같은 종목으로 찾아야 한다.
 func TestLookupIgnoresSpacing(t *testing.T) {
-	classifier := New(loadListings(t), nil)
+	classifier := New(loadListings(t), nil, nil)
 
 	for _, name := range []string{"존슨앤드존슨", "알파벳  A"} {
 		if got := classifier.Classify(domain.Holding{Name: name}); got != domain.ForeignStock {
@@ -65,7 +65,7 @@ func TestLookupIgnoresSpacing(t *testing.T) {
 }
 
 func TestOverrideBeatsMaster(t *testing.T) {
-	classifier := New(loadListings(t), map[string]domain.Category{"AMD": domain.DomesticStock})
+	classifier := New(loadListings(t), map[string]domain.Category{"AMD": domain.DomesticStock}, nil)
 
 	if got := classifier.Classify(domain.Holding{Name: "AMD"}); got != domain.DomesticStock {
 		t.Errorf("수동 매핑이 마스터를 덮어쓰지 못함: %q", got)
@@ -74,7 +74,7 @@ func TestOverrideBeatsMaster(t *testing.T) {
 
 // 마스터에 없는 종목은 이름 규칙과 현재가 소수점으로 추정한다.
 func TestFallbackForUnlistedName(t *testing.T) {
-	classifier := New(master.Empty(), nil)
+	classifier := New(master.Empty(), nil, nil)
 
 	tests := []struct {
 		name         string
@@ -106,7 +106,7 @@ func TestBondAndLeverageSplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := New(listings, nil)
+	c := New(listings, nil, nil)
 
 	cases := []struct {
 		name string

@@ -8,41 +8,48 @@ import (
 
 func f(v float64) *float64 { return &v }
 
-// RecomputeKRW 는 Gemini 가 이미 evalAmount·profitLoss 를 (잘못된 통화로)
-// 채워 놨어도 currentPrice·avgBuyPrice 기준으로 무조건 다시 계산해야 한다.
-// 실사용 스크린샷에서 Gemini 가 종목마다 currency 를 빠뜨려 원 단위 계산이
-// 안 먹히는 경우가 있었는데, 이건 마스터로 해외 종목임을 확정한 뒤 호출하는
-// 별도 경로라 Gemini 의 currency 판단과 무관하게 항상 정확해야 한다.
-func TestRecomputeKRWOverridesWrongGeminiValues(t *testing.T) {
-	h := ExtractedHolding{
-		Quantity:     f(3),
-		CurrentPrice: f(347.2327),
-		AvgBuyPrice:  f(347.08),
-		// Gemini 가 통화를 혼동해 원 단위인 것처럼 잘못 채워 놓은 값
-		EvalAmount: f(1041.70),
-		ProfitLoss: f(0.45),
-		ProfitRate: f(0.04),
-	}
-	RecomputeKRW(&h, 1446.0)
+// 화면에서 읽은 값은 그대로 둔다. 예전에는 통화를 혼동했을까 봐 환율로 다시
+// 계산해 덮어썼는데, 그 탓에 화면에 원화로 적힌 금액이 우리 환율로 바뀌었다.
+func TestFillCalculatedKeepsValuesFromScreen(t *testing.T) {
+	holdings := []ExtractedHolding{{
+		Currency:     "USD",
+		Quantity:     f(0.5237),
+		CurrentPrice: f(182.44),
+		// 화면에 원화로 적혀 있던 값
+		EvalAmount: f(133180),
+		ProfitLoss: f(12400),
+	}}
+	FillCalculated(holdings, f(1446))
 
-	wantEval := round2(347.2327 * 1446 * 3)
-	if *h.EvalAmount != wantEval {
-		t.Errorf("evalAmount = %v, want %v", *h.EvalAmount, wantEval)
+	h := holdings[0]
+	if *h.EvalAmount != 133180 {
+		t.Errorf("화면 값이 바뀌었다: evalAmount = %v, want 133180", *h.EvalAmount)
 	}
-	wantBuy := 347.08 * 1446 * 3
-	wantProfit := round2(wantEval - wantBuy)
-	if *h.ProfitLoss != wantProfit {
-		t.Errorf("profitLoss = %v, want %v", *h.ProfitLoss, wantProfit)
-	}
-	// 실제 주가는 평단가보다 살짝 높은 수준이라 손익률이 크게 나면 안 된다.
-	if *h.ProfitRate > 1 || *h.ProfitRate < -1 {
-		t.Errorf("profitRate = %v, want 작은 값 (평단가와 현재가가 비슷함)", *h.ProfitRate)
+	if *h.ProfitLoss != 12400 {
+		t.Errorf("화면 값이 바뀌었다: profitLoss = %v, want 12400", *h.ProfitLoss)
 	}
 }
 
-// 평단가·현재가가 달러로 찍힌 종목은 환율로 원화 환산한 뒤에 평가손익을 내야 한다.
-// 그렇지 않으면 "70원"과 "$70"을 혼동해 손익률이 터무니없이 커진다.
-func TestFillCalculatedFieldsConvertsUSD(t *testing.T) {
+// 화면에 없던 값은 계산해서 채운다.
+func TestFillCalculatedFillsMissing(t *testing.T) {
+	holdings := []ExtractedHolding{{
+		Currency:     "USD",
+		Quantity:     f(2),
+		CurrentPrice: f(100),
+		AvgBuyPrice:  f(80),
+	}}
+	FillCalculated(holdings, f(1400))
+
+	h := holdings[0]
+	if h.EvalAmount == nil || *h.EvalAmount != 100*1400*2 {
+		t.Errorf("evalAmount 가 안 채워졌다: %v", h.EvalAmount)
+	}
+	if h.ProfitLoss == nil || *h.ProfitLoss != (100*1400*2)-(80*1400*2) {
+		t.Errorf("profitLoss 가 안 채워졌다: %v", h.ProfitLoss)
+	}
+}
+
+func TestFillCalculatedConvertsUSD(t *testing.T) {
 	holdings := []ExtractedHolding{{
 		Quantity:     f(16),
 		CurrentPrice: f(70),
@@ -50,7 +57,7 @@ func TestFillCalculatedFieldsConvertsUSD(t *testing.T) {
 		Currency:     "USD",
 	}}
 	usdKrw := 1400.0
-	fillCalculatedFields(holdings, &usdKrw)
+	FillCalculated(holdings, &usdKrw)
 
 	got := holdings[0]
 	wantEval := 70.0 * 1400 * 16 // 1,568,000
@@ -64,14 +71,14 @@ func TestFillCalculatedFieldsConvertsUSD(t *testing.T) {
 }
 
 // 환율을 못 구했으면(usdKrw==nil) 달러 종목은 잘못된 원화 값을 만들지 말고 비워 둔다.
-func TestFillCalculatedFieldsSkipsUSDWithoutRate(t *testing.T) {
+func TestFillCalculatedSkipsUSDWithoutRate(t *testing.T) {
 	holdings := []ExtractedHolding{{
 		Quantity:     f(16),
 		CurrentPrice: f(70),
 		AvgBuyPrice:  f(65),
 		Currency:     "USD",
 	}}
-	fillCalculatedFields(holdings, nil)
+	FillCalculated(holdings, nil)
 
 	got := holdings[0]
 	if got.EvalAmount != nil {
@@ -83,7 +90,7 @@ func TestFillCalculatedFieldsSkipsUSDWithoutRate(t *testing.T) {
 }
 
 // 원화 종목은 환율과 무관하게 그대로 계산된다.
-func TestFillCalculatedFieldsKRWUnaffected(t *testing.T) {
+func TestFillCalculatedKRWUnaffected(t *testing.T) {
 	holdings := []ExtractedHolding{{
 		Quantity:     f(10),
 		CurrentPrice: f(75_000),
@@ -91,7 +98,7 @@ func TestFillCalculatedFieldsKRWUnaffected(t *testing.T) {
 		Currency:     "KRW",
 	}}
 	usdKrw := 1400.0
-	fillCalculatedFields(holdings, &usdKrw)
+	FillCalculated(holdings, &usdKrw)
 
 	got := holdings[0]
 	if *got.EvalAmount != 750_000 {
@@ -104,7 +111,7 @@ func TestFillCalculatedFieldsKRWUnaffected(t *testing.T) {
 
 // evalAmount·profitLoss 를 Gemini 가 이미 원화로 채워 줬으면(달러 종목이라도)
 // 그 값을 그대로 쓴다 — 환율을 몰라도 계산이 막히면 안 된다.
-func TestFillCalculatedFieldsUsesGivenKRWValuesEvenForUSD(t *testing.T) {
+func TestFillCalculatedUsesGivenKRWValuesEvenForUSD(t *testing.T) {
 	holdings := []ExtractedHolding{{
 		Quantity:     f(16),
 		CurrentPrice: f(70),
@@ -113,7 +120,7 @@ func TestFillCalculatedFieldsUsesGivenKRWValuesEvenForUSD(t *testing.T) {
 		EvalAmount:   f(1_568_000),
 		ProfitLoss:   f(80_000),
 	}}
-	fillCalculatedFields(holdings, nil)
+	FillCalculated(holdings, nil)
 
 	got := holdings[0]
 	if *got.EvalAmount != 1_568_000 {
