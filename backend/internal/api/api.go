@@ -260,18 +260,19 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// 마스터로 해외 종목임이 확정된 것만 원화 환산을 강제로 다시 낸다. Gemini
-	// 가 직접 읽은 evalAmount·profitLoss 는 통화를 혼동했을 위험이 있어
-	// 있어도 덮어쓴다 — currentPrice·avgBuyPrice 는 숫자만 베끼면 되니 더 믿을 만하다.
+	// 화면에서 읽지 못한 값만 여기서 채운다. 통화가 종목마스터로 확정된 뒤라야
+	// 달러를 원화로 옮길 수 있어 이 자리에서 한다.
+	//
+	// 화면에 있던 값은 건드리지 않는다. 예전에는 통화를 혼동했을까 봐 덮어썼는데,
+	// 그 탓에 화면에 원화로 133,180원이라 적힌 종목이 우리 환율로 다시 계산되어
+	// 131,095원으로 바뀌었다. 증권사가 계산해 둔 값이 더 믿을 만하다.
+	var rate *float64
 	if needsFx && s.quoteClient != nil {
-		if rate, err := s.quoteClient.ExchangeRate(r.Context(), "USD", "KRW"); err == nil {
-			for i := range result.Holdings {
-				if result.Holdings[i].Currency == "USD" {
-					ocr.RecomputeKRW(&result.Holdings[i], rate)
-				}
-			}
+		if v, err := s.quoteClient.ExchangeRate(r.Context(), "USD", "KRW"); err == nil {
+			rate = &v
 		}
 	}
+	ocr.FillCalculated(result.Holdings, rate)
 
 	writeJSON(w, http.StatusOK, result)
 }

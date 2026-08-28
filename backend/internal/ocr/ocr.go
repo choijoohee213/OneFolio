@@ -216,14 +216,15 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		}
 	}
 
-	fillCalculatedFields(result.Holdings, c.usdKrwRate(ctx, result.Holdings))
+	// 파생 필드는 여기서 채우지 않는다. 달러인지 원화인지는 종목마스터로
+	// 확정한 뒤라야 알 수 있어서, 호출한 쪽이 FillCalculated 로 마무리한다.
 	return &result, nil
 }
 
 // usdKrwRate 는 달러로 찍힌 종목이 하나라도 있을 때만 환율을 조회한다.
 // 조회에 실패하거나 시세 클라이언트가 없으면 nil — fillCalculatedFields 는
 // 그 경우 원화 계산이 필요한 필드를 채우지 않고 비워 둔다.
-func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *float64 {
+func (c *Client) UsdKrwRate(ctx context.Context, holdings []ExtractedHolding) *float64 {
 	if c.quoteClient == nil {
 		return nil
 	}
@@ -244,38 +245,20 @@ func (c *Client) usdKrwRate(ctx context.Context, holdings []ExtractedHolding) *f
 	return &rate
 }
 
-// RecomputeKRW 는 currentPrice·avgBuyPrice 를 usdKrw 로 원화 환산해서 evalAmount·
-// profitLoss·profitRate 를 무조건 다시 낸다 — 이미 값이 있어도 덮어쓴다.
-// 종목마스터로 해외 종목임을 확정했을 때만 불러야 한다: Gemini 가 화면에서
-// 직접 읽은 evalAmount·profitLoss 는 통화를 혼동했을 수 있어 currentPrice·
-// avgBuyPrice(숫자만 베끼면 되는 값)에서 다시 계산한 값을 더 신뢰할 수 있다.
-func RecomputeKRW(h *ExtractedHolding, usdKrw float64) {
-	if h.CurrentPrice != nil && h.Quantity != nil {
-		h.EvalAmount = ptr(round2(*h.CurrentPrice * usdKrw * *h.Quantity))
-	}
-	if h.EvalAmount != nil && h.AvgBuyPrice != nil && h.Quantity != nil {
-		buyAmount := *h.AvgBuyPrice * usdKrw * *h.Quantity
-		profit := *h.EvalAmount - buyAmount
-		h.ProfitLoss = ptr(round2(profit))
-		if buyAmount != 0 {
-			h.ProfitRate = ptr(round2(profit / buyAmount * 100))
-		} else {
-			h.ProfitRate = nil
-		}
-	}
-}
-
 func ptr(v float64) *float64 { return &v }
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
 }
 
-// fillCalculatedFields 는 Gemini 가 비워 둔 파생 필드를 채운다. currentPrice·
-// avgBuyPrice 가 달러(Currency=="USD")면 usdKrw 로 원화 환산한 뒤 계산한다.
-// 환율을 모르면(usdKrw==nil) 그 종목의 원화 계산은 건너뛴다 — 잘못된 값을
-// 만드느니 비워 두는 편이 낫다.
-func fillCalculatedFields(holdings []ExtractedHolding, usdKrw *float64) {
+// FillCalculated 는 화면에서 읽지 못한 값만 계산해서 채운다. 화면에 있던 값은
+// 절대 건드리지 않는다 — 증권사가 계산해 둔 값이 우리 환율로 다시 낸 값보다
+// 믿을 만하다.
+//
+// currentPrice·avgBuyPrice 가 달러(Currency=="USD")면 usdKrw 로 원화 환산한 뒤
+// 계산한다. 환율을 모르면(usdKrw==nil) 그 종목의 원화 계산은 건너뛴다 —
+// 잘못된 값을 만드느니 비워 두는 편이 낫다.
+func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 	for i := range holdings {
 		h := &holdings[i]
 
