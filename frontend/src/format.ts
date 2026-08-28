@@ -1,5 +1,4 @@
 import type { Category } from './types'
-import { CATEGORIES } from './types'
 
 export function won(value: number): string {
   return `${Math.round(value).toLocaleString('ko-KR')}원`
@@ -43,6 +42,18 @@ export function commaParse(formatted: string): number {
 }
 
 // 색은 카테고리 정체성에 고정한다. 금액 순위가 바뀌어도 색이 따라 움직이면 안 된다.
+// 슬롯 번호는 목록 순서가 아니라 색끼리 얼마나 잘 갈리는지로 정했다 — 목록 순서를
+// 그대로 쓰면 파랑과 보라가 나란히 놓여 색각이상에서 구분되지 않는다.
+const COLOR_SLOT: Record<Category, number> = {
+  '개별주(국내)': 1,
+  '테마·섹터 ETF': 2,
+  '지수 ETF': 3,
+  '레버리지·인버스': 4,
+  '개별주(해외)': 5,
+  현금성: 6,
+  채권: 7,
+}
+
 export function categoryColor(category: Category): string {
-  return `var(--cat-${CATEGORIES.indexOf(category) + 1})`
+  return `var(--cat-${COLOR_SLOT[category] ?? 1})`
 }

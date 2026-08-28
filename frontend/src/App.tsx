@@ -31,7 +31,7 @@ import type {
   Summary,
   UploadedFile,
 } from './types'
-import { holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
+import { CATEGORIES, holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
 
 // 자산은 숫자로 확인하는 원장이고, 배분과 손익은 그림으로 파악하는 차트다.
 // 형식으로 가르면 새 화면을 어디 둘지 따질 일이 없다. 트리맵은 칸 색이
@@ -84,11 +84,17 @@ export default function App() {
     })
   }, [])
 
-  // market 은 나중에 추가된 값이라 그 전에 저장된 집계에는 없다. 시장·통화 차트가
-  // "미상"만 띄우지 않도록, 복원 직후 한 번 다시 계산해 채운다.
+  // 저장해 둔 집계가 지금 형식과 다르면 복원 직후 한 번 다시 계산한다.
+  // market 은 나중에 추가된 값이라 그 전 집계에는 없고, 분류는 이름이 바뀌어
+  // 옛 이름이 남아 있으면 색도 못 찾고 목록에도 없는 값이 뜬다.
   useEffect(() => {
     if (!restored || !summary) return
-    if (summary.holdings.some((holding) => holding.code && !holding.market)) void apply({})
+    const known = new Set<string>(CATEGORIES)
+    const stale =
+      summary.holdings.some((holding) => holding.code && !holding.market) ||
+      summary.holdings.some((holding) => !known.has(holding.category)) ||
+      summary.categories.some((total) => !known.has(total.category))
+    if (stale) void apply({})
     // 복원 직후 한 번만 본다. summary 를 넣으면 재계산 결과에 다시 반응한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored])

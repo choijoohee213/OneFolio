@@ -828,7 +828,7 @@ Content-Disposition: form-data; name="holdingEdits"
   -F "files=@계좌1.xls" \
   -F "files=@계좌2.xls" \
   -F "files=@계좌3.xls" \
-  -F 'overrides={"TIGER 미국테크TOP10":"레버리지·테마 ETF"}' \
+  -F 'overrides={"TIGER 미국테크TOP10":"테마·섹터 ETF"}' \
   -F 'holdingEdits=[{"accountNumber":"111111111110","name":"삼성전자","quantity":200,"evalAmount":14000000}]'</code></pre>
   </div>
 </details>
@@ -924,7 +924,9 @@ Content-Disposition: form-data; name="holdingEdits"
     <tr><td><code>개별주(국내)</code></td><td>국내 상장 주식</td></tr>
     <tr><td><code>개별주(해외)</code></td><td>해외 상장 주식</td></tr>
     <tr><td><code>지수 ETF</code></td><td>지수를 추종하는 ETF</td></tr>
-    <tr><td><code>레버리지·테마 ETF</code></td><td>레버리지·인버스·테마형 ETF</td></tr>
+    <tr><td><code>테마·섹터 ETF</code></td><td>특정 산업·테마에 집중한 ETF. 원자재·리츠도 여기 들어간다</td></tr>
+    <tr><td><code>채권</code></td><td>국채·회사채·CD금리 등 채권형 ETF</td></tr>
+    <tr><td><code>레버리지·인버스</code></td><td>배율이 붙은 ETF. 기초자산이 채권이어도 배율이 있으면 여기로 온다</td></tr>
     <tr><td><code>현금성</code></td><td>예수금, 외화 등 종목으로 잡히지 않는 잔액</td></tr>
   </tbody>
 </table>
@@ -952,8 +954,10 @@ Content-Disposition: form-data; name="holdingEdits"
 </div>
 <p>
   마스터 조회는 띄어쓰기와 대소문자를 무시한다.
-  마스터는 "ETF다"까지만 알려주고 그 안에서 지수추종이냐 레버리지·테마냐는 구분하지 않으므로,
-  이 갈래만 <code>3X</code>, <code>레버리지</code>, <code>나스닥100</code> 같은 이름 키워드로 판단한다.
+  마스터는 "ETF다"까지만 알려주고 무엇을 담았는지는 구분하지 않으므로,
+  이 갈래만 이름 키워드로 판단한다 — <code>레버리지</code>·<code>3X</code> → 레버리지·인버스,
+  <code>국고채</code>·<code>CD금리</code> → 채권, <code>나스닥100</code>·<code>S&amp;P500</code> → 지수 ETF, 나머지는 테마·섹터.
+  레버리지를 가장 먼저 보므로 <code>국고채10년레버리지</code>는 채권이 아니라 레버리지로 간다.
   애매한 종목은 <code>overrides</code>로 잡아준다.
 </p>
 

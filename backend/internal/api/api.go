@@ -521,9 +521,13 @@ func parseOverrides(raw string) (map[string]domain.Category, error) {
 		return nil, fmt.Errorf("%s 는 JSON 객체여야 합니다", overridesField)
 	}
 	for name, category := range overrides {
-		if !category.Valid() {
+		// 분류 이름이 바뀌기 전에 저장해 둔 값이 올라올 수 있다. 그대로 물리면
+		// 화면 전체가 400 으로 막히므로 지금 이름으로 옮겨서 받는다.
+		migrated := category.Migrate()
+		if !migrated.Valid() {
 			return nil, fmt.Errorf("%s: 알 수 없는 카테고리 %q", name, category)
 		}
+		overrides[name] = migrated
 	}
 	return overrides, nil
 }
