@@ -32,3 +32,17 @@ func TestTickerBeatsAmbiguousName(t *testing.T) {
 		t.Errorf("코드가 000660 인데 %q", got)
 	}
 }
+
+// 캡처에 적힌 그대로 "SK하이닉스(ADR)" 이 올라오면 티커가 없어도 해외로 가야 한다.
+func TestADRNameGoesForeign(t *testing.T) {
+	listings, err := master.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := New(listings, nil, nil)
+	for _, name := range []string{"SK하이닉스(ADR)", "TSMC(ADR)"} {
+		if got := c.Classify(domain.Holding{Name: name}); got != domain.ForeignStock {
+			t.Errorf("Classify(%q) = %q, want 개별주(해외)", name, got)
+		}
+	}
+}
