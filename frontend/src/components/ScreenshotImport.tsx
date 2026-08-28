@@ -254,6 +254,10 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
     setHoldings((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const missingAmount = holdings
+    .filter((h) => h.evalAmount === null || h.evalAmount <= 0)
+    .map((h) => h.name)
+
   const accountKeys = [...new Set(holdings.map((h) => h.accountNumber).filter(Boolean))] as string[]
   const hasMultipleAccounts = accountKeys.length > 1
   const visibleHoldings = activeTab
@@ -559,6 +563,13 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
               </table>
             </div>
             {error && <p className="screenshot-error">{error}</p>}
+            {/* 평가금액이 비어 있으면 서버가 거절한다. 여기서 미리 잡아 어느
+                종목이 문제인지 알려 준다 — 캡처에 금액이 안 잡히면 비어서 온다. */}
+            {missingAmount.length > 0 && (
+              <p className="screenshot-error">
+                평가금액을 넣어야 추가할 수 있습니다: {missingAmount.join(', ')}
+              </p>
+            )}
             <footer className="modal-actions">
               <button type="button" className="modal-cancel" onClick={handleClose}>
                 취소
@@ -566,7 +577,7 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
               <button
                 type="button"
                 className="modal-confirm"
-                disabled={busy || holdings.length === 0}
+                disabled={busy || holdings.length === 0 || missingAmount.length > 0}
                 onClick={() => {
                   onConfirm(holdings)
                   handleClose()

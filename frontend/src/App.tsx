@@ -557,7 +557,9 @@ export default function App() {
 
       {/* 보유 종목 표가 없으면 그쪽 "종목 추가" 버튼도 없다. 파일도 계좌도 없이
           종목 하나만 넣으려는 경로를 여기서 열어 준다. */}
-      {restored && !summary && !busy && !error && (
+      {/* 에러가 떠도 첫 화면은 남겨 둔다. 감추면 되돌아갈 길이 없어 앱이 멎은
+          것처럼 보인다 — 에러는 위에 따로 뜬다. */}
+      {restored && !summary && !busy && (
         <div className="home">
           <div className="home-grid">
             <button type="button" className="home-card" onClick={() => setShowFileUpload(true)}>
