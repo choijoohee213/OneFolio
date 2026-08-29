@@ -13,7 +13,7 @@ import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
-import { ThemeToggle } from './components/ThemeToggle'
+import { SettingsMenu } from './components/SettingsMenu'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
 import { won } from './format'
 import { applyLiveQuotes, type Quote } from './liveQuotes'
@@ -422,13 +422,6 @@ export default function App() {
     <main>
       <header className="page-head">
         <h1>OneFolio</h1>
-        <ThemeToggle
-          theme={theme}
-          onChange={(next) => {
-            setTheme(next)
-            applyTheme(next)
-          }}
-        />
         {displaySummary && (
           <div className="total">
             {/* 계좌가 하나도 없으면(계좌 없이 종목만 있을 때) 계좌 총합은 0원이라
@@ -467,6 +460,15 @@ export default function App() {
             onAddHolding={() => setHoldingTarget({ kind: 'new' })}
           />
         )}
+        <SettingsMenu
+          theme={theme}
+          canReset={Boolean(summary) || files.length > 0}
+          onThemeChange={(next) => {
+            setTheme(next)
+            applyTheme(next)
+          }}
+          onReset={reset}
+        />
       </header>
 
       {error && <p className="error">{error}</p>}
@@ -544,12 +546,9 @@ export default function App() {
 
           <footer className="page-foot">
             <p>
-              올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산 후
-              아무것도 남기지 않습니다.
+              계좌·잔고·종목 정보는 이 브라우저에만 저장됩니다. 서버로는 계산에 필요한 값만 오가고,
+              계산이 끝나면 아무것도 남지 않습니다.
             </p>
-            <button type="button" className="link" onClick={reset}>
-              전부 지우기
-            </button>
           </footer>
         </>
       )}
