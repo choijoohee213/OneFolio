@@ -12,6 +12,7 @@ import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
+import { ScrollTopButton } from './components/ScrollTopButton'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
 import { SettingsMenu } from './components/SettingsMenu'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
@@ -546,8 +547,8 @@ export default function App() {
 
           <footer className="page-foot">
             <p>
-              계좌·잔고·종목 정보는 이 브라우저에만 저장됩니다. 서버로는 계산에 필요한 값만 오가고,
-              계산이 끝나면 아무것도 남지 않습니다.
+              계좌·잔고·종목 정보는 이 브라우저에만 저장됩니다. 서버는 계산만 하고 아무것도
+              저장하지 않습니다.
             </p>
           </footer>
         </>
@@ -647,6 +648,8 @@ export default function App() {
           onClose={() => setShowUnmatched(false)}
         />
       )}
+
+      <ScrollTopButton />
     </main>
   )
 }

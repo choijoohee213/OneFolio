@@ -1901,3 +1901,44 @@ button.link:disabled {
 .settings-danger:hover {
   background: color-mix(in oklab, var(--gain) 10%, var(--bg));
 }
+
+/* 표가 길어 한참 내려가면 위로 돌아올 길이 멀다. 좀 내려갔을 때만 뜬다 */
+.scroll-top {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 25;
+  width: 2.6rem;
+  height: 2.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.5rem);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+.scroll-top.shown {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.scroll-top:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.scroll-top svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-top {
+    transition: none;
+  }
+}
