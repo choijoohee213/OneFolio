@@ -12,6 +12,13 @@ import type {
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
 
+/** 배포된 백엔드는 한동안 아무도 안 부르면 잠든다. 잠든 뒤 첫 요청은 깨어나기를
+ *  기다리느라 한참 걸린다. 화면을 열자마자 한 번 두드려 두면 사용자가 파일을
+ *  고르는 동안 깨어난다. 깨우는 게 목적이라 응답도 실패도 보지 않는다. */
+export function warmUp(): void {
+  void fetch(`${BASE}/health`).catch(() => {})
+}
+
 export async function searchStocks(query: string): Promise<StockEntry[]> {
   const response = await fetch(`${BASE}/api/stocks?q=${encodeURIComponent(query)}`)
   if (!response.ok) return []

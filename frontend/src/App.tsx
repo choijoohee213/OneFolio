@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchQuotes, toUploadedFiles } from './api'
+import { fetchQuotes, toUploadedFiles, warmUp } from './api'
 import { createSampleFiles } from './sampleData'
 import { recompute, withoutAccount } from './collection'
 import { AccountForm, type AccountInput } from './components/AccountForm'
@@ -70,6 +70,7 @@ export default function App() {
   const [showUSD, setShowUSD] = useState(false)
 
   useEffect(() => {
+    warmUp()
     loadState().then((state) => {
       if (state) {
         setFiles(state.files)
