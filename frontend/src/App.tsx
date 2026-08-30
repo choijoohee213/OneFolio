@@ -12,8 +12,9 @@ import { AddMenu } from './components/AddMenu'
 import { FileUploadModal } from './components/FileUploadModal'
 import { HoldingForm, type FileInput, type HoldingTarget, type ManualInput } from './components/HoldingForm'
 import { ScreenshotImport } from './components/ScreenshotImport'
+import { ScrollTopButton } from './components/ScrollTopButton'
 import { HoldingsTable, type GroupMode } from './components/HoldingsTable'
-import { ThemeToggle } from './components/ThemeToggle'
+import { SettingsMenu } from './components/SettingsMenu'
 import { UnmatchedResolver } from './components/UnmatchedResolver'
 import { won } from './format'
 import { applyLiveQuotes, type Quote } from './liveQuotes'
@@ -422,12 +423,14 @@ export default function App() {
     <main>
       <header className="page-head">
         <h1>OneFolio</h1>
-        <ThemeToggle
+        <SettingsMenu
           theme={theme}
-          onChange={(next) => {
+          canReset={Boolean(summary) || files.length > 0}
+          onThemeChange={(next) => {
             setTheme(next)
             applyTheme(next)
           }}
+          onReset={reset}
         />
         {displaySummary && (
           <div className="total">
@@ -544,12 +547,9 @@ export default function App() {
 
           <footer className="page-foot">
             <p>
-              올린 잔고파일 {files.length}개와 집계 결과는 이 브라우저에만 저장됩니다. 서버는 계산 후
-              아무것도 남기지 않습니다.
+              계좌·잔고·종목 정보는 이 브라우저에만 저장됩니다. 서버는 계산만 하고 아무것도
+              저장하지 않습니다.
             </p>
-            <button type="button" className="link" onClick={reset}>
-              전부 지우기
-            </button>
           </footer>
         </>
       )}
@@ -648,6 +648,8 @@ export default function App() {
           onClose={() => setShowUnmatched(false)}
         />
       )}
+
+      <ScrollTopButton />
     </main>
   )
 }
