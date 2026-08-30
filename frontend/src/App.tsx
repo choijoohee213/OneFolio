@@ -422,7 +422,10 @@ export default function App() {
   return (
     <main>
       <header className="page-head">
-        <h1>OneFolio</h1>
+        <h1>
+          <img className="brand-mark" src="/favicon.svg" alt="" />
+          OneFolio
+        </h1>
         <SettingsMenu
           theme={theme}
           canReset={Boolean(summary) || files.length > 0}

@@ -143,6 +143,14 @@ main {
   font-size: 1.35rem;
   margin: 0;
   letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+/* em 으로 잡아 두면 좁은 화면에서 제목이 작아질 때 같이 줄어든다 */
+.brand-mark {
+  width: 1.3em;
+  height: 1.3em;
 }
 /* 설정은 앱 자체 설정이라 제목 옆에 두고, 자산 정보와 조작은 오른쪽 끝에 모은다 */
 .settings-trigger {

@@ -1,0 +1,16 @@
+{
+  "name": "OneFolio",
+  "short_name": "OneFolio",
+  "description": "계좌별 잔고를 한데 모아 자산 배분과 종목별 손익을 보여주는 개인용 대시보드",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fcfcfb",
+  "theme_color": "#eaf1fe",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
