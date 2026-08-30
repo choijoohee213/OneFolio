@@ -423,6 +423,15 @@ export default function App() {
     <main>
       <header className="page-head">
         <h1>OneFolio</h1>
+        <SettingsMenu
+          theme={theme}
+          canReset={Boolean(summary) || files.length > 0}
+          onThemeChange={(next) => {
+            setTheme(next)
+            applyTheme(next)
+          }}
+          onReset={reset}
+        />
         {displaySummary && (
           <div className="total">
             {/* 계좌가 하나도 없으면(계좌 없이 종목만 있을 때) 계좌 총합은 0원이라
@@ -461,15 +470,6 @@ export default function App() {
             onAddHolding={() => setHoldingTarget({ kind: 'new' })}
           />
         )}
-        <SettingsMenu
-          theme={theme}
-          canReset={Boolean(summary) || files.length > 0}
-          onThemeChange={(next) => {
-            setTheme(next)
-            applyTheme(next)
-          }}
-          onReset={reset}
-        />
       </header>
 
       {error && <p className="error">{error}</p>}

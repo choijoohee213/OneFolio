@@ -144,8 +144,8 @@ main {
   margin: 0;
   letter-spacing: -0.02em;
 }
-/* 총자산·추가·설정은 오른쪽 끝에 모은다 */
-.page-head h1 {
+/* 설정은 앱 자체 설정이라 제목 옆에 두고, 자산 정보와 조작은 오른쪽 끝에 모은다 */
+.settings-trigger {
   margin-right: auto;
 }
 .theme-toggle button {
