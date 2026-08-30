@@ -9,6 +9,33 @@
     <meta name="theme-color" content="#eaf1fe" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OneFolio</title>
+    <style>
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.7rem;
+        background: #fcfcfb;
+        opacity: 0;
+        animation: boot-in 0.2s ease 0.25s forwards;
+      }
+      .boot p {
+        margin: 0;
+        font: 600 1.15rem/1 -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+        letter-spacing: -0.02em;
+        color: #0b0b0b;
+      }
+      @keyframes boot-in { to { opacity: 1 } }
+      :root[data-theme='dark'] .boot { background: #1a1a19 }
+      :root[data-theme='dark'] .boot p { color: #ffffff }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) .boot { background: #1a1a19 }
+        :root:not([data-theme='light']) .boot p { color: #ffffff }
+      }
+    </style>
     <!-- 앱이 뜨기 전에 테마를 입혀야 반대 색으로 한 번 번쩍이지 않는다 -->
     <script>
       try {
@@ -18,7 +45,15 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- 자바스크립트가 받아지기 전까지 빈 화면이라, 문서와 함께 그려지는 정적
+         화면을 미리 깔아 둔다. React 가 뜨면 이 자리를 통째로 갈아치운다.
+         0.25초 뒤에야 서서히 나타나므로 빨리 뜨는 화면에서는 보이지 않는다. -->
+    <div id="root">
+      <div class="boot">
+        <img src="/favicon.svg" alt="" width="56" height="56" />
+        <p>OneFolio</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
