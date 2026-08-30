@@ -17,18 +17,27 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 0.7rem;
+        gap: 1.1rem;
         background: #fcfcfb;
         opacity: 0;
         animation: boot-in 0.2s ease 0.25s forwards;
       }
       .boot p {
         margin: 0;
-        font: 600 1.15rem/1 -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+        font: 600 1.3rem/1 -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
         letter-spacing: -0.02em;
         color: #0b0b0b;
       }
+      .boot-mark {
+        width: 96px;
+        height: 96px;
+        animation: boot-spin 2.4s linear infinite;
+      }
       @keyframes boot-in { to { opacity: 1 } }
+      @keyframes boot-spin { to { transform: rotate(360deg) } }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-mark { animation: none }
+      }
       :root[data-theme='dark'] .boot { background: #1a1a19 }
       :root[data-theme='dark'] .boot p { color: #ffffff }
       @media (prefers-color-scheme: dark) {
@@ -50,7 +59,13 @@
          0.25초 뒤에야 서서히 나타나므로 빨리 뜨는 화면에서는 보이지 않는다. -->
     <div id="root">
       <div class="boot">
-        <img src="/favicon.svg" alt="" width="56" height="56" />
+        <svg class="boot-mark" viewBox="4.6 4.6 22.8 22.8" aria-hidden="true">
+          <g fill="none" stroke-width="5.5" stroke-linecap="round" transform="rotate(-90 16 16)">
+            <circle cx="16" cy="16" r="8.2" pathLength="100" stroke="#5b93f0" stroke-dasharray="44 56" />
+            <circle cx="16" cy="16" r="8.2" pathLength="100" stroke="#ffb26b" stroke-dasharray="26 74" stroke-dashoffset="-48" />
+            <circle cx="16" cy="16" r="8.2" pathLength="100" stroke="#5ddab4" stroke-dasharray="20 80" stroke-dashoffset="-78" />
+          </g>
+        </svg>
         <p>OneFolio</p>
       </div>
     </div>
