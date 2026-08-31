@@ -2,7 +2,7 @@ import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, 
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
 import type { Quote } from '../liveQuotes'
-import { usdRate } from '../usdView'
+import { usdFigures } from '../usdView'
 import { Modal } from './Modal'
 
 interface Props {
@@ -38,7 +38,7 @@ export function HoldingCards({
     <>
       <ul className="holding-cards">
         {holdings.map((holding) => {
-          const { amount, signedAmount } = view(holding)
+          const { view: v, amount, signedAmount } = view(holding)
           return (
             <li key={`${holding.accountNumber}-${holding.name}`}>
               <button type="button" className="holding-card" onClick={() => onOpenDetail(holding)}>
@@ -54,12 +54,12 @@ export function HoldingCards({
                   </span>
                 </span>
                 <span className="hc-figures">
-                  <span className="hc-eval">{amount(holding.evalAmount)}</span>
-                  <span className={`hc-pl ${sign(holding.profitLoss)}`}>
-                    {holding.profitLoss === null
+                  <span className="hc-eval">{amount(v.evalAmount)}</span>
+                  <span className={`hc-pl ${sign(v.profitLoss)}`}>
+                    {v.profitLoss === null
                       ? '—'
-                      : `${signedAmount(holding.profitLoss)}${
-                          holding.profitRate === null ? '' : ` (${signedPercent(holding.profitRate)})`
+                      : `${signedAmount(v.profitLoss)}${
+                          v.profitRate === null ? '' : ` (${signedPercent(v.profitRate)})`
                         }`}
                   </span>
                 </span>
@@ -76,7 +76,7 @@ export function HoldingCards({
             busy={busy}
             showLive={showLive}
             {...view(detail)}
-            currentPrice={currentPriceOf(detail, showUSD, quotes, usdKrw)}
+            currentPrice={currentPriceOf(detail, showUSD, quotes, usdKrw, showLive)}
             onEdit={() => {
               onCloseDetail()
               onEdit(detail)
@@ -92,6 +92,7 @@ function HoldingDetail({
   holding,
   busy,
   showLive,
+  view,
   amount,
   signedAmount,
   currentPrice,
@@ -100,14 +101,14 @@ function HoldingDetail({
   holding: Holding
   busy: boolean
   showLive?: boolean
+  view: Pick<Holding, 'avgBuyPrice' | 'buyAmount' | 'evalAmount' | 'profitLoss' | 'profitRate'>
   amount: (value: number) => string
   signedAmount: (value: number) => string
   currentPrice: string | null
   onEdit: () => void
 }) {
   const buyAmount =
-    holding.buyAmount ??
-    (holding.profitLoss === null ? null : holding.evalAmount - holding.profitLoss)
+    view.buyAmount ?? (view.profitLoss === null ? null : view.evalAmount - view.profitLoss)
 
   return (
     <div className="holding-detail">
@@ -118,18 +119,18 @@ function HoldingDetail({
       </p>
 
       <dl>
-        <Row label="평가금액" value={amount(holding.evalAmount)} strong />
+        <Row label="평가금액" value={amount(view.evalAmount)} strong />
         <Row label="매입금액" value={buyAmount === null ? '—' : amount(buyAmount)} />
         <Row
           label="평가손익"
           value={
-            holding.profitLoss === null
+            view.profitLoss === null
               ? '—'
-              : `${signedAmount(holding.profitLoss)}${
-                  holding.profitRate === null ? '' : ` (${signedPercent(holding.profitRate)})`
+              : `${signedAmount(view.profitLoss)}${
+                  view.profitRate === null ? '' : ` (${signedPercent(view.profitRate)})`
                 }`
           }
-          tone={sign(holding.profitLoss)}
+          tone={sign(view.profitLoss)}
         />
         <Row
           label="보유수량"
@@ -137,7 +138,7 @@ function HoldingDetail({
             isManualHolding(holding) && holding.quantity === 0 ? '—' : `${quantity(holding.quantity)}주`
           }
         />
-        <Row label="평균단가" value={holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)} />
+        <Row label="평균단가" value={view.avgBuyPrice === null ? '—' : amount(view.avgBuyPrice)} />
         {showLive && <Row label="현재가" value={currentPrice ?? '—'} />}
         <Row label="비중" value={percent(holding.weight)} />
       </dl>
@@ -187,10 +188,11 @@ function amounts(
   showLive: boolean | undefined,
 ) {
   const quote = holding.code ? quotes?.[holding.code] : undefined
-  const fx = showUSD && quote?.currency === 'USD' ? usdRate(holding, usdKrw, showLive) : null
+  const inUsd = showUSD ? usdFigures(holding, quote, usdKrw, showLive) : null
   return {
-    amount: (value: number) => (fx ? usd(value / fx) : won(value)),
-    signedAmount: (value: number) => (fx ? signedUsd(value / fx) : signedWon(value)),
+    view: inUsd ?? holding,
+    amount: (value: number) => (inUsd ? usd(value) : won(value)),
+    signedAmount: (value: number) => (inUsd ? signedUsd(value) : signedWon(value)),
   }
 }
 
@@ -199,11 +201,13 @@ function currentPriceOf(
   showUSD: boolean | undefined,
   quotes: Record<string, Quote> | null | undefined,
   usdKrw: number | null | undefined,
+  showLive: boolean | undefined,
 ): string | null {
   const quote = holding.code ? quotes?.[holding.code] : undefined
   if (!quote) return null
-  const fx = showUSD && quote.currency === 'USD' ? usdKrw ?? null : null
-  if (quote.currency === 'USD') return fx ? usd(quote.price) : won(quote.price * (usdKrw ?? 0))
+  const inUsd = showUSD ? usdFigures(holding, quote, usdKrw, showLive) : null
+  if (inUsd) return usd(inUsd.currentPrice ?? quote.price)
+  if (quote.currency === 'USD') return won(quote.price * (usdKrw ?? 0))
   return won(quote.price)
 }
 

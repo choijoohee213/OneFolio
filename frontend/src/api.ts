@@ -65,6 +65,8 @@ export async function fetchPortfolio(
           buyAmount: h.buyAmount ?? null,
           profitLoss: h.profitLoss ?? null,
           profitRate: h.profitRate ?? null,
+          usdCurrentPrice: h.usdCurrentPrice ?? null,
+          usdAvgBuyPrice: h.usdAvgBuyPrice ?? null,
         })),
       ),
     )
