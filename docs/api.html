@@ -465,6 +465,14 @@ Host: localhost:8080</code></pre>
 }</code></pre>
     <p>보이지 않는 필드는 <code>null</code>로 반환된다.</p>
     <div class="note">
+      <strong>통화 판별</strong> <code>currency</code>는 <code>currentPrice</code>·<code>avgBuyPrice</code>가
+      찍힌 통화다(<code>KRW</code> 또는 <code>USD</code>). 종목이 해외인지로 정하지 않는다 —
+      해외 종목이라도 증권사 화면을 원화 보기로 두면 원화가 찍히고, 그걸 달러로 오인하면
+      값이 환율배만큼 부풀어 오른다. 캡처 안의 값끼리 비교해 가린다: 평가금액은 늘 원화라
+      주당 평가금액을 현재가로 나눈 값이 1 근처면 현재가도 원화고, 환율 규모면 달러다.
+      비교할 값이 없을 때만 화면에서 읽은 통화 표시를 쓴다.
+    </div>
+    <div class="note">
       <strong>매입금액</strong> <code>buyAmount</code>는 화면에 그 값이 보일 때만 채워진다.
       평균매입가에 수량을 곱해 짓지 않는다 — 화면의 평단은 반올림된 값이라
       곱하면 원 단위가 어긋난다(예: 271,222 × 9 = 2,440,998, 실제 매입금액 2,441,000).
@@ -603,7 +611,7 @@ Content-Disposition: form-data; name="holdingEdits"
           <td><code>manualHoldings</code></td>
           <td class="type">string (JSON 배열)</td>
           <td><span class="opt">선택</span></td>
-          <td>잔고파일에 없는, 직접 추가한 종목. <code>{"id","name","evalAmount","accountId"}</code> 객체 배열. <code>quantity</code>·<code>avgBuyPrice</code>·<code>buyAmount</code>·<code>profitLoss</code>·<code>profitRate</code>를 함께 줄 수 있다. <code>buyAmount</code>를 주면 매입금액을 그 값으로 쓰고, 없을 때만 평단×수량으로 낸다</td>
+          <td>잔고파일에 없는, 직접 추가한 종목. <code>{"id","name","evalAmount","accountId"}</code> 객체 배열. <code>quantity</code>·<code>avgBuyPrice</code>·<code>buyAmount</code>·<code>profitLoss</code>·<code>profitRate</code>·<code>usdCurrentPrice</code>·<code>usdAvgBuyPrice</code>를 함께 줄 수 있다. <code>buyAmount</code>를 주면 매입금액을 그 값으로 쓰고, 없을 때만 평단×수량으로 낸다</td>
           <td class="type"><code>id</code>·<code>name</code> 비어있지 않음<br><code>evalAmount</code> &gt; 0<br><code>accountId</code>는 선택. 주면 같은 요청의 <code>manualAccounts</code> 항목 <code>id</code>여야 함</td>
         </tr>
         <tr>
@@ -890,6 +898,8 @@ Content-Disposition: form-data; name="holdingEdits"
     <tr><td><code>evalAmount</code></td><td class="type">number</td><td class="type">아니오</td><td>평가금액</td></tr>
     <tr><td><code>profitLoss</code></td><td class="type">number</td><td class="type">예</td><td>평가손익</td></tr>
     <tr><td><code>profitRate</code></td><td class="type">number</td><td class="type">예</td><td>손익률 (%)</td></tr>
+    <tr><td><code>usdCurrentPrice</code></td><td class="type">number</td><td class="type">예</td><td>캡처에 달러로 적혀 있던 현재가. 화면을 달러로 보여줄 때 지금 환율로 되돌리지 않고 이 값을 쓴다</td></tr>
+    <tr><td><code>usdAvgBuyPrice</code></td><td class="type">number</td><td class="type">예</td><td>캡처에 달러로 적혀 있던 평균매입가. 쓰임은 <code>usdCurrentPrice</code>와 같다</td></tr>
     <tr><td><code>weight</code></td><td class="type">number</td><td class="type">아니오</td><td>총자산 대비 비중 (%)</td></tr>
     <tr><td><code>original</code></td><td class="type"><a href="#model-filevalues">FileValues</a></td><td class="type">예</td><td><code>holdingEdits</code>로 값을 고친 종목에만 붙는다. 고치기 전 잔고파일 원본 값</td></tr>
   </tbody>

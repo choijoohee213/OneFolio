@@ -3,6 +3,7 @@ import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, 
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
 import type { Quote } from '../liveQuotes'
+import { usdRate } from '../usdView'
 import { HoldingCards } from './HoldingCards'
 
 export type ViewMode = 'card' | 'table'
@@ -46,7 +47,7 @@ function HoldingTable({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKr
         <tbody>
           {holdings.map((holding) => {
             const quote = holding.code ? quotes?.[holding.code] : undefined
-            const fx = showUSD && quote?.currency === 'USD' ? usdKrw ?? null : null
+            const fx = showUSD && quote?.currency === 'USD' ? usdRate(holding, usdKrw, showLive) : null
             const amount = (v: number) => (fx ? usd(v / fx) : won(v))
             const signedAmount = (v: number) => (fx ? signedUsd(v / fx) : signedWon(v))
             const currentPrice = () => {

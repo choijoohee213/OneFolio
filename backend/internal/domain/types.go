@@ -34,4 +34,9 @@ type Holding struct {
 	EvalAmount    float64  `json:"evalAmount"`
 	ProfitLoss    *float64 `json:"profitLoss"`
 	ProfitRate    *float64 `json:"profitRate"`
+
+	// 캡처에 달러로 적혀 있던 원가. 원화 값을 달러로 되돌릴 때 지금 환율로
+	// 나누면 증권사와 몇 % 어긋나므로, 화면에 있던 값을 그대로 들고 다닌다.
+	UsdCurrentPrice *float64 `json:"usdCurrentPrice,omitempty"`
+	UsdAvgBuyPrice  *float64 `json:"usdAvgBuyPrice,omitempty"`
 }

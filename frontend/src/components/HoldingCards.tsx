@@ -2,6 +2,7 @@ import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, 
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
 import type { Quote } from '../liveQuotes'
+import { usdRate } from '../usdView'
 import { Modal } from './Modal'
 
 interface Props {
@@ -31,7 +32,7 @@ export function HoldingCards({
   onOpenDetail,
   onCloseDetail,
 }: Props) {
-  const view = (holding: Holding) => amounts(holding, showUSD, quotes, usdKrw)
+  const view = (holding: Holding) => amounts(holding, showUSD, quotes, usdKrw, showLive)
 
   return (
     <>
@@ -183,9 +184,10 @@ function amounts(
   showUSD: boolean | undefined,
   quotes: Record<string, Quote> | null | undefined,
   usdKrw: number | null | undefined,
+  showLive: boolean | undefined,
 ) {
   const quote = holding.code ? quotes?.[holding.code] : undefined
-  const fx = showUSD && quote?.currency === 'USD' ? usdKrw ?? null : null
+  const fx = showUSD && quote?.currency === 'USD' ? usdRate(holding, usdKrw, showLive) : null
   return {
     amount: (value: number) => (fx ? usd(value / fx) : won(value)),
     signedAmount: (value: number) => (fx ? signedUsd(value / fx) : signedWon(value)),

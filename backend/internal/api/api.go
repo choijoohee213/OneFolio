@@ -248,13 +248,7 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 				listing, ok = master.Listing{Code: entry.Code, Kind: entry.Kind, Market: entry.Market}, true
 			}
 		}
-		if ok {
-			if listing.Kind.IsForeign() {
-				result.Holdings[i].Currency = "USD"
-			} else {
-				result.Holdings[i].Currency = "KRW"
-			}
-		}
+		result.Holdings[i].Currency = ocr.ResolveCurrency(result.Holdings[i], ok && !listing.Kind.IsForeign())
 		if result.Holdings[i].Currency == "USD" {
 			needsFx = true
 		}
@@ -427,6 +421,9 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 		BuyAmount   *float64 `json:"buyAmount"`
 		ProfitLoss  *float64 `json:"profitLoss"`
 		ProfitRate  *float64 `json:"profitRate"`
+
+		UsdCurrentPrice *float64 `json:"usdCurrentPrice"`
+		UsdAvgBuyPrice  *float64 `json:"usdAvgBuyPrice"`
 	}
 	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
 		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualHoldingsField)
@@ -474,6 +471,9 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 			EvalAmount:    input.EvalAmount,
 			ProfitLoss:    input.ProfitLoss,
 			ProfitRate:    input.ProfitRate,
+
+			UsdCurrentPrice: input.UsdCurrentPrice,
+			UsdAvgBuyPrice:  input.UsdAvgBuyPrice,
 		})
 	}
 	return holdings, nil

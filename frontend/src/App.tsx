@@ -373,6 +373,10 @@ export default function App() {
       // 나온다: 매입금액(원) = evalAmount - profitLoss, 평단가(원) = 매입금액 / 수량.
       avgBuyPrice: krwAvgBuyPrice(h),
       buyAmount: h.buyAmount ?? undefined,
+      // 원화로 옮긴 값과 별개로 화면에 적혀 있던 달러 값을 남긴다.
+      // 달러 보기에서 지금 환율로 되돌리면 증권사와 몇 % 어긋난다.
+      usdCurrentPrice: h.currency === 'USD' ? (h.currentPrice ?? undefined) : undefined,
+      usdAvgBuyPrice: h.currency === 'USD' ? (h.avgBuyPrice ?? undefined) : undefined,
       profitLoss: h.profitLoss ?? undefined,
       profitRate: h.profitRate ?? undefined,
     }))
