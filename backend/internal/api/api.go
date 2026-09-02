@@ -237,7 +237,7 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 	// 종목마다 currentPrice·avgBuyPrice 의 통화를 확정한다. Gemini 가 스스로
 	// 판단한 currency 필드는 종목마다 빠뜨리기 쉬워서 믿을 수 없다 — 종목마스터로
 	// 해외/국내가 확정되면 그걸 우선한다. 마스터에 없는 종목만 Gemini 판단을 쓴다.
-	needsFx := false
+	domestic := make([]bool, len(result.Holdings))
 	for i, h := range result.Holdings {
 		// 티커를 먼저 본다. 같은 이름이 국내와 해외에 다 있을 때(SK하이닉스와
 		// 그 ADR 처럼) 이름부터 맞추면 국내가 잡히고 티커는 버려진다.
@@ -248,14 +248,15 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 				listing, ok = master.Listing{Code: entry.Code, Kind: entry.Kind, Market: entry.Market}, true
 			}
 		}
-		if ok {
-			if listing.Kind.IsForeign() {
-				result.Holdings[i].Currency = "USD"
-			} else {
-				result.Holdings[i].Currency = "KRW"
-			}
-		}
-		if result.Holdings[i].Currency == "USD" {
+		domestic[i] = ok && !listing.Kind.IsForeign()
+	}
+
+	// 통화는 줄이 아니라 화면의 성질이라 한꺼번에 정한다.
+	ocr.ResolveCurrencies(result.Holdings, domestic)
+
+	needsFx := false
+	for _, h := range result.Holdings {
+		if h.Currency == "USD" {
 			needsFx = true
 		}
 	}
@@ -427,6 +428,9 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 		BuyAmount   *float64 `json:"buyAmount"`
 		ProfitLoss  *float64 `json:"profitLoss"`
 		ProfitRate  *float64 `json:"profitRate"`
+
+		UsdCurrentPrice *float64 `json:"usdCurrentPrice"`
+		UsdAvgBuyPrice  *float64 `json:"usdAvgBuyPrice"`
 	}
 	if err := json.Unmarshal([]byte(raw), &inputs); err != nil {
 		return nil, fmt.Errorf("%s 는 JSON 배열이어야 합니다", manualHoldingsField)
@@ -474,6 +478,9 @@ func parseManualHoldings(raw string, validAccounts map[string]string) ([]domain.
 			EvalAmount:    input.EvalAmount,
 			ProfitLoss:    input.ProfitLoss,
 			ProfitRate:    input.ProfitRate,
+
+			UsdCurrentPrice: input.UsdCurrentPrice,
+			UsdAvgBuyPrice:  input.UsdAvgBuyPrice,
 		})
 	}
 	return holdings, nil

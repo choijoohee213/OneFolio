@@ -3,6 +3,7 @@ import { categoryColor, percent, quantity, signedPercent, signedUsd, signedWon, 
 import type { Holding } from '../types'
 import { isManualHolding } from '../types'
 import type { Quote } from '../liveQuotes'
+import { usdFigures } from '../usdView'
 import { HoldingCards } from './HoldingCards'
 
 export type ViewMode = 'card' | 'table'
@@ -46,12 +47,15 @@ function HoldingTable({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKr
         <tbody>
           {holdings.map((holding) => {
             const quote = holding.code ? quotes?.[holding.code] : undefined
-            const fx = showUSD && quote?.currency === 'USD' ? usdKrw ?? null : null
-            const amount = (v: number) => (fx ? usd(v / fx) : won(v))
-            const signedAmount = (v: number) => (fx ? signedUsd(v / fx) : signedWon(v))
+            // 달러 보기는 원화 값을 나누지 않고 달러끼리 계산한다.
+            const inUsd = showUSD ? usdFigures(holding, quote, usdKrw, showLive) : null
+            const view = inUsd ?? holding
+            const amount = (v: number) => (inUsd ? usd(v) : won(v))
+            const signedAmount = (v: number) => (inUsd ? signedUsd(v) : signedWon(v))
             const currentPrice = () => {
               if (!quote) return '—'
-              if (quote.currency === 'USD') return fx ? usd(quote.price) : won(quote.price * (usdKrw ?? 0))
+              if (inUsd) return usd(inUsd.currentPrice ?? quote.price)
+              if (quote.currency === 'USD') return won(quote.price * (usdKrw ?? 0))
               return won(quote.price)
             }
 
@@ -72,7 +76,7 @@ function HoldingTable({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKr
                 <td className="num">
                   {isManualHolding(holding) && holding.quantity === 0 ? '—' : quantity(holding.quantity)}
                 </td>
-                <td className="num">{holding.avgBuyPrice === null ? '—' : amount(holding.avgBuyPrice)}</td>
+                <td className="num">{view.avgBuyPrice === null ? '—' : amount(view.avgBuyPrice)}</td>
                 {showLive && (
                   <PriceCell
                     quotePrice={quote?.price ?? null}
@@ -80,12 +84,12 @@ function HoldingTable({ holdings, busy, onEdit, showUSD, showLive, quotes, usdKr
                     formatted={currentPrice()}
                   />
                 )}
-                <td className="num">{amount(holding.evalAmount)}</td>
-                <td className={`num ${sign(holding.profitLoss)}`}>
-                  {holding.profitLoss === null ? '—' : signedAmount(holding.profitLoss)}
+                <td className="num">{amount(view.evalAmount)}</td>
+                <td className={`num ${sign(view.profitLoss)}`}>
+                  {view.profitLoss === null ? '—' : signedAmount(view.profitLoss)}
                 </td>
-                <td className={`num ${sign(holding.profitRate)}`}>
-                  {holding.profitRate === null ? '—' : signedPercent(holding.profitRate)}
+                <td className={`num ${sign(view.profitRate)}`}>
+                  {view.profitRate === null ? '—' : signedPercent(view.profitRate)}
                 </td>
                 <td className="num">{percent(holding.weight)}</td>
                 <td className="num">

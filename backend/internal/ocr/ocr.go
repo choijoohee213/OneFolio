@@ -80,7 +80,7 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 - 숫자는 콤마, 원, %, +, - 기호를 제거한 순수 숫자로 변환한다. 손실(마이너스)이면 음수로.
 - 평가손익(profitLoss)과 평가금액(evalAmount)은 반드시 원화(KRW) 기준으로 추출한다. "원화평가손익" 등 원화 값이 있으면 그것을 쓰고, 원화 값이 없으면 null로 둔다.
 - 현재가(currentPrice)와 평균매입가(avgBuyPrice)는 화면에 보이는 값을 그대로 추출한다. 달러든 원화든 표시된 숫자를 넣는다.
-- currency: currentPrice·avgBuyPrice 가 찍힌 통화. 화면에 "$"나 "USD"가 보이거나 해외 종목인데 숫자가 작으면(예: 주당 70) 달러일 가능성이 높다 — 그럴 땐 "USD". 원화로 보이면 "KRW". 확실하지 않으면 "KRW"로 둔다.
+- currency: currentPrice·avgBuyPrice 가 찍힌 통화. 화면에 적힌 표시로만 정한다 — "$"나 "USD" 기호, "원" 단위, "외/원" 같은 통화 토글에서 켜진 쪽, 컬럼 제목("원화평가손익" 등). 숫자 크기로 짐작하지 마라. 표시가 없으면 "KRW"로 둔다.
 - 손익률(profitRate)은 퍼센트 숫자를 넣는다.
 - 총합계/소계 행은 제외하고 개별 종목만 추출한다.
 - 반드시 아래 JSON 형식만 출력하고 다른 텍스트는 쓰지 마라.
@@ -230,7 +230,7 @@ func (c *Client) UsdKrwRate(ctx context.Context, holdings []ExtractedHolding) *f
 	}
 	needsFx := false
 	for _, h := range holdings {
-		if h.Currency == "USD" {
+		if h.Currency == usd {
 			needsFx = true
 			break
 		}
@@ -264,7 +264,7 @@ func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 
 		fx := 1.0
 		fxKnown := true
-		if h.Currency == "USD" {
+		if h.Currency == usd {
 			if usdKrw == nil {
 				fxKnown = false
 			} else {
@@ -272,15 +272,18 @@ func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 			}
 		}
 
-		// evalAmount from profitLoss + profitRate — 이미 원화 값이라 환율이 필요 없다.
-		if h.EvalAmount == nil && h.ProfitLoss != nil && h.ProfitRate != nil && *h.ProfitRate != 0 {
-			buyAmount := *h.ProfitLoss / (*h.ProfitRate / 100)
-			h.EvalAmount = ptr(round2(buyAmount + *h.ProfitLoss))
-		}
-
-		// evalAmount = currentPrice(원화 환산) * quantity
-		if h.EvalAmount == nil && h.CurrentPrice != nil && h.Quantity != nil && fxKnown {
-			h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
+		if h.EvalAmount == nil {
+			// 원화로 찍힌 화면은 현재가 × 수량이 평가금액과 딱 맞는다. 손익률에서
+			// 역산하면 화면의 손익률이 소수점 둘째 자리까지뿐이라 몇 천 원씩 어긋난다.
+			if h.Currency != usd && h.CurrentPrice != nil && h.Quantity != nil {
+				h.EvalAmount = ptr(round2(*h.CurrentPrice * *h.Quantity))
+			} else if v, ok := krwEvalAmount(*h); ok {
+				// 달러로 찍힌 화면은 평가손익·손익률이 이미 원화라, 여기서 역산하면
+				// 증권사가 쓴 환율이 그대로 실린다. 우리 환율로 곱하는 것보다 낫다.
+				h.EvalAmount = ptr(round2(v))
+			} else if h.CurrentPrice != nil && h.Quantity != nil && fxKnown {
+				h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
+			}
 		}
 
 		// 매입금액은 화면에서 읽은 값을 우선한다. 평단은 반올림돼 있어서
@@ -305,4 +308,90 @@ func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 			h.ProfitRate = ptr(round2(*h.ProfitLoss / *buyAmount * 100))
 		}
 	}
+}
+
+const (
+	krw = "KRW"
+	usd = "USD"
+
+	// 환율로 볼 수 있는 범위. 원/달러가 크게 움직여도 이 밖으로 나가지는 않는다.
+	minPlausibleFx = 200.0
+	maxPlausibleFx = 5000.0
+)
+
+// krwEvalAmount 는 평가금액을 원화로 돌려준다. 화면에 있으면 그 값이고,
+// 없으면 평가손익과 손익률로 역산한다 — 둘 다 원화 값이라 환율이 필요 없다.
+func krwEvalAmount(h ExtractedHolding) (float64, bool) {
+	if h.EvalAmount != nil {
+		return *h.EvalAmount, true
+	}
+	if h.ProfitLoss != nil && h.ProfitRate != nil && *h.ProfitRate != 0 {
+		buyAmount := *h.ProfitLoss / (*h.ProfitRate / 100)
+		return buyAmount + *h.ProfitLoss, true
+	}
+	return 0, false
+}
+
+// ResolveCurrency 는 화면에 찍힌 현재가·평균매입가가 어느 통화인지 정한다.
+//
+// 종목이 해외냐로 정하면 안 된다 — 해외 종목이라도 증권사 화면을 원화 보기로
+// 두면 원화가 찍힌다. 그걸 달러로 오인하면 값이 환율배만큼 부풀어 오른다.
+//
+// 캡처 안의 값끼리 비교해 가린다. 평가금액은 늘 원화라(원화 값만 읽게 되어
+// 있다) 주당 평가금액을 현재가로 나눈 값이 1 근처면 현재가도 원화고, 환율
+// 규모면 달러다. 비교할 값이 없을 때만 모델이 읽은 통화 표시를 믿는다.
+// ResolveCurrencies 는 캡처 한 장의 종목들 통화를 한꺼번에 정한다.
+//
+// 통화는 줄이 아니라 화면(열)의 성질이다. 그래서 값으로 확실히 가려진 줄이
+// 하나라도 있으면, 못 가린 줄도 같은 통화로 본다 — 손익이 정확히 0 인 종목은
+// 손익률도 0 이라 나눠 볼 수가 없는데, 그 한 줄 때문에 통화를 놓치면 값이
+// 환율배만큼 어긋난다.
+//
+// domestic 은 종목마스터가 국내로 확정한 종목이다. 국내 종목은 늘 원화라
+// 화면 통화를 물려받지 않는다.
+func ResolveCurrencies(holdings []ExtractedHolding, domestic []bool) {
+	screen := ""
+	for i, h := range holdings {
+		if i < len(domestic) && domestic[i] {
+			continue
+		}
+		if _, ok := pricePerShareRatio(h); ok {
+			screen = ResolveCurrency(h, false)
+			if screen == usd {
+				break
+			}
+		}
+	}
+	for i := range holdings {
+		isDomestic := i < len(domestic) && domestic[i]
+		if _, ok := pricePerShareRatio(holdings[i]); !ok && screen != "" && !isDomestic {
+			holdings[i].Currency = screen
+			continue
+		}
+		holdings[i].Currency = ResolveCurrency(holdings[i], isDomestic)
+	}
+}
+
+func ResolveCurrency(h ExtractedHolding, domesticListing bool) string {
+	if domesticListing {
+		return krw
+	}
+	if ratio, ok := pricePerShareRatio(h); ok {
+		if ratio >= minPlausibleFx && ratio <= maxPlausibleFx {
+			return usd
+		}
+		return krw
+	}
+	if h.Currency == usd {
+		return usd
+	}
+	return krw
+}
+
+func pricePerShareRatio(h ExtractedHolding) (float64, bool) {
+	eval, ok := krwEvalAmount(h)
+	if !ok || h.Quantity == nil || *h.Quantity == 0 || h.CurrentPrice == nil || *h.CurrentPrice == 0 {
+		return 0, false
+	}
+	return eval / *h.Quantity / *h.CurrentPrice, true
 }
