@@ -272,16 +272,18 @@ func FillCalculated(holdings []ExtractedHolding, usdKrw *float64) {
 			}
 		}
 
-		// evalAmount from profitLoss + profitRate — 이미 원화 값이라 환율이 필요 없다.
 		if h.EvalAmount == nil {
-			if v, ok := krwEvalAmount(*h); ok {
+			// 원화로 찍힌 화면은 현재가 × 수량이 평가금액과 딱 맞는다. 손익률에서
+			// 역산하면 화면의 손익률이 소수점 둘째 자리까지뿐이라 몇 천 원씩 어긋난다.
+			if h.Currency != usd && h.CurrentPrice != nil && h.Quantity != nil {
+				h.EvalAmount = ptr(round2(*h.CurrentPrice * *h.Quantity))
+			} else if v, ok := krwEvalAmount(*h); ok {
+				// 달러로 찍힌 화면은 평가손익·손익률이 이미 원화라, 여기서 역산하면
+				// 증권사가 쓴 환율이 그대로 실린다. 우리 환율로 곱하는 것보다 낫다.
 				h.EvalAmount = ptr(round2(v))
+			} else if h.CurrentPrice != nil && h.Quantity != nil && fxKnown {
+				h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
 			}
-		}
-
-		// evalAmount = currentPrice(원화 환산) * quantity
-		if h.EvalAmount == nil && h.CurrentPrice != nil && h.Quantity != nil && fxKnown {
-			h.EvalAmount = ptr(round2(*h.CurrentPrice * fx * *h.Quantity))
 		}
 
 		// 매입금액은 화면에서 읽은 값을 우선한다. 평단은 반올림돼 있어서
@@ -338,6 +340,38 @@ func krwEvalAmount(h ExtractedHolding) (float64, bool) {
 // 캡처 안의 값끼리 비교해 가린다. 평가금액은 늘 원화라(원화 값만 읽게 되어
 // 있다) 주당 평가금액을 현재가로 나눈 값이 1 근처면 현재가도 원화고, 환율
 // 규모면 달러다. 비교할 값이 없을 때만 모델이 읽은 통화 표시를 믿는다.
+// ResolveCurrencies 는 캡처 한 장의 종목들 통화를 한꺼번에 정한다.
+//
+// 통화는 줄이 아니라 화면(열)의 성질이다. 그래서 값으로 확실히 가려진 줄이
+// 하나라도 있으면, 못 가린 줄도 같은 통화로 본다 — 손익이 정확히 0 인 종목은
+// 손익률도 0 이라 나눠 볼 수가 없는데, 그 한 줄 때문에 통화를 놓치면 값이
+// 환율배만큼 어긋난다.
+//
+// domestic 은 종목마스터가 국내로 확정한 종목이다. 국내 종목은 늘 원화라
+// 화면 통화를 물려받지 않는다.
+func ResolveCurrencies(holdings []ExtractedHolding, domestic []bool) {
+	screen := ""
+	for i, h := range holdings {
+		if i < len(domestic) && domestic[i] {
+			continue
+		}
+		if _, ok := pricePerShareRatio(h); ok {
+			screen = ResolveCurrency(h, false)
+			if screen == usd {
+				break
+			}
+		}
+	}
+	for i := range holdings {
+		isDomestic := i < len(domestic) && domestic[i]
+		if _, ok := pricePerShareRatio(holdings[i]); !ok && screen != "" && !isDomestic {
+			holdings[i].Currency = screen
+			continue
+		}
+		holdings[i].Currency = ResolveCurrency(holdings[i], isDomestic)
+	}
+}
+
 func ResolveCurrency(h ExtractedHolding, domesticListing bool) string {
 	if domesticListing {
 		return krw
