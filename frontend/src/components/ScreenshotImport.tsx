@@ -10,8 +10,11 @@ interface Props {
 }
 
 // 한 종목을 여러 장에 나눠 찍는 일이 흔하다(요약 화면엔 평단가가 없고,
-// 펼친 화면에만 있다). 같은 종목을 다시 만나면 버리지 말고 비어 있던 칸만
-// 채운다. 먼저 들어온 값이 우선이라 사용자가 고쳐둔 값은 덮이지 않는다.
+// 펼친 화면에만 있다). 같은 종목을 다시 만나면 버리지 말고 합친다. 나중에
+// 넣은 캡처가 더 자세하거나 최신인 경우가 대부분이라 나중 값이 이긴다.
+// 다만 값이 안 찍힌 칸(null)으로는 덮지 않는다 — 그건 새 정보가 아니라
+// 그 화면에 그 항목이 없었다는 뜻이라, 이미 읽은 값을 지울 이유가 없다.
+// 잘못 읽힌 값은 추출 결과 확인 화면에서 고칠 수 있다.
 const NUMERIC_FIELDS = [
   'quantity',
   'currentPrice',
@@ -25,14 +28,16 @@ const NUMERIC_FIELDS = [
 function mergeHolding(base: ExtractedHolding, extra: ExtractedHolding): ExtractedHolding {
   const merged: ExtractedHolding = { ...base }
   for (const field of NUMERIC_FIELDS) {
-    if (merged[field] == null && extra[field] != null) merged[field] = extra[field]
+    if (extra[field] != null) merged[field] = extra[field]
   }
-  // 통화는 currentPrice·avgBuyPrice 에만 걸리는 꼬리표라, 이쪽에 통화가
-  // 아직 없을 때만 따라온다(원화 값에 달러 표시가 붙는 걸 막는다).
-  if (!merged.currency && extra.currency) merged.currency = extra.currency
-  if (!merged.ticker && extra.ticker) merged.ticker = extra.ticker
-  if (!merged.accountNumber && extra.accountNumber) merged.accountNumber = extra.accountNumber
-  if (!merged.accountType && extra.accountType) merged.accountType = extra.accountType
+  // 통화는 currentPrice·avgBuyPrice 에 붙는 꼬리표라, 그 값을 실제로 들고
+  // 온 캡처의 것만 따라온다(가격 없는 캡처가 원화 값에 달러 표시를 붙이는
+  // 걸 막는다).
+  const extraHasPrice = extra.currentPrice != null || extra.avgBuyPrice != null
+  if (extra.currency && extraHasPrice) merged.currency = extra.currency
+  if (extra.ticker) merged.ticker = extra.ticker
+  if (extra.accountNumber) merged.accountNumber = extra.accountNumber
+  if (extra.accountType) merged.accountType = extra.accountType
   return merged
 }
 
