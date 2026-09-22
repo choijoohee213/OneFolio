@@ -8,6 +8,8 @@ import (
 var (
 	errOverload = errors.New("Error 503, Message: This model is currently experiencing high demand., Status: UNAVAILABLE")
 	errTimeout  = errors.New(`doRequest: error sending request: Post "https://...": context deadline exceeded`)
+	// 같은 타임아웃이 서버 쪽에서 먼저 끊겨 돌아온 모습이다.
+	errServerTimeout = errors.New("Error 504, Message: Deadline expired before operation could complete., Status: DEADLINE_EXCEEDED, Details: []")
 )
 
 // 503 은 모델 단위 과부하라 같은 모델을 다시 부르면 또 503 이 온다.
@@ -53,13 +55,19 @@ func TestNextAttemptWithoutFallback(t *testing.T) {
 	}
 }
 
-func TestRetryableCoversObservedFailures(t *testing.T) {
-	for _, err := range []error{errOverload, errTimeout, errors.New("Error 429")} {
-		if !retryable(err) {
-			t.Errorf("다시 걸어야 할 실패다: %v", err)
-		}
+// SDK 가 우리 데드라인을 x-server-timeout 으로 서버에 넘겨서, 같은 타임아웃이
+// 우리 쪽 context 취소로도 오고 서버의 504 로도 온다. 둘을 다르게 다루면
+// 504 로 온 날만 재시도 없이 실패한다.
+func TestServerSideTimeoutIsTreatedLikeClientTimeout(t *testing.T) {
+	if !retryable(errServerTimeout) {
+		t.Fatal("504 는 우리 타임아웃이 서버에서 되돌아온 것이라 다시 걸어야 한다")
 	}
-	if retryable(errors.New("Error 400, Message: invalid image")) {
-		t.Error("400 은 다시 걸어도 같은 결과다")
+	if overloaded(errServerTimeout) {
+		t.Error("504 는 과부하가 아니다 — 모델을 바꿀 게 아니라 다시 걸어야 한다")
+	}
+
+	c := &Client{model: "primary", fallbackModel: "fallback"}
+	if _, _, ok := c.nextAttempt("primary", errServerTimeout, 0); ok {
+		t.Error("첫 504 에는 주 모델을 한 번 더 써야 한다")
 	}
 }

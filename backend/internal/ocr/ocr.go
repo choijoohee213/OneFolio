@@ -160,7 +160,21 @@ func (c *Client) KeyCount() int {
 //
 // 과부하도 다시 걸지만 같은 모델로는 아니다 — nextAttempt 를 보라.
 func retryable(err error) bool {
-	return overloaded(err) || strings.Contains(err.Error(), "context deadline exceeded")
+	return overloaded(err) || timedOut(err)
+}
+
+// timedOut 은 제한 시간 안에 응답이 오지 않은 실패를 가린다.
+//
+// 같은 사건이 두 가지 모습으로 온다. SDK 가 우리 context 데드라인을
+// x-server-timeout 헤더로 서버에 그대로 넘기기 때문에(genai api_client.go),
+// 시간이 다 되면 우리 쪽 context 가 먼저 끊기거나 서버가 먼저 504 를 준다.
+// 어느 쪽이 이기느냐는 매번 다르다. 둘을 갈라 보면 504 로 온 날만 재시도
+// 없이 실패했다 — 배포 로그에 14.9초짜리 504 로 남아 있던 게 이것이다.
+func timedOut(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "context deadline exceeded") ||
+		strings.Contains(msg, "DEADLINE_EXCEEDED") ||
+		strings.Contains(msg, "504")
 }
 
 // overloaded 는 모델 자체가 받아주지 못하는 실패인지 가린다. 이건 키를 바꿔도
