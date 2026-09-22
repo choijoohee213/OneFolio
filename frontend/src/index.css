@@ -1756,8 +1756,17 @@ button.link:disabled {
 .stock-search {
   position: relative;
 }
-.stock-search input {
+.stock-search input,
+.unmatched-search {
   width: 100%;
+  font: inherit;
+  /* 16px 미만이면 iOS 사파리가 입력창을 누를 때 화면을 확대해 버린다. */
+  font-size: 1rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
 }
 .stock-search-dropdown {
   position: absolute;
@@ -1851,9 +1860,37 @@ button.link:disabled {
   flex-shrink: 0;
   margin-left: auto;
 }
-.unmatched-search {
-  width: 100%;
+/* 좁은 화면에서는 한 줄에 이름·코드·버튼이 다 들어가지 않는다. 줄이는 데가
+   이름뿐이라 정작 무슨 종목을 추천했는지가 말줄임표로 사라진다 — 세로로 쌓고
+   이름은 두 줄까지 접어서 보여준다. */
+@media (max-width: 34rem) {
+  .unmatched-suggestion-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .unmatched-suggestion-card .stock-name {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .unmatched-suggestion-card .modal-confirm {
+    margin-left: 0;
+    width: 100%;
+    padding: 0.6rem;
+  }
+  .stock-search-dropdown li {
+    flex-wrap: wrap;
+    gap: 2px 8px;
+  }
+  .stock-search-dropdown .stock-name {
+    flex: 1 0 100%;
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
+
 .unmatched-selected {
   margin: 0;
   font-size: 0.85rem;

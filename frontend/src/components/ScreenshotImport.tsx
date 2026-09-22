@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { extractFromScreenshot } from '../api'
 import type { ExtractedHolding } from '../types'
+import { normalizeStockName } from '../types'
 
 interface Props {
   open: boolean
@@ -45,7 +46,7 @@ function dedup(holdings: ExtractedHolding[]): ExtractedHolding[] {
   const merged: ExtractedHolding[] = []
   const byKey = new Map<string, number>()
 
-  const keyOf = (h: ExtractedHolding) => `${h.accountNumber ?? ''}::${h.name}`
+  const keyOf = (h: ExtractedHolding) => `${h.accountNumber ?? ''}::${normalizeStockName(h.name)}`
 
   for (const h of holdings) {
     const index = byKey.get(keyOf(h))
@@ -56,7 +57,7 @@ function dedup(holdings: ExtractedHolding[]): ExtractedHolding[] {
     // 계좌번호가 안 찍힌 캡처도 있다. 이름만 같고 계좌가 비어 있는 쪽은
     // 같은 이름이 딱 하나일 때만 그 종목으로 본다(여럿이면 계좌를 알 수
     // 없으니 섞지 않고 따로 둔다).
-    const sameName = merged.filter((m) => m.name === h.name)
+    const sameName = merged.filter((m) => normalizeStockName(m.name) === normalizeStockName(h.name))
     if (sameName.length === 1 && (!h.accountNumber || !sameName[0].accountNumber)) {
       const at = merged.indexOf(sameName[0])
       merged[at] = mergeHolding(merged[at], h)
