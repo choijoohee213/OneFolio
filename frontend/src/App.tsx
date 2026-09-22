@@ -32,7 +32,14 @@ import type {
   Summary,
   UploadedFile,
 } from './types'
-import { CATEGORIES, holdingKey, isManualHolding, MANUAL_ACCOUNT_PREFIX, MANUAL_HOLDING_PREFIX } from './types'
+import {
+  CATEGORIES,
+  holdingKey,
+  isManualHolding,
+  MANUAL_ACCOUNT_PREFIX,
+  MANUAL_HOLDING_PREFIX,
+  normalizeStockName,
+} from './types'
 
 // 자산은 숫자로 확인하는 원장이고, 배분과 손익은 그림으로 파악하는 차트다.
 // 형식으로 가르면 새 화면을 어디 둘지 따질 일이 없다. 트리맵은 칸 색이
@@ -174,11 +181,15 @@ export default function App() {
       setHoldingTarget({ kind: 'file', holding })
       return
     }
+    // 화면의 이름은 서버가 다듬은 것이라, 저장된 원본과 글자 그대로 비교하면
+    // 공백 하나 차이로 짝을 못 찾는다. 그러면 수정 버튼이 아무 반응 없이
+    // 죽어 버려서 사용자가 그 종목을 지울 방법이 없어진다.
+    const wanted = normalizeStockName(holding.name)
     const item = manualHoldings.find(
       (m) =>
         holding.accountNumber ===
           (m.accountId ? MANUAL_ACCOUNT_PREFIX + m.accountId : MANUAL_HOLDING_PREFIX + m.id) &&
-        m.name === holding.name,
+        normalizeStockName(m.name) === wanted,
     )
     if (item) setHoldingTarget({ kind: 'manual', item, holding })
   }
@@ -363,7 +374,7 @@ export default function App() {
 
     const newHoldings: ManualHolding[] = extracted.map((h) => ({
       id: crypto.randomUUID(),
-      name: h.name,
+      name: normalizeStockName(h.name),
       evalAmount: h.evalAmount ?? 0,
       accountId: h.accountNumber ? accountIds.get(h.accountNumber) : undefined,
       quantity: h.quantity ?? undefined,
@@ -383,7 +394,9 @@ export default function App() {
 
     const newKeys = new Set(newHoldings.map((h) => `${h.accountId ?? ''}::${h.name}`))
     const allHoldings = [
-      ...manualHoldings.filter((h) => !newKeys.has(`${h.accountId ?? ''}::${h.name}`)),
+      ...manualHoldings.filter(
+        (h) => !newKeys.has(`${h.accountId ?? ''}::${normalizeStockName(h.name)}`),
+      ),
       ...newHoldings,
     ]
     for (const [, acctId] of accountIds) {

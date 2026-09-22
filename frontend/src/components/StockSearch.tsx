@@ -93,6 +93,12 @@ export function StockSearch({ value, onChange, disabled }: Props) {
         onFocus={() => results.length > 0 && setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder="종목명 또는 코드로 검색"
+        // 모바일 키보드는 "kodex " 처럼 사전에 없는 말을 띄어쓰기하는 순간
+        // 제멋대로 고친다("modes"). 종목명·코드는 사전에 없는 게 정상이다.
+        autoCorrect="off"
+        autoCapitalize="off"
+        autoComplete="off"
+        spellCheck={false}
         disabled={disabled}
         required
       />

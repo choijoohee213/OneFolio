@@ -127,6 +127,12 @@ export function UnmatchedResolver({ names, existing, busy, onResolve, onClose }:
           value={query}
           onChange={(e) => doSearch(e.target.value)}
           placeholder="종목명 또는 코드로 검색"
+        // 모바일 키보드는 "kodex " 처럼 사전에 없는 말을 띄어쓰기하는 순간
+        // 제멋대로 고친다("modes"). 종목명·코드는 사전에 없는 게 정상이다.
+        autoCorrect="off"
+        autoCapitalize="off"
+        autoComplete="off"
+        spellCheck={false}
           disabled={busy}
           autoFocus
         />
