@@ -19,6 +19,10 @@ import (
 // 빠르다 — 배포 환경에서 관측된 지연은 다시 걸면 대개 곧바로 풀린다.
 const requestTimeout = 15 * time.Second
 
+// 폴백 모델은 큰 모델이라 시간대에 따라 15초를 넘기기도 한다. 여기까지 온
+// 시점에는 이미 주 모델이 안 되는 상황이라, 느리더라도 받아내는 편이 낫다.
+const fallbackTimeout = 25 * time.Second
+
 // 모델은 버전을 박아 고정한다. latest 별칭은 늘 가장 새 모델을 가리키는데,
 // 새 모델일수록 트래픽이 몰려 503(과부하)을 자주 뱉는다.
 //
@@ -27,6 +31,12 @@ const requestTimeout = 15 * time.Second
 // 결과도 같으면서, 두 시간대 모두 2초 안팎으로 일정했다.
 // GEMINI_MODEL 로 바꿀 수 있다.
 const defaultModel = "gemini-3.1-flash-lite"
+
+// 503(과부하)은 키가 아니라 모델 단위로 걸린다. 같은 모델을 몇 초 뒤에 다시
+// 불러봐야 또 503 이라, 그때는 아예 다른 모델로 넘어간다. 폴백은 시간대를
+// 타서 주 모델로 쓰지 않기로 한 모델이지만, 실패보다는 느린 성공이 낫다.
+// GEMINI_FALLBACK_MODEL 로 바꿀 수 있고, 빈 값으로 두면 폴백하지 않는다.
+const defaultFallbackModel = "gemini-3.5-flash"
 
 type ExtractedHolding struct {
 	Name          string   `json:"name"`
@@ -89,9 +99,10 @@ const systemPrompt = `증권 앱 캡처 이미지에서 계좌 정보와 보유 
 {"accounts":[{"accountNumber":"111-1111-1111-0","accountType":"종합_주식","holdings":[{"name":"종목명","ticker":"TQQQ","quantity":10,"currentPrice":70.5,"avgBuyPrice":65.2,"currency":"USD","evalAmount":500000,"buyAmount":450000,"profitLoss":50000,"profitRate":11.11}]}]}`
 
 type Client struct {
-	clients []*genai.Client
-	model   string
-	next    atomic.Uint64
+	clients       []*genai.Client
+	model         string
+	fallbackModel string
+	next          atomic.Uint64
 	// quoteClient 는 해외 종목의 평단가·현재가가 달러로 찍혀 있을 때 원화
 	// 평가손익을 정확히 환산하는 데 쓴다. nil 이면 환산 없이 null로 둔다.
 	quoteClient *quote.Client
@@ -122,7 +133,14 @@ func NewClient(apiKeys string, quoteClient *quote.Client) (*Client, error) {
 	if model == "" {
 		model = defaultModel
 	}
-	return &Client{clients: clients, model: model, quoteClient: quoteClient}, nil
+	fallback, set := os.LookupEnv("GEMINI_FALLBACK_MODEL")
+	if !set {
+		fallback = defaultFallbackModel
+	}
+	if fallback == model {
+		fallback = ""
+	}
+	return &Client{clients: clients, model: model, fallbackModel: fallback, quoteClient: quoteClient}, nil
 }
 
 func (c *Client) pickClient() *genai.Client {
@@ -134,24 +152,46 @@ func (c *Client) KeyCount() int {
 	return len(c.clients)
 }
 
-// retryable 은 다시 걸어볼 만한 실패인지 가린다. 429(한도초과)는 키마다 다르게
-// 나므로 다음 키로 넘어가면 풀린다. 503(과부하)은 키와 무관하지만 잠깐 뒤에는
-// 풀리기도 해서 한 번은 더 걸어본다.
+// retryable 은 다시 걸어볼 만한 실패인지 가린다.
 //
-// 타임아웃도 다시 건다. 전에는 경로 자체의 문제라 보고 즉시 실패시켰는데,
+// 타임아웃은 다시 건다. 전에는 경로 자체의 문제라 보고 즉시 실패시켰는데,
 // 배포 환경에서 재어 보니 그렇지 않았다 — 다섯 번에 한 번쯤 30초를 넘기지만
 // 곧바로 다시 걸면 2~3초에 돌아온다. 규칙성이 없어 미리 피할 수도 없다.
+//
+// 과부하도 다시 걸지만 같은 모델로는 아니다 — nextAttempt 를 보라.
 func retryable(err error) bool {
+	return overloaded(err) || strings.Contains(err.Error(), "context deadline exceeded")
+}
+
+// overloaded 는 모델 자체가 받아주지 못하는 실패인지 가린다. 이건 키를 바꿔도
+// 풀리지 않으므로 다음 시도는 다른 모델로 넘긴다.
+func overloaded(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "429") ||
 		strings.Contains(msg, "503") ||
-		strings.Contains(msg, "UNAVAILABLE") ||
-		strings.Contains(msg, "context deadline exceeded")
+		strings.Contains(msg, "UNAVAILABLE")
 }
 
-// 503 은 즉시 오지 않고 수십 초 걸려 오기도 한다. 키 개수만큼 다 돌면 그 시간이
-// 그대로 쌓이므로 시도 횟수를 따로 묶는다.
-const maxAttempts = 2
+// 키 개수와 무관하게 이만큼 시도한다. 타임아웃도 503 도 키에 매인 실패가
+// 아니라서, 키가 하나뿐이어도 다시 거는 편이 낫다.
+const maxAttempts = 3
+
+// nextAttempt 는 방금 실패한 시도를 보고 다음에 어느 모델로 걸지 정한다.
+// tried 는 방금 실패한 시도의 0-기준 번호다.
+//
+// 과부하면 같은 모델을 다시 두드려도 소용없으니 곧바로 폴백으로 넘긴다.
+// 타임아웃은 다시 걸면 대개 풀리므로 주 모델을 한 번 더 써 보고, 그래도
+// 안 되면 마지막 한 번은 폴백에 건다.
+func (c *Client) nextAttempt(model string, err error, tried int) (string, time.Duration, bool) {
+	if c.fallbackModel == "" || model == c.fallbackModel {
+		return "", 0, false
+	}
+	lastChance := tried+1 == maxAttempts-1
+	if overloaded(err) || lastChance {
+		return c.fallbackModel, fallbackTimeout, true
+	}
+	return "", 0, false
+}
 
 func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string) (*Result, error) {
 	contents := []*genai.Content{
@@ -170,30 +210,29 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		ThinkingConfig: &genai.ThinkingConfig{ThinkingBudget: genai.Ptr(int32(0))},
 	}
 
-	attempts := maxAttempts
-	if len(c.clients) < attempts {
-		attempts = len(c.clients)
-	}
-
 	var resp *genai.GenerateContentResponse
 	var err error
-	for tried := 0; tried < attempts; tried++ {
+	model, timeout := c.model, requestTimeout
+	for tried := 0; tried < maxAttempts; tried++ {
 		client := c.pickClient()
-		attemptCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
 		start := time.Now()
-		resp, err = client.Models.GenerateContent(attemptCtx, c.model, contents, config)
+		resp, err = client.Models.GenerateContent(attemptCtx, model, contents, config)
 		cancel()
 		if err == nil {
 			break
 		}
 		// 실패는 화면에 이유가 다 드러나지 않아 로그로 남긴다.
-		log.Printf("OCR 실패 (%s, %d/%d, %.1fs): %v", c.model, tried+1, attempts, time.Since(start).Seconds(), err)
+		log.Printf("OCR 실패 (%s, %d/%d, %.1fs): %v", model, tried+1, maxAttempts, time.Since(start).Seconds(), err)
 		if !retryable(err) {
 			return nil, fmt.Errorf("gemini 호출 실패: %w", err)
 		}
+		if next, nextTimeout, ok := c.nextAttempt(model, err, tried); ok {
+			model, timeout = next, nextTimeout
+		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("gemini 호출 실패 (%d회 시도): %w", attempts, err)
+		return nil, fmt.Errorf("gemini 호출 실패 (%d회 시도): %w", maxAttempts, err)
 	}
 
 	text := resp.Text()
