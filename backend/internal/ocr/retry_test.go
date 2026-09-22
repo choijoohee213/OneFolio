@@ -71,3 +71,30 @@ func TestServerSideTimeoutIsTreatedLikeClientTimeout(t *testing.T) {
 		t.Error("첫 504 에는 주 모델을 한 번 더 써야 한다")
 	}
 }
+
+// 크레딧이 0 이 되면 결제계정에 딸린 키가 한꺼번에 멈춘다. 재시도도 모델
+// 교체도 소용없으므로 다른 실패와 갈라서 그대로 화면까지 올려야 한다.
+func TestCreditExhaustedIsNotRetried(t *testing.T) {
+	err := errors.New("Error 402, Message: Payment required, Status: PAYMENT_REQUIRED, Details: []")
+
+	if !creditExhausted(err) {
+		t.Fatal("402 는 크레딧 소진으로 가려야 한다")
+	}
+	if retryable(err) {
+		t.Error("크레딧이 없으면 다시 걸어도 같은 결과다")
+	}
+	if overloaded(err) {
+		t.Error("크레딧 소진은 과부하가 아니다 — 모델을 바꿔도 풀리지 않는다")
+	}
+	if timedOut(err) {
+		t.Error("크레딧 소진은 타임아웃이 아니다")
+	}
+}
+
+func TestCreditExhaustedDoesNotCatchOtherFailures(t *testing.T) {
+	for _, err := range []error{errOverload, errTimeout, errServerTimeout} {
+		if creditExhausted(err) {
+			t.Errorf("크레딧 소진이 아니다: %v", err)
+		}
+	}
+}
