@@ -478,6 +478,13 @@ Host: localhost:8080</code></pre>
       곱하면 원 단위가 어긋난다(예: 271,222 × 9 = 2,440,998, 실제 매입금액 2,441,000).
     </div>
 
+    <div class="note">
+      <strong>402 크레딧 소진</strong> Gemini 선불 크레딧이 <code>$0</code>이 되면 그 결제계정에
+      딸린 키가 한꺼번에 멈춘다. 이때는 <code>402</code>와 충전을 안내하는 메시지를 돌려준다 —
+      재시도·키 교체·모델 교체 어느 것으로도 풀리지 않기 때문에 다시 걸지 않는다.
+      선불 크레딧은 구매 후 12개월이 지나면 소멸하므로, 쓰지 않아도 언젠가 이 상태가 된다.
+    </div>
+
     <h4>curl 예시</h4>
 <pre><code>curl -X POST http://localhost:8080/api/ocr \
   -F "image=@screenshot.png"</code></pre>

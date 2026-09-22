@@ -3,6 +3,7 @@ package ocr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -163,6 +164,16 @@ func retryable(err error) bool {
 	return overloaded(err) || timedOut(err)
 }
 
+// ErrCreditExhausted 는 선불 크레딧이 바닥나 결제계정에 딸린 키가 한꺼번에
+// 멈춘 상태다. 다시 걸어도, 키를 바꿔도, 모델을 바꿔도 풀리지 않는다 —
+// 사용자가 크레딧을 채워야만 풀리므로 그 사실이 화면까지 그대로 가야 한다.
+var ErrCreditExhausted = errors.New("gemini 선불 크레딧이 소진되었습니다")
+
+func creditExhausted(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "402") || strings.Contains(msg, "PAYMENT_REQUIRED")
+}
+
 // timedOut 은 제한 시간 안에 응답이 오지 않은 실패를 가린다.
 //
 // 같은 사건이 두 가지 모습으로 온다. SDK 가 우리 context 데드라인을
@@ -239,6 +250,9 @@ func (c *Client) Extract(ctx context.Context, imageData []byte, mimeType string)
 		// 실패는 화면에 이유가 다 드러나지 않아 로그로 남긴다.
 		log.Printf("OCR 실패 (%s, %d/%d, %.1fs): %v", model, tried+1, maxAttempts, time.Since(start).Seconds(), err)
 		if !retryable(err) {
+			if creditExhausted(err) {
+				return nil, ErrCreditExhausted
+			}
 			return nil, fmt.Errorf("gemini 호출 실패: %w", err)
 		}
 		if next, nextTimeout, ok := c.nextAttempt(model, err, tried); ok {

@@ -124,6 +124,20 @@ async function pooledMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurre
   return results
 }
 
+function errorMessage(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause)
+}
+
+function friendlyError(msg: string): string {
+  if (msg.includes('429') || msg.includes('quota')) {
+    return 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
+  }
+  if (msg.includes('deadline exceeded') || msg.includes('재시도 소진')) {
+    return '분석 응답이 너무 늦어 실패했습니다. 다시 시도해주세요.'
+  }
+  return msg
+}
+
 const MAX_DIMENSION = 1024
 
 function resizeImage(file: File): Promise<File> {
@@ -252,35 +266,46 @@ export function ScreenshotImport({ open, busy, onClose, onConfirm }: Props) {
 
     try {
       let completed = 0
-      const results = await pooledMap(files, async (file) => {
-        const resized = await resizeImage(file)
-        const result = await extractFromScreenshot(resized)
-        completed++
-        setProcessingIndex(completed)
-        return result
+      // 한 장의 실패를 그 장에 가둔다. 예전에는 실패가 그대로 위로 던져져서
+      // 이미 성공한 장의 결과까지 통째로 버려졌다 — 일곱 장을 넣으면 한 장만
+      // 튕겨도 나머지 여섯 장을 처음부터 다시 올려야 했다.
+      const settled = await pooledMap(files, async (file) => {
+        try {
+          const resized = await resizeImage(file)
+          return { ok: true, result: await extractFromScreenshot(resized) } as const
+        } catch (cause) {
+          return { ok: false, message: errorMessage(cause) } as const
+        } finally {
+          completed++
+          setProcessingIndex(completed)
+        }
       }, CONCURRENCY)
 
       const newHoldings: ExtractedHolding[] = []
-      for (const result of results) {
-        if (result.holdings) newHoldings.push(...result.holdings)
+      for (const item of settled) {
+        if (item.ok && item.result.holdings) newHoldings.push(...item.result.holdings)
       }
+      const failures = settled.flatMap((item) => (item.ok ? [] : [item.message]))
 
       if (newHoldings.length === 0 && holdings.length === 0) {
-        setError('종목을 찾지 못했습니다. 다른 캡처를 시도해보세요.')
+        setError(
+          failures.length > 0
+            ? friendlyError(failures[0])
+            : '종목을 찾지 못했습니다. 다른 캡처를 시도해보세요.',
+        )
         setStep('preview')
         return
       }
 
+      setError(
+        failures.length === 0
+          ? null
+          : `${files.length}장 중 ${failures.length}장을 읽지 못했습니다. ${friendlyError(failures[0])}`,
+      )
       setHoldings((prev) => dedup([...prev, ...newHoldings]))
       setStep('review')
     } catch (cause) {
-      const msg = cause instanceof Error ? cause.message : String(cause)
-      const friendly = msg.includes('429') || msg.includes('quota')
-        ? 'API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
-        : msg.includes('deadline exceeded') || msg.includes('재시도 소진')
-          ? '분석 응답이 너무 늦어 실패했습니다. 다시 시도해주세요.'
-          : msg
-      setError(friendly)
+      setError(friendlyError(errorMessage(cause)))
       setStep(holdings.length > 0 ? 'review' : 'preview')
     }
   }

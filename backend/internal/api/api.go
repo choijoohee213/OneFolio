@@ -4,6 +4,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -230,6 +231,10 @@ func (s *Server) extractFromScreenshot(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.ocrClient.Extract(r.Context(), data, mimeType)
 	if err != nil {
+		if errors.Is(err, ocr.ErrCreditExhausted) {
+			writeError(w, http.StatusPaymentRequired, "Gemini 선불 크레딧이 소진되어 캡처를 분석할 수 없습니다. AI Studio 결제 페이지에서 크레딧을 충전해주세요.")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "종목 추출 실패: %v", err)
 		return
 	}
