@@ -143,6 +143,7 @@ func TestRetryableCoversTimeout(t *testing.T) {
 		{"요청 전송 중 타임아웃", errors.New(`doRequest: error sending request: Post "https://x": context deadline exceeded`), true},
 		{"한도초과", errors.New("Error 429, Message: quota exceeded"), true},
 		{"과부하", errors.New("Error 503, Message: This model is currently experiencing high traffic"), true},
+		{"서버 쪽 타임아웃", errServerTimeout, true},
 		{"잘못된 요청", errors.New("Error 400, Message: Request contains an invalid argument"), false},
 		{"지원 종료", errors.New("Error 404, Message: model is no longer available"), false},
 	}
