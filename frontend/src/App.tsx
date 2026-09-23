@@ -352,6 +352,18 @@ export default function App() {
     let nextAccounts = [...manualAccounts]
     const accountIds = new Map<string, string>()
 
+    // 확인창에서 고른 종목은 종목마스터 이름으로 저장돼 있는데, OCR 은 다음에도
+    // 화면에 적힌 이름 그대로 읽어 온다. 이름이 다르면 같은 종목이 새 줄로
+    // 쌓이므로, 종목코드가 같으면 이미 저장된 이름으로 맞춰 준다.
+    const nameByCode = new Map<string, string>()
+    for (const h of summary?.holdings ?? []) {
+      if (h.code) nameByCode.set(h.code, h.name)
+    }
+    const storedName = (h: ExtractedHolding) => {
+      const code = stockMappings[h.name] || h.ticker
+      return (code && nameByCode.get(code)) || normalizeStockName(h.name)
+    }
+
     for (const h of extracted) {
       if (!h.accountNumber || accountIds.has(h.accountNumber)) continue
       const existing = nextAccounts.find((a) => a.accountNumber === h.accountNumber)
@@ -374,7 +386,7 @@ export default function App() {
 
     const newHoldings: ManualHolding[] = extracted.map((h) => ({
       id: crypto.randomUUID(),
-      name: normalizeStockName(h.name),
+      name: storedName(h),
       evalAmount: h.evalAmount ?? 0,
       accountId: h.accountNumber ? accountIds.get(h.accountNumber) : undefined,
       quantity: h.quantity ?? undefined,
@@ -659,11 +671,10 @@ export default function App() {
               const newName = nameUpdates[h.name]
               return newName ? { ...h, name: newName } : h
             })
-            const cleanedMappings = { ...resolved }
-            for (const oldName of Object.keys(nameUpdates)) {
-              delete cleanedMappings[oldName]
-            }
-            apply({ stockMappings: cleanedMappings, manualHoldings: renamedHoldings })
+            // 고른 이름으로 바꾼 뒤에도 캡처가 읽던 이름의 매핑은 남겨 둔다.
+            // OCR 은 다음에도 같은 이름을 읽어 오기 때문에, 이걸 지우면 확인창이
+            // 매번 다시 뜨고 그때마다 같은 종목이 새 줄로 쌓인다.
+            apply({ stockMappings: resolved, manualHoldings: renamedHoldings })
           }}
           onClose={() => setShowUnmatched(false)}
         />
