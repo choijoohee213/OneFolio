@@ -165,8 +165,16 @@ function sumEvalAmount(holdings: Holding[]): number {
 // 전체 보기에서는 수량·금액을 합치고, 평단과 손익률은 합산 매입금액에서 다시 낸다.
 function mergeByName(holdings: Holding[]): Holding[] {
   const merged = new Map<string, Holding>()
+  // 합쳐진 줄이 실제로 여러 계좌에서 왔는지 가리려면 계좌를 기억해야 한다.
+  // 같은 계좌에 같은 종목이 두 줄 있는 경우(캡처를 다시 올려 생긴 중복)까지
+  // 여러 계좌로 오해하면, 정작 그걸 지우려는 수정 버튼이 막혀 버린다.
+  const accountsOf = new Map<string, Set<string>>()
 
   for (const holding of holdings) {
+    const seen = accountsOf.get(holding.name) ?? new Set<string>()
+    seen.add(holding.accountNumber)
+    accountsOf.set(holding.name, seen)
+
     const found = merged.get(holding.name)
     if (!found) {
       // accountNumber 는 그대로 첫 항목 것을 쓴다. 화면에서는 name 으로만 묶어
@@ -182,11 +190,12 @@ function mergeByName(holdings: Holding[]): Holding[] {
     found.profitLoss = addNullable(found.profitLoss, holding.profitLoss)
     // 여러 계좌가 합쳐진 행은 어느 계좌를 고치는 건지 알 수 없다. 수정을 막으려고
     // 표시해 둔다 — 계좌별 보기에서 계좌를 특정해 고쳐야 한다.
-    found.mergedFromMultipleAccounts = true
+    found.mergedFromMultipleAccounts = (accountsOf.get(holding.name)?.size ?? 1) > 1
+    found.mergedFromSeveralRows = true
   }
 
   for (const holding of merged.values()) {
-    if (!holding.mergedFromMultipleAccounts) continue
+    if (!holding.mergedFromSeveralRows) continue
     holding.avgBuyPrice = holding.buyAmount === null ? null : holding.buyAmount / holding.quantity
     holding.profitRate =
       holding.buyAmount === null || holding.buyAmount === 0 || holding.profitLoss === null
