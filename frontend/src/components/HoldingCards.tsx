@@ -34,6 +34,12 @@ export function HoldingCards({
 }: Props) {
   const view = (holding: Holding) => amounts(holding, showUSD, quotes, usdKrw, showLive)
 
+  // 상세로 열어 둔 종목은 표 전체가 하나로 공유한다. 계좌별 보기는 계좌마다 이
+  // 목록을 따로 그리므로, 그냥 열면 계좌 수만큼 모달이 한꺼번에 열린다. 그중
+  // 제 종목이 없는 모달은 빈 채로 뜨는데, 나중에 열린 쪽이 top layer 위에 앉아
+  // 그 아래 모달까지 통째로 클릭을 삼킨다 — 수정 버튼이 눌리지 않던 이유다.
+  const showsDetail = detail !== null && holdings.includes(detail)
+
   return (
     <>
       <ul className="holding-cards">
@@ -69,8 +75,8 @@ export function HoldingCards({
         })}
       </ul>
 
-      <Modal open={detail !== null} title={detail?.name ?? ''} onClose={onCloseDetail}>
-        {detail && (
+      <Modal open={showsDetail} title={detail?.name ?? ''} onClose={onCloseDetail}>
+        {showsDetail && detail && (
           <HoldingDetail
             holding={detail}
             busy={busy}
