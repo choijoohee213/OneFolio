@@ -45,6 +45,7 @@ func New(listings *master.Table, ocrClient *ocr.Client, quoteClient *quote.Clien
 
 func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /api/auth", s.auth)
 	mux.HandleFunc("GET /api/stocks", s.searchStocks)
 	mux.HandleFunc("POST /api/portfolio", s.portfolio)
 	if s.ocrClient != nil {
@@ -56,6 +57,12 @@ func (s *Server) Register(mux *http.ServeMux) {
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// auth 는 프론트가 입력받은 암호를 확인해 보는 곳이다. 게이트를 통과해 여기까지
+// 왔다면 암호는 이미 맞다.
+func (s *Server) auth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

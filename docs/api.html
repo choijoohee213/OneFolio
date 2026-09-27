@@ -216,7 +216,7 @@
   <tbody>
     <tr><td>프로토콜</td><td>HTTP/1.1</td></tr>
     <tr><td>Content-Type</td><td><code>multipart/form-data</code> (파일 업로드), 그 외 본문 없음</td></tr>
-    <tr><td>인증</td><td>없음. 개인용이며 서버가 상태를 갖지 않는다</td></tr>
+    <tr><td>인증</td><td><code>X-App-Token</code> 헤더에 <code>APP_TOKEN</code>과 같은 값. <code>GET /health</code>만 예외다. <code>APP_TOKEN</code>이 비어 있으면 검사하지 않는다</td></tr>
     <tr><td>문자 인코딩</td><td>UTF-8</td></tr>
   </tbody>
 </table>
@@ -248,6 +248,10 @@
     <tr>
       <td><code>400</code></td><td>Bad Request</td><td class="type">JSON</td>
       <td>필수 필드 누락, 파라미터 형식 오류</td>
+    </tr>
+    <tr>
+      <td><code>401</code></td><td>Unauthorized</td><td class="type">JSON</td>
+      <td><code>X-App-Token</code>이 없거나 <code>APP_TOKEN</code>과 다를 때. <code>{"error": "암호가 필요합니다"}</code></td>
     </tr>
     <tr>
       <td><code>404</code></td><td>Not Found</td><td class="type">text/plain</td>
@@ -284,6 +288,7 @@
 <h3>API 사용 시퀀스</h3>
 <ol>
   <li><code>GET /health</code> — 서버가 떠 있는지 확인한다. (선택)</li>
+  <li><code>GET /api/auth</code> — 가진 암호가 맞는지 확인한다. 이후 모든 요청에 <code>X-App-Token</code>을 붙인다.</li>
   <li><code>POST /api/portfolio</code> — 준비한 잔고파일을 <strong>한 번에 모두</strong> 올린다.</li>
   <li>응답의 <code>holdings[].category</code>를 확인한다. 잘못 분류된 종목이 있으면 사용자가 태깅한다.</li>
   <li>태깅 결과를 <code>overrides</code>에 담아 <code>POST /api/portfolio</code>를 다시 호출한다.</li>
@@ -310,18 +315,25 @@
       <td class="type">불필요</td>
       <td>서버 상태 확인</td>
     </tr>
+    <tr data-op="op-auth">
+      <td>암호 확인</td>
+      <td><span class="badge get">GET</span></td>
+      <td class="path">/api/auth</td>
+      <td class="type">필요</td>
+      <td>가진 암호가 맞는지 확인</td>
+    </tr>
     <tr data-op="op-stocks">
       <td>종목 검색</td>
       <td><span class="badge get">GET</span></td>
       <td class="path">/api/stocks</td>
-      <td class="type">불필요</td>
+      <td class="type">필요</td>
       <td>KIS 종목마스터에서 이름·코드로 검색</td>
     </tr>
     <tr data-op="op-portfolio">
       <td>자산배분 집계</td>
       <td><span class="badge post">POST</span></td>
       <td class="path">/api/portfolio</td>
-      <td class="type">불필요</td>
+      <td class="type">필요</td>
       <td>잔고파일 업로드 → 통합·분류·집계</td>
     </tr>
   </tbody>
@@ -364,6 +376,45 @@ Host: localhost:8080</code></pre>
 
     <h4>에러</h4>
     <p class="type">공통 에러만 발생한다.</p>
+  </div>
+</details>
+
+<!-- ---- GET /api/auth ---- -->
+<details class="op get" id="op-auth">
+  <summary>
+    <span class="chevron">▶</span>
+    <span class="badge get">GET</span>
+    <span class="path">/api/auth</span>
+    <span class="summary-text">암호 확인</span>
+  </summary>
+  <div class="op-body">
+    <p>
+      가진 암호가 맞는지만 확인한다. 통과 여부는 이 핸들러가 아니라 앞단 게이트가
+      판단하므로, <code>200</code>이 오면 그 암호로 다른 엔드포인트도 부를 수 있다.
+    </p>
+    <div class="note">
+      CORS는 브라우저만 지키는 규칙이라 <code>ALLOWED_ORIGINS</code>로는 외부 호출을
+      막을 수 없다. 이 게이트가 없으면 백엔드가 남의 Gemini·KIS 호출을 대신 쳐 주는
+      공짜 프록시가 된다.
+    </div>
+
+    <h4>Request Syntax</h4>
+<pre><code>GET /api/auth HTTP/1.1
+Host: localhost:8080
+X-App-Token: &lt;APP_TOKEN&gt;</code></pre>
+
+    <h4>Response — 200 OK</h4>
+<pre><code>{
+  "status": "ok"
+}</code></pre>
+
+    <h4>Response — 401 Unauthorized</h4>
+<pre><code>{
+  "error": "암호가 필요합니다"
+}</code></pre>
+
+    <h4>Example</h4>
+<pre><code>curl -H "X-App-Token: $APP_TOKEN" http://localhost:8080/api/auth</code></pre>
   </div>
 </details>
 
@@ -997,6 +1048,7 @@ Content-Disposition: form-data; name="holdingEdits"
   <tbody>
     <tr><td><code>PORT</code></td><td><code>8080</code></td><td>수신 포트. Render가 주입한다</td></tr>
     <tr><td><code>ALLOWED_ORIGINS</code></td><td class="type">(비어있음)</td><td>CORS 허용 오리진, 쉼표로 구분. 비우면 모두 허용</td></tr>
+    <tr><td><code>APP_TOKEN</code></td><td class="type">(비어있음)</td><td>접속 암호. <code>GET /health</code>를 뺀 모든 요청에 <code>X-App-Token</code> 헤더로 같은 값을 요구한다. 비우면 게이트를 걸지 않아 누구나 API를 호출할 수 있다</td></tr>
     <tr><td><code>GEMINI_API_KEY</code></td><td class="type">(비어있음)</td><td>Gemini API 키. 설정하면 <code>POST /api/ocr</code> 활성화. 쉼표로 여러 개를 주면 번갈아 쓴다</td></tr>
     <tr><td><code>GEMINI_MODEL</code></td><td class="type">gemini-3.1-flash-lite</td><td>OCR 에 쓸 Gemini 모델. <code>latest</code> 별칭은 트래픽이 몰려 503 이 잦고, 큰 모델은 시간대에 따라 응답이 2~16초로 요동쳐서 버전을 고정해 둔다</td></tr>
     <tr><td><code>GEMINI_FALLBACK_MODEL</code></td><td class="type">gemini-3.5-flash</td><td>주 모델이 과부하(429·503)거나 두 번 연속 타임아웃일 때 대신 걸 모델. 503 은 키가 아니라 모델 단위로 걸려서 같은 모델을 다시 불러도 또 503 이다. 빈 문자열로 두면 폴백하지 않는다</td></tr>
@@ -1010,7 +1062,8 @@ Content-Disposition: form-data; name="holdingEdits"
 <pre><code>cd backend
 go run ./cmd/server</code></pre>
 <p>배포 시 프론트 도메인을 지정한다.</p>
-<pre><code>ALLOWED_ORIGINS=https://onefolio.pages.dev</code></pre>
+<pre><code>ALLOWED_ORIGINS=https://onefolio.pages.dev
+APP_TOKEN=&lt;충분히 긴 임의 문자열&gt;</code></pre>
 <div class="note">
   Render의 <strong>Root Directory를 <code>backend</code>로</strong> 지정해야 한다.
   Go 모듈이 저장소 루트가 아니라 하위 디렉토리에 있다.

@@ -4,6 +4,8 @@
 //
 //	PORT             수신 포트 (기본 8080). Render 가 주입한다.
 //	ALLOWED_ORIGINS  CORS 허용 오리진, 쉼표로 구분 (비우면 모두 허용)
+//	APP_TOKEN        접속 암호. /health 외 모든 요청에 X-App-Token 헤더로 요구한다
+//	                 (비우면 게이트를 걸지 않는다 — 로컬 개발용)
 package main
 
 import (
@@ -53,10 +55,17 @@ func main() {
 	mux := http.NewServeMux()
 	api.New(listings, ocrClient, quoteClient).Register(mux)
 
+	appToken := os.Getenv("APP_TOKEN")
+	if appToken == "" {
+		log.Println("경고: APP_TOKEN 이 비어 있어 누구나 API 를 호출할 수 있다")
+	} else {
+		log.Println("접속 암호 활성화")
+	}
+
 	address := ":" + env("PORT", defaultPort)
 	server := &http.Server{
 		Addr:         address,
-		Handler:      api.CORS(strings.Split(os.Getenv("ALLOWED_ORIGINS"), ","), mux),
+		Handler:      api.CORS(strings.Split(os.Getenv("ALLOWED_ORIGINS"), ","), api.Auth(appToken, mux)),
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,

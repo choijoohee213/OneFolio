@@ -1987,3 +1987,71 @@ button.link:disabled {
     transition: none;
   }
 }
+
+/* ---------- 암호 화면 ---------- */
+.gate {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.gate-card {
+  display: grid;
+  gap: 0.9rem;
+  width: min(20rem, 100%);
+  padding: 1.6rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.gate-card h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+.gate-card label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.gate-card input {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+}
+.gate-card button {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.gate-card button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gate-card button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.gate-card small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+.gate-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--gain);
+}

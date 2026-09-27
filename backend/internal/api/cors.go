@@ -20,7 +20,7 @@ func CORS(origins []string, next http.Handler) http.Handler {
 		if origin := allowFor(allowed, r.Header.Get("Origin")); origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, "+TokenHeader)
 			w.Header().Set("Vary", "Origin")
 		}
 		if r.Method == http.MethodOptions {
