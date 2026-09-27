@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { AuthGate } from './components/AuthGate'
 
 // index.html 이 깔아 둔 로딩 화면을 최소 이만큼은 띄워 둔다. 이걸 안 하면
 // 앱이 로딩 화면보다 빨리 떠서(빠른 연결에서 0.24초) 아무도 못 본다.
@@ -11,7 +12,9 @@ const MIN_SPLASH_MS = 900
 function start() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <AuthGate>
+        <App />
+      </AuthGate>
     </StrictMode>,
   )
 }
